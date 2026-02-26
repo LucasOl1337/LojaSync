@@ -1,0 +1,48 @@
+# Bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.env
+.venv
+ENV/
+venv/
+
+# IDE/editor
+.vscode/
+.idea/
+*.iml
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.pkg
+*.spec
+build/
+dist/
+
+# PyInstaller outputs
+engine/webapp/build*/
+engine/webapp/dist/
+
+# Node / frontend
+node_modules/
+
+# Data outputs (generated/exported)
+engine/webapp/data/
+
+# OS files
+.DS_Store
+Thumbs.db

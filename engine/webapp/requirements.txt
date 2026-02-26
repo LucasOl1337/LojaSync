@@ -1,0 +1,16 @@
+# LojaSync WebApp dependencies
+# Instale com: python -m pip install -r requirements.txt
+
+# Core FastAPI stack
+fastapi==0.115.0
+uvicorn[standard]==0.31.0
+python-multipart==0.0.9
+pydantic==2.9.2
+httpx==0.27.2
+
+# Async communication / automation helpers
+websockets==12.0
+pyautogui==0.9.54
+
+# PDF repair utility
+pypdf==4.2.0

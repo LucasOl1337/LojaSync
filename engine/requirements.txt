@@ -1,0 +1,26 @@
+# LojaSync Engine dependencies
+# Instale com: python -m pip install -r requirements.txt
+
+fastapi==0.115.0
+uvicorn[standard]==0.31.0
+httpx==0.27.2
+pydantic==2.9.2
+python-multipart==0.0.9
+websockets==12.0
+
+# PDF parsing & processing
+PyPDF2==3.0.1
+pdfplumber==0.11.4
+pypdf==4.2.0
+
+# Desktop automation stack
+pyautogui==0.9.54
+keyboard==0.13.5
+pillow==10.4.0
+pygetwindow==0.0.9
+pyscreeze==0.1.30
+pytweening==1.0.7
+mouseinfo==0.1.3
+
+# Backwards compatibility helpers
+importlib-metadata==7.1.0

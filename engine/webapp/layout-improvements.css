@@ -1,0 +1,579 @@
+/**
+ * LojaSync - Melhorias de Layout Profissionais
+ * =============================================
+ * Aplica TODAS as melhorias sugeridas na análise
+ * Este arquivo trabalha JUNTO com os temas completos
+ */
+
+/* ============================================
+   1. SISTEMA DE CORES SEMÂNTICO NOS BOTÕES
+   ============================================ */
+
+/* Primários - Ações principais */
+#btn-salvar,
+#btn-automation-start,
+#btn-importar,
+.pill-button.accent {
+  background: var(--color-primary) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+}
+
+#btn-salvar:hover,
+#btn-automation-start:hover,
+#btn-importar:hover,
+.pill-button.accent:hover {
+  background: var(--color-primary-hover) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-primary) !important;
+}
+
+/* Secundários - Ações neutras */
+#btn-toggle-simple-mode,
+#btn-calibrar,
+#btn-export-json,
+.pill-button.secondary {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  font-weight: 500 !important;
+}
+
+#btn-toggle-simple-mode:hover,
+#btn-calibrar:hover,
+#btn-export-json:hover,
+.pill-button.secondary:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-color-hover) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Sucesso - Aplicar dados */
+#btn-aplicar-categoria,
+#btn-aplicar-marca,
+.pill-button.success {
+  background: var(--color-success) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+
+#btn-aplicar-categoria:hover,
+#btn-aplicar-marca:hover,
+.pill-button.success:hover {
+  background: var(--color-success-hover) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Aviso - Atenção */
+#btn-margem,
+#btn-formatar-codigos,
+.pill-button.warning {
+  background: var(--color-warning) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+
+#btn-margem:hover,
+#btn-formatar-codigos:hover,
+.pill-button.warning:hover {
+  background: var(--color-warning-hover) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4) !important;
+}
+
+/* Perigo - Deletar, limpar */
+#btn-limpar-lista,
+#btn-deletar-itens,
+#btn-automation-stop,
+.pill-button.danger {
+  background: var(--color-danger) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+
+#btn-limpar-lista:hover,
+#btn-deletar-itens:hover,
+#btn-automation-stop:hover,
+.pill-button.danger:hover {
+  background: var(--color-danger-hover) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* ============================================
+   2. TIPOGRAFIA MELHORADA
+   ============================================ */
+
+/* Títulos principais */
+.panel-title h2 {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  margin-bottom: 4px !important;
+  color: var(--text-primary) !important;
+}
+
+/* Subtítulos */
+.panel-subtitle {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--text-muted) !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Labels de formulário */
+label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+}
+
+/* Cabeçalhos de tabela */
+th {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: var(--text-muted) !important;
+  padding: 16px 16px !important;
+}
+
+/* Células de tabela */
+td {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  padding: 16px !important;
+  color: var(--text-primary) !important;
+}
+
+/* ============================================
+   3. ESPAÇAMENTO E RESPIRAÇÃO
+   ============================================ */
+
+/* Mais espaço entre botões */
+.pill-controls {
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Padding melhorado nos cards */
+.panel-header {
+  padding: 24px !important;
+}
+
+.product-form {
+  padding: 24px !important;
+}
+
+.totals,
+.agents-card {
+  padding: 20px !important;
+}
+
+/* Tabela com mais respiração */
+tbody tr:hover {
+  background: var(--color-primary-light) !important;
+  transition: background 0.15s ease !important;
+}
+
+/* Zebra striping sutil */
+tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* ============================================
+   4. COMPONENTES MELHORADOS
+   ============================================ */
+
+/* Inputs com feedback visual */
+input:not([type="checkbox"]),
+select,
+textarea {
+  background: var(--bg-tertiary) !important;
+  border: 2px solid transparent !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  font-size: 14px !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s ease !important;
+}
+
+input:focus:not([type="checkbox"]),
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 4px var(--color-primary-light) !important;
+  outline: none !important;
+  background: var(--bg-secondary) !important;
+}
+
+input::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.6 !important;
+}
+
+/* Botões com estados visuais claros */
+button {
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  padding: 10px 18px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: none !important;
+}
+
+button:active {
+  transform: scale(0.98) !important;
+}
+
+button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Cards com elevação */
+.panel-header,
+.totals,
+.agents-card {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 
+              0 1px 2px rgba(0, 0, 0, 0.24) !important;
+}
+
+/* ============================================
+   5. TOTALIZADORES REDESENHADOS
+   ============================================ */
+
+.totals {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+.totals h3 {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: var(--text-muted) !important;
+  margin: 0 0 12px 0 !important;
+}
+
+.totals-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 12px 0 !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.totals-row:last-child {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.totals-label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+}
+
+.totals-value {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+/* Cores semânticas nos valores */
+.totals-value.quantity {
+  color: var(--color-info) !important;
+}
+
+.totals-value.cost {
+  color: var(--color-warning) !important;
+}
+
+.totals-value.sale {
+  color: var(--color-success) !important;
+}
+
+/* ============================================
+   6. ESTAÇÕES CONECTADAS MELHORADAS
+   ============================================ */
+
+.agents-card {
+  position: relative !important;
+}
+
+.agents-card h3 {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: var(--text-muted) !important;
+  margin: 0 0 16px 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.agents-card h3::before {
+  content: '●' !important;
+  color: var(--color-success) !important;
+  font-size: 16px !important;
+  animation: pulse 2s ease-in-out infinite !important;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.agent-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px !important;
+  background: var(--bg-tertiary) !important;
+  border-radius: 8px !important;
+  margin-bottom: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.agent-item:hover {
+  background: var(--bg-hover) !important;
+  transform: translateX(4px) !important;
+}
+
+.agent-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: var(--color-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+  color: white !important;
+  font-size: 14px !important;
+}
+
+.agent-info {
+  flex: 1 !important;
+}
+
+.agent-name {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 2px !important;
+}
+
+.agent-status {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+}
+
+/* ============================================
+   7. ÍCONES (Pseudo-elementos)
+   ============================================ */
+
+/* Adiciona ícones via ::before */
+#btn-importar::before {
+  content: '📤 ';
+}
+
+#btn-salvar::before {
+  content: '💾 ';
+}
+
+#btn-calibrar::before {
+  content: '⚙️ ';
+}
+
+#btn-limpar-lista::before {
+  content: '🗑️ ';
+}
+
+#btn-automation-start::before {
+  content: '▶️ ';
+}
+
+#btn-automation-stop::before {
+  content: '⏹️ ';
+}
+
+#btn-export-json::before {
+  content: '📊 ';
+}
+
+#btn-margem::before {
+  content: '💰 ';
+}
+
+#btn-aplicar-categoria::before {
+  content: '🏷️ ';
+}
+
+#btn-aplicar-marca::before {
+  content: '🏭 ';
+}
+
+#btn-juntar::before {
+  content: '🔄 ';
+}
+
+#btn-formatar-codigos::before {
+  content: '🔧 ';
+}
+
+/* ============================================
+   8. MICRO-INTERAÇÕES
+   ============================================ */
+
+/* Smooth transitions em tudo */
+* {
+  transition-duration: 0.2s !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Animação de entrada para cards */
+.panel-header,
+.totals,
+.agents-card {
+  animation: slideInUp 0.3s ease-out !important;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Barra de progresso animada */
+.progress-bar {
+  transition: width 0.3s ease !important;
+  background: linear-gradient(90deg, 
+    var(--color-primary) 0%, 
+    var(--color-primary-hover) 100%) !important;
+}
+
+/* ============================================
+   9. BADGES/PILLS MELHORADAS
+   ============================================ */
+
+.pill-button {
+  padding: 8px 16px !important;
+  border-radius: 20px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+/* ============================================
+   10. ACESSIBILIDADE
+   ============================================ */
+
+/* Focus visible para navegação por teclado */
+*:focus-visible {
+  outline: 3px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Indicadores de estado claros */
+button[aria-pressed="true"],
+button.active {
+  background: var(--color-primary) !important;
+  color: white !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ============================================
+   11. RESPONSIVIDADE MELHORADA
+   ============================================ */
+
+@media (max-width: 1200px) {
+  .panel-title h2 {
+    font-size: 20px !important;
+  }
+  
+  .pill-controls {
+    gap: 8px !important;
+  }
+  
+  button {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .panel-header,
+  .product-form,
+  .totals {
+    padding: 16px !important;
+  }
+  
+  .pill-controls {
+    flex-direction: column !important;
+  }
+  
+  .pill-button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ============================================
+   12. POLISH FINAL
+   ============================================ */
+
+/* Sombras em elementos interativos */
+button:not(:disabled):hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Transições suaves em hovers */
+tr:hover,
+.agent-item:hover,
+button:hover {
+  transition: all 0.2s ease !important;
+}
+
+/* Border radius consistente */
+.panel-header,
+.totals,
+.agents-card,
+button,
+input,
+select {
+  border-radius: 12px !important;
+}
+
+/* Cursor pointer em elementos clicáveis */
+button,
+.pill-button,
+.theme-card-complete,
+a {
+  cursor: pointer !important;
+}

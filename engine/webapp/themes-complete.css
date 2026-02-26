@@ -1,0 +1,104 @@
+/**
+ * LojaSync - Sistema de Temas Completos
+ * ====================================
+ * Estrutura para criar temas personalizados
+ * 
+ * COMO ADICIONAR UM NOVO TEMA:
+ * 1. Copie o bloco do tema default abaixo
+ * 2. Mude o nome: [data-complete-theme="seunome"]
+ * 3. Ajuste as variáveis CSS conforme desejado
+ * 4. Adicione o botão no index.html no modal de temas
+ */
+
+/* ============================================
+   TEMA DEFAULT (Roxo Original - NÃO MODIFICAR)
+   ============================================ */
+
+[data-complete-theme="default"] {
+  /* Cores principais - ORIGINAL */
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-primary-light: rgba(139, 92, 246, 0.1);
+  
+  /* Cores de estado - ORIGINAL */
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-info: #3b82f6;
+  --color-info-hover: #2563eb;
+  
+  /* Backgrounds - ORIGINAL */
+  --bg-primary: #1e293b;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #334155;
+  --bg-hover: #475569;
+  
+  /* Textos - ORIGINAL */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  
+  /* Bordas - ORIGINAL */
+  --border-color: #334155;
+  --border-color-hover: #475569;
+  
+  /* Sombras - ORIGINAL */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-primary: 0 4px 12px rgba(139, 92, 246, 0.3);
+  
+  /* Tipografia - ORIGINAL */
+  --font-family-base: 'Space Grotesk', sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 24px;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Espaçamento - ORIGINAL */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  
+  /* Border radius - ORIGINAL */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+/* ============================================
+   ESPAÇO PARA ADICIONAR NOVOS TEMAS
+   ============================================ 
+   
+   Exemplo de estrutura:
+   
+   [data-complete-theme="meutema"] {
+     --color-primary: #SEU_HEX;
+     --color-primary-hover: #SEU_HEX;
+     --bg-primary: #SEU_HEX;
+     --text-primary: #SEU_HEX;
+     ... (copie as variáveis do tema default)
+   }
+   
+   Depois adicione efeitos especiais se quiser:
+   
+   [data-complete-theme="meutema"] button {
+     background: sua_cor !important;
+   }
+   
+   ============================================ */

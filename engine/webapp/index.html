@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LojaSync Web Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=20260121" />
+  <!--BACKEND_URL_PLACEHOLDER-->
+</head>
+<body>
+  <div class="background-glow"></div>
+  <main class="app-shell">
+    <section class="left-panel">
+      <header class="panel-header">
+        <div class="panel-title">
+          <h2>Cadastro de Produtos</h2>
+          <span class="panel-subtitle">Gerencie os itens antes de enviar para o ByteEmpresa</span>
+        </div>
+        <div class="panel-actions">
+          <button type="button" class="pill-button secondary" id="btn-toggle-simple-mode">Modo simplificado</button>
+        </div>
+      </header>
+
+      <form id="product-form" class="product-form">
+        <div class="form-grid" data-form-section="primary">
+          <label class="input-field">
+            <span>Nome</span>
+            <input id="product-name" name="nome" placeholder="Ex.: Bolsa Couro" />
+          </label>
+          <label class="input-field" data-simple-hidden>
+            <span>Código</span>
+            <input id="product-code" name="codigo" placeholder="000000" />
+          </label>
+          <label class="input-field">
+            <span>Quantidade</span>
+            <input id="product-quantity" name="quantidade" type="number" min="1" />
+          </label>
+          <label class="input-field">
+            <span>Preço</span>
+            <input id="product-price" name="preco" placeholder="R$ 00,00" />
+          </label>
+          <label class="input-field">
+            <span>Categoria</span>
+            <select id="product-category" name="categoria">
+              <option value="" selected>Selecionar...</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Feminino">Feminino</option>
+              <option value="Infantil">Infantil</option>
+              <option value="Acessórios">Acessórios</option>
+            </select>
+          </label>
+          <label class="input-field" data-simple-hidden>
+            <span>Marca</span>
+            <select id="product-brand" name="marca"></select>
+          </label>
+        </div>
+      </form>
+
+      <div class="inline-actions">
+        <button class="pill-button secondary" id="btn-nova-marca" type="button">+ Nova Marca</button>
+        <button class="pill-button warning" id="btn-margem" type="button" data-action="open-margin">Margem</button>
+        <button class="pill-button accent" id="btn-aplicar-categoria" type="button">Aplicar Categoria</button>
+        <button class="pill-button accent" id="btn-aplicar-marca" type="button">Aplicar Marca</button>
+      </div>
+
+      <div class="primary-actions">
+        <button class="action-button accent" id="btn-salvar" type="submit" form="product-form">Salvar Dados</button>
+        <button class="action-button warning" id="btn-calibrar" type="button">Calibrar Sistema</button>
+        <button class="action-button highlight" id="btn-importar" type="button">Importar Romaneio</button>
+      </div>
+
+      <div class="totals">
+        <div class="totals-group">
+          <span class="totals-group-title">Sessão Atual</span>
+          <span><strong>Quantidade</strong> <span id="totals-quantity">0</span></span>
+          <span><strong>Custo Total</strong> <span id="totals-cost">R$ 0,00</span></span>
+          <span><strong>Venda Total</strong> <span id="totals-sale">R$ 0,00</span></span>
+        </div>
+        <div class="totals-group">
+          <span class="totals-group-title">Acumulado Global</span>
+          <span><strong>Quantidade</strong> <span id="totals-global-quantity">0</span></span>
+          <span><strong>Custo Total</strong> <span id="totals-global-cost">R$ 0,00</span></span>
+          <span><strong>Venda Total</strong> <span id="totals-global-sale">R$ 0,00</span></span>
+          <span><strong>Tempo Economizado</strong> <span id="totals-global-time">0s</span></span>
+          <span><strong>Caracteres Digitados</strong> <span id="totals-global-chars">0</span></span>
+        </div>
+      </div>
+
+      <div class="agents-card">
+        <div class="agents-card-header">
+          <h3>Estações Conectadas</h3>
+          <span id="agents-count" class="agents-count">0</span>
+        </div>
+        <div class="agents-card-body">
+          <ul id="agents-list" class="agents-list">
+            <li class="agents-empty">Nenhum agente conectado</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="right-panel">
+      <header class="panel-header">
+        <div class="panel-title">
+          <h2>Produtos Cadastrados</h2>
+          <span class="panel-subtitle">Acompanhe a fila de itens prontos para envio</span>
+        </div>
+      </header>
+
+      <div class="batch-controls">
+        <div class="batch-primary">
+          <button class="action-button accent large" id="btn-automation-start">Executar Cadastro em Massa</button>
+          <button class="action-button danger" id="btn-automation-stop">Parar</button>
+        </div>
+        <div class="progress-summary">
+          <span class="progress-count">0/0</span>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 35%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="list-controls">
+        <div class="list-toolbar">
+          <div class="list-content">
+            <div class="list-head">
+              <span class="tools-title">Ferramentas de Lista:</span>
+              <div class="list-primary-actions" role="group" aria-label="Ações principais">
+                <button class="pill-button secondary" id="btn-permitir-edicoes" type="button">Permitir Edições</button>
+                <button class="pill-button secondary" id="btn-formatar-codigos" type="button">Formatar Códigos</button>
+                <button class="pill-button secondary" id="btn-editar-nomes" type="button">Editar Nomes</button>
+                <button class="pill-button secondary" id="btn-melhorar-descricao" type="button">Melhorar Descrição</button>
+                <button class="pill-button accent" id="btn-toggle-ordenacao" type="button">Ordenar Lista</button>
+                <button class="pill-button accent" id="btn-criar-conjuntos" type="button">Criar Conjuntos</button>
+                <button class="pill-button secondary" id="btn-juntar" type="button">Juntar Repetidos</button>
+                <button class="pill-button secondary" id="btn-export-json" type="button">Exportar JSON</button>
+              </div>
+            </div>
+            <div class="list-secondary-actions" role="group" aria-label="Ações complementares">
+              <button class="pill-button danger" id="btn-deletar-itens" type="button">Deletar Itens</button>
+              <button class="pill-button danger" id="btn-limpar-lista" type="button">Limpar Lista</button>
+              <button class="pill-button warning margin-compact" id="btn-open-margin" type="button" data-action="open-margin">Margem <span class="margin-badge" id="margin-current-value">--%</span></button>
+              <div class="grade-group" aria-label="Ferramentas de grade">
+                <button class="pill-button accent" id="btn-inserir-grade" type="button">Inserir Grade</button>
+                <button class="pill-button accent" id="btn-extrair-grades" type="button">Extrair Grades da NF</button>
+                <button class="pill-button secondary" id="btn-juntar-grades" type="button">Juntar c/ Grades</button>
+              </div>
+            </div>
+          </div>
+          <span id="ordering-status" class="ordering-status"></span>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <div class="table-scroll">
+          <table id="products-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nome</th>
+                <th>Marca</th>
+                <th>Código</th>
+                <th>Qtd</th>
+                <th>Custo</th>
+                <th>Venda</th>
+                <th>Categoria</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="products-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer class="panel-footer">
+        <span id="products-total">Total de produtos: 0</span>
+        <div class="footer-actions"></div>
+      </footer>
+    </section>
+  </main>
+
+  <script src="script.js?v=20260121-2"></script>
+</body>
+</html>

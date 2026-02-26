@@ -1,0 +1,44 @@
+Fluxo legado de cadastro automático (Byte Empresa)
+=================================================
+
+Fonte de referência: `modules/automation/byte_empresa.py`
+
+1) Preparação inicial
+   - Garantir que as coordenadas calibradas (janela, campos, três pontinhos) estejam salvas.
+   - Opcional: carregar configurações de delays em `data/automacao.json`.
+   - Acionar "Ativar Byte Empresa" (função `ativar_janela_byte_empresa`):
+       * Clique duplo na posição calibrada da janela Byte Empresa.
+       * Aguardar `DELAY_CLICK` para focar a aplicação.
+
+2) Tela 1 – Dados Básicos (`executar_tela1_mecanico`)
+   1. Clicar no campo Descrição (coordenada `campo_descricao`).
+   2. Limpar campo com 2× Backspace.
+   3. Digitar `descricao_completa` (Nome + Marca + Código) usando biblioteca `keyboard`.
+   4. Esperar 0,2 s.
+   5. Navegar para Categoria com `T1_TABS_TO_CATEGORIA` tabs (padrão 3). 
+   6. Inserir letra da categoria (`obter_letra_categoria`: M/F/I/A) e pressionar Enter.
+   7. Navegar até Código do Fabricante com `T1_TABS_TO_CODFAB` tabs (padrão 16).
+   8. Limpar campo com ~20 Backspaces.
+   9. Digitar o código do produto.
+  10. Navegar até botão Salvar com `T1_TABS_TO_SALVAR` tabs (padrão 3).
+  11. Pressionar Enter para salvar e avançar para Tela 2.
+  12. Aguardar `DELAY_ENTRE_TELAS`.
+
+3) Tela 2 – Preços e Estoque (`executar_tela2_mecanico`)
+   1. Navegar até campo Preço de Compra (`T2_TABS_TO_PRECO`, padrão 1 Tab).
+   2. Limpar campo com ~15 Backspaces e digitar preço de custo (`dados["preco"]`).
+   3. Navegar ao campo Quantidade (`T2_TABS_TO_QTD`, padrão 8 Tabs).
+   4. Limpar campo com ~10 Backspaces e digitar quantidade.
+   5. Navegar ao campo Preço de Venda (`T2_TABS_TO_VENDA`, padrão 2 Tabs).
+   6. Limpar campo com ~15 Backspaces e digitar preço final (`dados["preco_final"]`).
+   7. Navegar até botão Salvar (`T2_TABS_TO_SALVAR`, padrão 2 Tabs).
+   8. Pressionar Enter para concluir o cadastro do produto.
+   9. Se configuração permitir, clicar nos “três pontinhos” para retornar à Tela 1.
+  10. Aguardar `DELAY_ENTRE_PRODUTOS` antes do próximo item.
+
+4) Pós-processo
+   - Em caso de cancelamento (`cancel_event` ativo), funções abortam imediatamente com `KeyboardInterrupt`.
+   - Logs/erros são exibidos via `messagebox.showerror`.
+   - Configurações podem desabilitar Tela 1/Tela 2 individualmente (`ENABLE_TELA1`, `ENABLE_TELA2`).
+
+Este roteiro serve como base textual para reproduzir a automação no novo fluxo Notepad ou em futuras integrações PyAutoGUI.

@@ -1,4 +1,4 @@
-"""Camada de dados para o protótipo LojaSync Web.
+Camada de dados para o LojaSync Web.
 
 Define duas "bases" coordenadas:
 - Storage momentâneo (in-memory) usado para refletir imediatamente na UI.

@@ -16,13 +16,13 @@ LojaSync/
   - webapp/ aplicação principal atual
     - backend.py API FastAPI para produtos, ações e automação
     - database.py store em memória com persistência JSONL e métricas
-    - sequencias.py orquestra sequência de automação Byte Empresa
+    - sequencias.py orquestra sequência de automação Byte Empresa (programa ERP de terceiros)
     - remote_manager.py WebSocket para agentes remotos
     - launcher.py sobe frontend, backend e serviços auxiliares
     - index.html e script.js frontend operacional
     - data/ bases locais de produtos, targets e métricas
   - modules/ módulos legados de core, interface e automation
-  - LLM3/ microserviço FastAPI de chat e LLM
+  - LLM3/ microserviço FastAPI de chat e LLM, usando conexao com a nuvem ollama e modelo qwen 235b, funciona para extrair imagens, pdfs, textos de romaneios com produtos de forma automatica, usando o LLM para processar os dados de forma otimizada e ser capaz de lidar com diferentes formatos de romaneios ( sao muitos)
 - automation/
   - gradebot/ bot local de preenchimento de grade via PyAutoGUI
 
@@ -48,7 +48,7 @@ Camada de dados local
 Competências do sistema
 
 1. Cadastro e gestão de produtos
-- CRUD básico com campos de negócio, incluindo nome, código, preço, categoria, marca, grade e cor.
+- HUD básico com campos de negócio, incluindo nome, código, preço, categoria, marca, grade e cor.
 - Ações em lote para aplicar categoria e marca, juntar duplicados, formatar e restaurar códigos, reordenar e limpar lista.
 - Métricas operacionais de volume e automação, como quantidade, custo, venda, tempo economizado e caracteres poupados.
 
@@ -60,12 +60,12 @@ Competências do sistema
 3. Automação de cadastro no ERP Byte Empresa
 - Execução da sequência de telas com controle de início, status e cancelamento.
 - Dependência de calibração de coordenadas em targets.json para clique e digitação assistida.
-- Modo de dry run quando pyautogui não está disponível.
 
 4. Operação distribuída com agentes remotos
 - WebSocket de registro e heartbeat para agentes externos.
 - Envio de comando com ack e result, com timeout controlado.
 - Snapshot de agentes conectados e estado operacional.
+(nao e mais usado, antes era usado para rodar o pyautogui em um pc diferente do que estava rodando o webapp, pois ele tambem podia funcionar como um servidor conectado por limewire)
 
 5. Serviço LLM separado
 - Serviço FastAPI dedicado em engine/LLM3 para chat e inferência.
@@ -123,17 +123,11 @@ Requisito
 - Windows PowerShell: .venv\Scripts\Activate.ps1
 - python -m pip install --upgrade pip
 - python -m pip install -r requirements.txt
-
-2. Subir stack local
-Opção A, recomendada
-- python launcher.py
-
-Opção B, manual
-- Terminal 1: uvicorn backend:app --host 127.0.0.1 --port 8800 --reload
-- Terminal 2: python -m http.server 5173
+- para iniciar o app, usar python launcher.py
 
 3. Acessar
 - Frontend em http://127.0.0.1:5173
+- Para ver feedback, status, e detalhe do LLM  http://127.0.0.1:5174
 - API backend em http://127.0.0.1:8800
 - FastAPI docs em http://127.0.0.1:8800/docs
 
@@ -159,40 +153,3 @@ Fluxo de uso sugerido para operação diária
 3. Revisar totais e descrição e, se necessário, melhorar descrições.
 4. Calibrar alvos de automação em /automation/targets na máquina de execução.
 5. Disparar automação e acompanhar status em tempo real.
-6. Exportar JSON para trilha de auditoria.
-
-Engenharia, decisões e trade offs
-
-Persistência local em arquivo JSONL e JSON
-- Vantagem: simplicidade operacional e portabilidade.
-- Trade off: concorrência e escalabilidade limitadas para uso multiusuário.
-
-Automação de interface com PyAutoGUI
-- Vantagem: integração rápida com ERP sem API nativa.
-- Trade off: sensível a resolução, foco de janela e mudanças visuais.
-
-Backend único com múltiplos domínios
-- Vantagem: entrega rápida e manutenção centralizada no curto prazo.
-- Trade off: arquivo grande e acoplamento elevado em backend.py.
-
-Convivência de legado desktop com web
-- Vantagem: reaproveitamento de regras e transição gradual.
-- Trade off: duplicidade potencial de lógica e superfície maior de manutenção.
-
-Roadmap técnico recomendado
-
-- Extrair domínios de backend.py em routers e services por contexto.
-- Introduzir camada de repositório para troca futura de JSONL por banco relacional.
-- Aumentar cobertura de testes automatizados para contratos críticos de romaneio, automação e margens.
-- Evoluir telemetria e observabilidade com logs estruturados e correlação por job.
-- Reforçar segurança para uso em rede com CORS restrito, autenticação e controle de sessão.
-
-Referências do repositório
-
-- engine/README_ENGINE.md
-- engine/webapp/backend.py
-- engine/webapp/database.py
-- engine/webapp/sequencias.py
-- engine/webapp/remote_manager.py
-- engine/webapp/launcher.py
-- automation/gradebot/gradebot.py

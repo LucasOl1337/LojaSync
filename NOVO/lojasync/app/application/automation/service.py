@@ -39,6 +39,9 @@ class AutomationService:
         self._running = False
         self._last_result: dict[str, str] | None = None
         self._cancel_event = threading.Event()
+        self._active_job_kind: str | None = None
+        self._active_job_message: str | None = None
+        self._gradebot_module: Any | None = None
 
     def targets_path(self) -> Path:
         return self._data_dir / "targets.json"
@@ -86,6 +89,11 @@ class AutomationService:
             self._sync_legacy_gradebot_config(gradebot_config)
         profile = self._load_desktop_profile()
         byte_empresa_config = profile.get("byte_empresa")
+        if not isinstance(byte_empresa_config, dict) or not byte_empresa_config:
+            byte_empresa_config = load_json_object(self._legacy_byte_empresa_config_path(), repair=True)
+            if isinstance(byte_empresa_config, dict) and byte_empresa_config:
+                profile["byte_empresa"] = byte_empresa_config
+                self._save_desktop_profile(profile)
         if isinstance(byte_empresa_config, dict) and byte_empresa_config:
             self._sync_legacy_byte_empresa_config(byte_empresa_config)
 
@@ -129,22 +137,28 @@ class AutomationService:
         return {"target": name, "point": {"x": int(x), "y": int(y)}}
 
     def execute(self) -> dict[str, str]:
-        with self._lock:
-            if self._running:
-                raise RuntimeError("Ja existe uma automacao em execucao")
-            self._cancel_event.clear()
-            self._running = True
-            self._last_result = None
-            self._thread = threading.Thread(target=self._run_local, name="lojasync-local-automation", daemon=True)
-            self._thread.start()
-            return {"status": "started", "message": "Sequencia basica disparada"}
+        self._ensure_bulk_ready()
+        return self._start_background_operation(
+            kind="catalog",
+            thread_name="lojasync-local-automation",
+            started_message="Cadastro em massa iniciado",
+            worker=self._run_catalog_worker,
+        )
 
     def cancel(self) -> dict[str, str]:
         with self._lock:
             if not self._running:
                 return {"status": "idle", "message": "Nenhuma automacao em execucao"}
             self._cancel_event.set()
-            return {"status": "stopping", "message": "Cancelamento solicitado"}
+            if self._active_job_kind == "grades":
+                try:
+                    self._load_gradebot().request_stop()
+                except Exception:
+                    logger.exception("Falha ao solicitar parada do GradeBot")
+            message = "Cancelamento solicitado"
+            if self._active_job_kind == "grades":
+                message = "Parada do GradeBot solicitada"
+            return {"status": "stopping", "message": message}
 
     def status(self) -> dict[str, str | None]:
         with self._lock:
@@ -153,7 +167,12 @@ class AutomationService:
                 "estado": state,
                 "cancel_requested": "True" if self._cancel_event.is_set() and self._running else "False",
             }
-            if self._last_result:
+            if self._running:
+                if self._active_job_kind:
+                    payload["job_kind"] = self._active_job_kind
+                if self._active_job_message:
+                    payload["message"] = self._active_job_message
+            elif self._last_result:
                 payload.update(self._last_result)
             return payload
 
@@ -210,27 +229,22 @@ class AutomationService:
             raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
         self._sync_legacy_automation_files()
         self._ensure_gradebot_ready()
-        gradebot = self._load_gradebot()
         if grades_json:
-            grades_map = gradebot.parse_grades_json(grades_json)
+            grades_map = self._load_gradebot().parse_grades_json(grades_json)
         elif grades:
             grades_map = {str(key): int(value) for key, value in grades.items()}
         else:
             raise RuntimeError("Informe 'grades' ou 'grades_json'.")
-
-        def _run() -> None:
-            try:
-                if pause is not None:
-                    gradebot.pag.PAUSE = max(0.0, float(pause))
-                if speed is not None:
-                    gradebot.SPEED = max(0.05, float(speed))
-                gradebot.reset_stop_flag()
-                gradebot.run(grades_map, model_index=model_index, activation_step=True)
-            except Exception:
-                logger.exception("Falha ao executar GradeBot")
-
-        threading.Thread(target=_run, name="lojasync-gradebot", daemon=True).start()
-        return {"status": "started"}
+        return self._start_background_operation(
+            kind="grades",
+            thread_name="lojasync-gradebot",
+            started_message="Insercao de grades iniciada",
+            worker=lambda: self._run_gradebot_worker(
+                tasks=[{"grades": grades_map, "model_index": model_index}],
+                pause=pause,
+                speed=speed,
+            ),
+        )
 
     def run_gradebot_batch(
         self,
@@ -243,36 +257,34 @@ class AutomationService:
             raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
         self._sync_legacy_automation_files()
         self._ensure_gradebot_ready()
+        prepared_tasks: list[dict[str, Any]] = []
         gradebot = self._load_gradebot()
-        if pause is not None:
-            gradebot.pag.PAUSE = max(0.0, float(pause))
-        if speed is not None:
-            gradebot.SPEED = max(0.05, float(speed))
-        gradebot.reset_stop_flag()
-        total = 0
-        activation_step = True
         for task in tasks or []:
-            if gradebot.is_cancel_requested():
-                break
             if isinstance(task.get("grades_json"), str) and task["grades_json"].strip():
                 grades_map = gradebot.parse_grades_json(task["grades_json"])
             elif isinstance(task.get("grades"), dict):
                 grades_map = {str(key): int(value) for key, value in task["grades"].items()}
             else:
                 continue
-            gradebot.run(grades_map, model_index=task.get("model_index"), activation_step=activation_step)
-            activation_step = False
-            total += 1
-        return {"status": "ok", "executados": total}
+            if grades_map:
+                prepared_tasks.append({"grades": grades_map, "model_index": task.get("model_index")})
+        if not prepared_tasks:
+            raise RuntimeError("Nenhuma grade valida foi informada para execucao.")
+        return self._start_background_operation(
+            kind="grades",
+            thread_name="lojasync-gradebot-batch",
+            started_message=f"Insercao de grades iniciada para {len(prepared_tasks)} produto(s)",
+            worker=lambda: self._run_gradebot_worker(tasks=prepared_tasks, pause=pause, speed=speed),
+        )
 
     def stop_gradebot(self) -> dict[str, str]:
-        gradebot = self._load_gradebot()
-        gradebot.request_stop()
-        return {"status": "stopping"}
+        with self._lock:
+            if not self._running or self._active_job_kind != "grades":
+                return {"status": "idle", "message": "Nenhuma automacao de grades em execucao"}
+        return self.cancel()
 
-    def _run_local(self) -> None:
+    def _run_catalog_worker(self) -> dict[str, str]:
         started_at = time.time()
-        result: dict[str, str]
         try:
             products = self._products.list_products()
             if not products:
@@ -317,35 +329,157 @@ class AutomationService:
                 "message": "Fluxo Byte Empresa concluido",
                 "duration": duration,
                 "sucesso": str(len(completed_keys)),
+                "job_kind": "catalog",
             }
             if failures:
                 result["falhas"] = str(failures)
             if metrics:
                 result["tempo_economizado"] = str(metrics.get("tempo_economizado", 0))
                 result["caracteres_digitados"] = str(metrics.get("caracteres_digitados", 0))
+            return result
         except KeyboardInterrupt as exc:
-            result = {
+            return {
                 "status": "cancelled",
                 "message": str(exc) or "Automacao cancelada",
                 "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "catalog",
             }
         except Exception as exc:
             logger.exception("Falha na automacao local")
-            result = {
+            return {
                 "status": "error",
                 "message": str(exc),
                 "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "catalog",
             }
-        finally:
-            with self._lock:
-                self._running = False
-                self._thread = None
-                self._last_result = result
-                self._cancel_event.clear()
+
+    def _run_gradebot_worker(
+        self,
+        *,
+        tasks: list[dict[str, Any]],
+        pause: float | None,
+        speed: float | None,
+    ) -> dict[str, str]:
+        started_at = time.time()
+        try:
+            gradebot = self._load_gradebot()
+            if pause is not None:
+                gradebot.pag.PAUSE = max(0.0, float(pause))
+            if speed is not None:
+                gradebot.SPEED = max(0.05, float(speed))
+            gradebot.reset_stop_flag()
+
+            total = len(tasks)
+            executed = 0
+            activation_step = True
+            self._set_active_message(
+                "Executando GradeBot..." if total <= 1 else f"Executando GradeBot em lote ({total} produtos)"
+            )
+
+            for index, task in enumerate(tasks, start=1):
+                if self._cancel_event.is_set() or gradebot.is_cancel_requested():
+                    raise KeyboardInterrupt("Automacao de grades cancelada pelo usuario")
+                grades_map = task.get("grades") if isinstance(task.get("grades"), dict) else {}
+                if not grades_map:
+                    continue
+                self._set_active_message(
+                    f"Executando GradeBot no produto {index}/{total}" if total > 1 else "Executando GradeBot..."
+                )
+                gradebot.run(grades_map, model_index=task.get("model_index"), activation_step=activation_step)
+                activation_step = False
+                executed += 1
+
+            return {
+                "status": "success",
+                "message": "Fluxo de grades concluido",
+                "duration": f"{time.time() - started_at:.2f}s",
+                "sucesso": str(executed),
+                "job_kind": "grades",
+            }
+        except KeyboardInterrupt as exc:
+            return {
+                "status": "cancelled",
+                "message": str(exc) or "Automacao de grades cancelada",
+                "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "grades",
+            }
+        except Exception as exc:
+            logger.exception("Falha ao executar GradeBot")
+            return {
+                "status": "error",
+                "message": str(exc),
+                "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "grades",
+            }
 
     def _check_cancel(self) -> None:
         if self._cancel_event.is_set():
             raise KeyboardInterrupt("Automacao cancelada pelo usuario")
+
+    def _ensure_bulk_ready(self) -> None:
+        if pyautogui is None:
+            raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
+        targets = self.load_targets()
+        missing: list[str] = []
+        for key in ("byte_empresa_posicao", "campo_descricao", "tres_pontinhos"):
+            if not targets.get(key):
+                missing.append(key)
+        if missing:
+            raise RuntimeError(
+                "Calibracao do cadastro em massa incompleta. Ajuste antes de executar: " + ", ".join(missing)
+            )
+
+    def _start_background_operation(
+        self,
+        *,
+        kind: str,
+        thread_name: str,
+        started_message: str,
+        worker: Any,
+    ) -> dict[str, Any]:
+        with self._lock:
+            if self._running:
+                running_label = "automacao"
+                if self._active_job_kind == "catalog":
+                    running_label = "cadastro em massa"
+                elif self._active_job_kind == "grades":
+                    running_label = "insercao de grades"
+                raise RuntimeError(f"Ja existe uma {running_label} em execucao")
+
+            self._cancel_event.clear()
+            self._running = True
+            self._last_result = None
+            self._active_job_kind = kind
+            self._active_job_message = started_message
+
+            def _runner() -> None:
+                result: dict[str, str]
+                try:
+                    result = worker()
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    logger.exception("Falha inesperada na automacao em background")
+                    result = {
+                        "status": "error",
+                        "message": str(exc),
+                        "job_kind": kind,
+                    }
+                finally:
+                    with self._lock:
+                        self._running = False
+                        self._thread = None
+                        self._last_result = result
+                        self._active_job_kind = None
+                        self._active_job_message = None
+                        self._cancel_event.clear()
+
+            self._thread = threading.Thread(target=_runner, name=thread_name, daemon=True)
+            self._thread.start()
+            return {"status": "started", "message": started_message, "job_kind": kind}
+
+    def _set_active_message(self, message: str) -> None:
+        with self._lock:
+            if self._running:
+                self._active_job_message = message
 
     def _ensure_gradebot_ready(self) -> None:
         config = self.get_gradebot_config()
@@ -469,11 +603,14 @@ class AutomationService:
         return importlib.import_module("modules.automation.byte_empresa")
 
     def _load_gradebot(self) -> Any:
+        if self._gradebot_module is not None:
+            return self._gradebot_module
         project_root = self._find_project_root("automation/gradebot/gradebot.py") or self._workspace_root()
         if str(project_root) not in sys.path:
             sys.path.insert(0, str(project_root))
         try:
-            return importlib.import_module("automation.gradebot.gradebot")
+            self._gradebot_module = importlib.import_module("automation.gradebot.gradebot")
+            return self._gradebot_module
         except ModuleNotFoundError:
             module_path = project_root / "automation" / "gradebot" / "gradebot.py"
             if not module_path.exists():
@@ -486,4 +623,5 @@ class AutomationService:
                 raise RuntimeError("Falha ao preparar import do GradeBot.")
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            self._gradebot_module = module
             return module

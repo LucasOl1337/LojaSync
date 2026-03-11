@@ -1288,6 +1288,7 @@ async function openInsertGradesDialog() {
   let sizes = [];
   let saveTimer = null;
   let wheelHandler = null;
+  let gradeExecutionPollTimer = null;
 
   function normalizeSizeLabel(v) {
     return String(v || "").trim().toLowerCase();
@@ -1661,6 +1662,42 @@ async function openInsertGradesDialog() {
     }
   };
 
+  const stopGradeExecutionPolling = () => {
+    if (gradeExecutionPollTimer) {
+      window.clearInterval(gradeExecutionPollTimer);
+      gradeExecutionPollTimer = null;
+    }
+  };
+
+  const pollGradeExecutionStatus = async () => {
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/automation/status`);
+      const isRunningGrades = data?.estado === 'running' && data?.job_kind === 'grades';
+      if (isRunningGrades) {
+        automationState = 'running';
+        updateAutomationStatus(data);
+        updateAutomationUI(true, data?.message || 'Execução em andamento... Verifique o ERP.');
+        return;
+      }
+
+      stopGradeExecutionPolling();
+      if (data?.job_kind === 'grades' || automationRunning) {
+        updateAutomationStatus(data || {});
+        updateAutomationUI(false, data?.message || '');
+        if (data?.status === 'success') {
+          await refreshProducts();
+          await fetchTotals();
+        }
+      } else {
+        updateAutomationUI(false, '');
+      }
+    } catch (err) {
+      console.error('Erro ao consultar execução de grades:', err);
+      stopGradeExecutionPolling();
+      updateAutomationUI(false, '');
+    }
+  };
+
   wrapper.addEventListener('click', async (event) => {
     const target = event.target;
     if (target.dataset?.action === 'cancel' || target === wrapper) {
@@ -1668,6 +1705,7 @@ async function openInsertGradesDialog() {
         window.clearTimeout(saveTimer);
         saveTimer = null;
       }
+      stopGradeExecutionPolling();
       if (wheelHandler) wrapper.removeEventListener('wheel', wheelHandler);
       document.removeEventListener('keydown', escListener);
       wrapper.remove();
@@ -1871,9 +1909,21 @@ async function openInsertGradesDialog() {
           body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(await res.text());
+        automationState = 'running';
+        updateAutomationStatus({
+          estado: 'running',
+          message: tasks.length > 1 ? `Inserção de grades em lote iniciada (${tasks.length} produtos)` : 'Inserção de grade iniciada'
+        });
         updateAutomationUI(true, 'Execução em andamento... Verifique o ERP.');
-        window.alert(tasks.length > 1 ? `Execução de grades disparada para ${tasks.length} produtos. Acompanhe no ERP.` : 'Execução de grades iniciada/concluída. Verifique o ERP.');
-        window.setTimeout(() => updateAutomationUI(false, ''), 2000);
+        if (!automationPollTimer) {
+          automationPollTimer = window.setInterval(pollAutomationStatus, 1000);
+        }
+        stopGradeExecutionPolling();
+        void pollGradeExecutionStatus();
+        gradeExecutionPollTimer = window.setInterval(() => {
+          void pollGradeExecutionStatus();
+        }, 1000);
+        window.alert(tasks.length > 1 ? `Execução de grades disparada para ${tasks.length} produtos. Acompanhe no ERP.` : 'Execução de grades iniciada. Verifique o ERP.');
       } catch (e) {
         console.error('Falha ao executar grades', e);
         window.alert(`Falha ao executar grades: ${e?.message || e}`);

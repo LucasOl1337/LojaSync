@@ -21,7 +21,7 @@ O LojaSync é um sistema desktop-web projetado para **lojistas** que precisam ca
 
 ## Arquitetura
 
-O projeto segue **Clean Architecture** com separação em camadas:
+O projeto usa separação em camadas:
 
 ```
 lojasync/

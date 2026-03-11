@@ -11,6 +11,14 @@ import time
 from pathlib import Path
 from typing import Any
 
+from app.application.automation.profiles import (
+    has_gradebot_configuration,
+    load_json_object,
+    merge_gradebot_config,
+    normalize_gradebot_config,
+    normalize_targets,
+    save_json_object,
+)
 from app.application.products.service import ProductService
 from app.domain.products.entities import Product
 
@@ -35,28 +43,78 @@ class AutomationService:
     def targets_path(self) -> Path:
         return self._data_dir / "targets.json"
 
+    def desktop_profile_path(self) -> Path:
+        return self._data_dir / "desktop_automation.json"
+
     def _legacy_targets_path(self) -> Path:
         return self._workspace_root() / "engine" / "data" / "targets.json"
 
+    def _legacy_byte_empresa_config_path(self) -> Path:
+        return self._workspace_root() / "engine" / "data" / "automacao.json"
+
+    def _load_desktop_profile(self) -> dict[str, Any]:
+        profile = load_json_object(self.desktop_profile_path(), repair=True)
+        return profile if isinstance(profile, dict) else {}
+
+    def _save_desktop_profile(self, profile: dict[str, Any]) -> None:
+        save_json_object(self.desktop_profile_path(), profile)
+
+    def _sync_legacy_targets(self, targets: dict[str, Any]) -> None:
+        normalized = normalize_targets(targets)
+        if not normalized:
+            return
+        save_json_object(self.targets_path(), normalized)
+        save_json_object(self._legacy_targets_path(), normalized)
+
+    def _sync_legacy_gradebot_config(self, config: dict[str, Any]) -> None:
+        normalized = normalize_gradebot_config(config)
+        if not normalized:
+            return
+        save_json_object(self._gradebot_config_path(), normalized)
+
+    def _sync_legacy_byte_empresa_config(self, config: dict[str, Any]) -> None:
+        if not isinstance(config, dict) or not config:
+            return
+        save_json_object(self._legacy_byte_empresa_config_path(), config)
+
+    def _sync_legacy_automation_files(self) -> None:
+        targets = self.load_targets()
+        if targets:
+            self._sync_legacy_targets(targets)
+        gradebot_config = self.get_gradebot_config()
+        if gradebot_config:
+            self._sync_legacy_gradebot_config(gradebot_config)
+        profile = self._load_desktop_profile()
+        byte_empresa_config = profile.get("byte_empresa")
+        if isinstance(byte_empresa_config, dict) and byte_empresa_config:
+            self._sync_legacy_byte_empresa_config(byte_empresa_config)
+
     def load_targets(self) -> dict[str, Any]:
+        profile = self._load_desktop_profile()
+        profile_targets = normalize_targets(profile.get("targets"))
+        if profile_targets:
+            self._sync_legacy_targets(profile_targets)
+            return profile_targets
+
         for path in (self.targets_path(), self._legacy_targets_path()):
-            if not path.exists():
-                continue
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-            if isinstance(payload, dict):
-                return payload
+            payload = load_json_object(path, repair=True)
+            normalized = normalize_targets(payload)
+            if normalized:
+                profile["targets"] = normalized
+                self._save_desktop_profile(profile)
+                self._sync_legacy_targets(normalized)
+                return normalized
         return {}
 
     def save_targets(self, payload: dict[str, Any]) -> dict[str, Any]:
         current = self.load_targets()
-        current.update(payload)
-        path = self.targets_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
-        return current
+        current.update(normalize_targets(payload))
+        normalized = normalize_targets(current)
+        profile = self._load_desktop_profile()
+        profile["targets"] = normalized
+        self._save_desktop_profile(profile)
+        self._sync_legacy_targets(normalized)
+        return normalized
 
     def capture_target(self, target: str) -> dict[str, Any]:
         if pyautogui is None:
@@ -117,53 +175,26 @@ class AutomationService:
         }
 
     def get_gradebot_config(self) -> dict[str, Any]:
-        path = self._gradebot_config_path()
-        if not path.exists():
-            return {}
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-        return payload if isinstance(payload, dict) else {}
+        profile = self._load_desktop_profile()
+        current = normalize_gradebot_config(profile.get("gradebot"))
+        if has_gradebot_configuration(current):
+            self._sync_legacy_gradebot_config(current)
+            return current
+
+        payload = load_json_object(self._gradebot_config_path(), repair=True)
+        current = normalize_gradebot_config(payload)
+        if has_gradebot_configuration(current):
+            profile["gradebot"] = current
+            self._save_desktop_profile(profile)
+            self._sync_legacy_gradebot_config(current)
+        return current
 
     def set_gradebot_config(self, payload: dict[str, Any]) -> dict[str, Any]:
-        config = self.get_gradebot_config()
-        config.setdefault("buttons", {})
-        config.setdefault("grid", {})
-        config.setdefault("model", {"strategy": "index", "index": 0})
-
-        buttons = payload.get("buttons")
-        if isinstance(buttons, dict):
-            for key, point in buttons.items():
-                if isinstance(point, dict) and "x" in point and "y" in point:
-                    config["buttons"][key] = {"x": int(point["x"]), "y": int(point["y"])}
-
-        first_quant = payload.get("first_quant_cell")
-        second_quant = payload.get("second_quant_cell")
-        row_height = payload.get("row_height")
-        if isinstance(first_quant, dict) and "x" in first_quant and "y" in first_quant:
-            config["grid"]["first_quant_cell"] = (int(first_quant["x"]), int(first_quant["y"]))
-        if row_height is None and isinstance(first_quant, dict) and isinstance(second_quant, dict):
-            row_height = max(1, int(second_quant["y"]) - int(first_quant["y"]))
-        if row_height is not None:
-            config["grid"]["row_height"] = int(row_height)
-
-        if payload.get("model_index") is not None:
-            config["model"]["index"] = int(payload["model_index"])
-            config["model"]["strategy"] = "index"
-        if payload.get("model_hotkey") is not None:
-            hotkey = str(payload["model_hotkey"]).strip()
-            config["model"]["hotkey"] = hotkey
-            config["model"]["strategy"] = "hotkey" if hotkey else "index"
-
-        if isinstance(payload.get("erp_size_order"), list):
-            config["erp_size_order"] = [
-                str(item).strip() for item in payload["erp_size_order"] if str(item).strip()
-            ]
-
-        path = self._gradebot_config_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+        config = merge_gradebot_config(self.get_gradebot_config(), payload)
+        profile = self._load_desktop_profile()
+        profile["gradebot"] = config
+        self._save_desktop_profile(profile)
+        self._sync_legacy_gradebot_config(config)
         return config
 
     def run_gradebot(
@@ -175,6 +206,10 @@ class AutomationService:
         pause: float | None,
         speed: float | None,
     ) -> dict[str, str]:
+        if pyautogui is None:
+            raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
+        self._sync_legacy_automation_files()
+        self._ensure_gradebot_ready()
         gradebot = self._load_gradebot()
         if grades_json:
             grades_map = gradebot.parse_grades_json(grades_json)
@@ -204,6 +239,10 @@ class AutomationService:
         pause: float | None,
         speed: float | None,
     ) -> dict[str, Any]:
+        if pyautogui is None:
+            raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
+        self._sync_legacy_automation_files()
+        self._ensure_gradebot_ready()
         gradebot = self._load_gradebot()
         if pause is not None:
             gradebot.pag.PAUSE = max(0.0, float(pause))
@@ -244,6 +283,7 @@ class AutomationService:
             targets = self.load_targets()
             if not targets:
                 raise RuntimeError("Coordenadas de calibracao nao encontradas.")
+            self._sync_legacy_automation_files()
 
             byte_empresa = self._load_byte_empresa_module()
             byte_empresa.recarregar_config_automacao()
@@ -306,6 +346,28 @@ class AutomationService:
     def _check_cancel(self) -> None:
         if self._cancel_event.is_set():
             raise KeyboardInterrupt("Automacao cancelada pelo usuario")
+
+    def _ensure_gradebot_ready(self) -> None:
+        config = self.get_gradebot_config()
+        missing: list[str] = []
+
+        buttons = config.get("buttons") if isinstance(config.get("buttons"), dict) else {}
+        for key in ("focus_app", "alterar_grade", "modelos", "model_select", "model_ok", "confirm_sim"):
+            if not buttons.get(key):
+                missing.append(f"buttons.{key}")
+
+        grid = config.get("grid") if isinstance(config.get("grid"), dict) else {}
+        if not grid.get("first_quant_cell"):
+            missing.append("grid.first_quant_cell")
+
+        order = config.get("erp_size_order")
+        if not isinstance(order, list) or not order:
+            missing.append("erp_size_order")
+
+        if missing:
+            raise RuntimeError(
+                "Calibracao de grades incompleta. Ajuste antes de executar: " + ", ".join(missing)
+            )
 
     def _product_to_payload(self, product: Product) -> dict[str, Any]:
         descricao = product.descricao_completa or f"{product.nome} {product.marca} {product.codigo}".strip()

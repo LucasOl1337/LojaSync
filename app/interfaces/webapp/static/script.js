@@ -32,6 +32,8 @@ const elements = {
   totalsGlobalChars: document.getElementById("totals-global-chars"),
   automationStart: document.getElementById("btn-automation-start"),
   automationStop: document.getElementById("btn-automation-stop"),
+  topInsertGrade: document.getElementById("btn-top-inserir-grade"),
+  topStopGrades: document.getElementById("btn-top-parar-grades"),
   automationStatus: document.querySelector(".progress-summary .progress-count"),
   improveDescription: document.getElementById("btn-melhorar-descricao"),
   deleteItems: document.getElementById("btn-deletar-itens"),
@@ -1083,6 +1085,38 @@ async function handleAutomationStop() {
   }
 }
 
+async function handleTopStopGrades() {
+  if (!elements.topStopGrades) {
+    return;
+  }
+  elements.topStopGrades.disabled = true;
+  try {
+    const result = await fetchJSON(`${API_BASE_URL}/automation/grades/stop`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    console.log("Parada de grades solicitada:", result);
+    updateAutomationStatus({ estado: "stopping", job_kind: "grades", message: "Parando grades..." });
+  } catch (err) {
+    window.alert(`Não foi possível parar as grades: ${err.message || err}`);
+  } finally {
+    syncAutomationShortcutButtons({ estado: "stopping", job_kind: "grades" });
+  }
+}
+
+function syncAutomationShortcutButtons(data = {}) {
+  const estado = data.estado || automationState;
+  const jobKind = data.job_kind || "";
+  const gradesRunning = estado === "running" && jobKind === "grades";
+
+  if (elements.topInsertGrade) {
+    elements.topInsertGrade.disabled = gradesRunning;
+  }
+  if (elements.topStopGrades) {
+    elements.topStopGrades.disabled = !gradesRunning;
+  }
+}
+
 function updateAutomationStatus(data = {}) {
   if (!elements.automationStatus) {
     return;
@@ -1117,6 +1151,7 @@ function updateAutomationStatus(data = {}) {
     linhas.push(`Caracteres digitados: ${charsFormatted}`);
   }
   elements.automationStatus.textContent = linhas.join(" | ") || "—";
+  syncAutomationShortcutButtons({ ...data, estado });
 }
 
 async function pollAutomationStatus() {
@@ -3279,6 +3314,12 @@ function toggleImportButtons(disabled) {
 }
 
 function toggleGradeButtons(disabled) {
+  if (elements.insertGrade) {
+    elements.insertGrade.disabled = disabled;
+  }
+  if (elements.topInsertGrade) {
+    elements.topInsertGrade.disabled = disabled;
+  }
   if (elements.extractGrades) {
     elements.extractGrades.disabled = disabled;
   }
@@ -3891,9 +3932,13 @@ function registerEvents() {
   elements.insertGrade?.addEventListener("click", () => {
     void openInsertGradesDialog();
   });
+  elements.topInsertGrade?.addEventListener("click", () => {
+    void openInsertGradesDialog();
+  });
   document.getElementById("btn-nova-marca")?.addEventListener("click", handleNewBrand);
   elements.automationStart?.addEventListener("click", handleAutomationStart);
   elements.automationStop?.addEventListener("click", handleAutomationStop);
+  elements.topStopGrades?.addEventListener("click", handleTopStopGrades);
 
   const marginPrimary = document.getElementById("btn-open-margin");
   const marginSecondary = document.getElementById("btn-margem");

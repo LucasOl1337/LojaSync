@@ -928,8 +928,9 @@ body {
 
 .batch-controls {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   background: var(--bg-panel-alt);
   border-radius: 16px;
   padding: 14px 18px;
@@ -942,6 +943,10 @@ body {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.batch-primary .action-button {
+  flex: 0 0 auto;
 }
 
 .agents-card {
@@ -1136,6 +1141,7 @@ body {
   align-items: center;
   gap: 12px;
   color: var(--text-secondary);
+  margin-left: auto;
 }
 
 .progress-count {
@@ -1606,6 +1612,16 @@ body {
   .tipagem {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .batch-controls {
+    align-items: stretch;
+  }
+
+  .progress-summary {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 
   .progress-bar {

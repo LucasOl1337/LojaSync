@@ -33,15 +33,16 @@ venv/
 build/
 dist/
 
-# PyInstaller outputs
-engine/webapp/build*/
-engine/webapp/dist/
+# Project-specific generated outputs
+Legacy/engine/webapp/build*/
+Legacy/engine/webapp/dist/
+Legacy/engine/webapp/data/
+NOVO/lojasync/data/
+NOVO/lojasync/.pytest_cache/
+NOVO/lojasync/htmlcov/
 
 # Node / frontend
 node_modules/
-
-# Data outputs (generated/exported)
-engine/webapp/data/
 
 # OS files
 .DS_Store

@@ -1,0 +1,1 @@
+"""LojaSync application package."""

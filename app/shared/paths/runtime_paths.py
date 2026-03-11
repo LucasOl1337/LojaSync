@@ -33,7 +33,7 @@ class RuntimePaths:
 
 
 def build_runtime_paths() -> RuntimePaths:
-    root_dir = Path(__file__).resolve().parents[4]
+    root_dir = Path(__file__).resolve().parents[3]
     app_dir = root_dir / "app"
     data_dir = root_dir / "data"
     web_static_dir = app_dir / "interfaces" / "webapp" / "static"

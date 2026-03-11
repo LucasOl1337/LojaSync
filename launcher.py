@@ -20,8 +20,8 @@ from app.interfaces.api.http.app import create_app
 
 
 ROOT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = ROOT_DIR.parent.parent
-ENGINE_DIR = PROJECT_ROOT / "engine"
+PROJECT_ROOT = ROOT_DIR
+ENGINE_DIR = PROJECT_ROOT / "Legacy" / "engine"
 STATIC_DIR = ROOT_DIR / "app" / "interfaces" / "webapp" / "static"
 
 for candidate in (ROOT_DIR, ENGINE_DIR):

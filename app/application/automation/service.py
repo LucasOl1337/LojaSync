@@ -578,7 +578,7 @@ class AutomationService:
         return None
 
     def _workspace_root(self) -> Path:
-        fallback = Path(__file__).resolve().parents[5]
+        fallback = Path(__file__).resolve().parents[3]
         return (
             self._find_project_root("engine/modules/automation/byte_empresa.py")
             or self._find_project_root("automation/gradebot/gradebot.py")

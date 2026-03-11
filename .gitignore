@@ -37,9 +37,8 @@ dist/
 Legacy/engine/webapp/build*/
 Legacy/engine/webapp/dist/
 Legacy/engine/webapp/data/
-NOVO/lojasync/data/
-NOVO/lojasync/.pytest_cache/
-NOVO/lojasync/htmlcov/
+.pytest_cache/
+htmlcov/
 
 # Node / frontend
 node_modules/

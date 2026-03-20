@@ -8,6 +8,7 @@ import os
 import sys
 import threading
 import time
+from math import hypot
 from pathlib import Path
 from typing import Any
 
@@ -23,11 +24,28 @@ from app.application.products.service import ProductService
 from app.domain.products.entities import Product
 
 logger = logging.getLogger(__name__)
+COMPLETE_TRANSITION_TARGETS = (
+    "cadastro_completo_passo_1",
+    "cadastro_completo_passo_2",
+    "cadastro_completo_passo_3",
+    "cadastro_completo_passo_4",
+)
 
 try:
     import pyautogui  # type: ignore
 except Exception:  # pragma: no cover - depends on local OS
     pyautogui = None  # type: ignore
+
+try:
+    import ctypes
+except Exception:  # pragma: no cover - platform dependent
+    ctypes = None  # type: ignore
+
+EMERGENCY_DRAG_DISTANCE_PX = 260
+EMERGENCY_DRAG_MAX_SECONDS = 0.45
+EMERGENCY_EDGE_MARGIN_PX = 18
+EMERGENCY_MONITOR_INTERVAL = 0.03
+EMERGENCY_STOP_MESSAGE = "Parada de emergencia acionada pelo arrasto do mouse ate a borda da tela"
 
 
 class AutomationService:
@@ -39,9 +57,13 @@ class AutomationService:
         self._running = False
         self._last_result: dict[str, str] | None = None
         self._cancel_event = threading.Event()
+        self._cancel_reason: str | None = None
         self._active_job_kind: str | None = None
+        self._active_job_phase: str | None = None
         self._active_job_message: str | None = None
         self._gradebot_module: Any | None = None
+        self._failsafe_stop_event: threading.Event | None = None
+        self._failsafe_thread: threading.Thread | None = None
 
     def targets_path(self) -> Path:
         return self._data_dir / "targets.json"
@@ -142,21 +164,34 @@ class AutomationService:
             kind="catalog",
             thread_name="lojasync-local-automation",
             started_message="Cadastro em massa iniciado",
+            started_phase="catalog",
             worker=self._run_catalog_worker,
+        )
+
+    def execute_complete(self) -> dict[str, str]:
+        self._ensure_complete_ready()
+        return self._start_background_operation(
+            kind="complete",
+            thread_name="lojasync-complete-automation",
+            started_message="Cadastro completo iniciado",
+            started_phase="catalog",
+            worker=self._run_complete_worker,
         )
 
     def cancel(self) -> dict[str, str]:
         with self._lock:
             if not self._running:
                 return {"status": "idle", "message": "Nenhuma automacao em execucao"}
+            self._cancel_reason = "Automacao cancelada pelo usuario"
             self._cancel_event.set()
-            if self._active_job_kind == "grades":
+            grade_stage_active = self._active_job_kind == "grades" or self._active_job_phase == "grades"
+            if grade_stage_active:
                 try:
                     self._load_gradebot().request_stop()
                 except Exception:
                     logger.exception("Falha ao solicitar parada do GradeBot")
             message = "Cancelamento solicitado"
-            if self._active_job_kind == "grades":
+            if grade_stage_active:
                 message = "Parada do GradeBot solicitada"
             return {"status": "stopping", "message": message}
 
@@ -170,6 +205,8 @@ class AutomationService:
             if self._running:
                 if self._active_job_kind:
                     payload["job_kind"] = self._active_job_kind
+                if self._active_job_phase:
+                    payload["phase"] = self._active_job_phase
                 if self._active_job_message:
                     payload["message"] = self._active_job_message
             elif self._last_result:
@@ -239,6 +276,7 @@ class AutomationService:
             kind="grades",
             thread_name="lojasync-gradebot",
             started_message="Insercao de grades iniciada",
+            started_phase="grades",
             worker=lambda: self._run_gradebot_worker(
                 tasks=[{"grades": grades_map, "model_index": model_index}],
                 pause=pause,
@@ -274,12 +312,30 @@ class AutomationService:
             kind="grades",
             thread_name="lojasync-gradebot-batch",
             started_message=f"Insercao de grades iniciada para {len(prepared_tasks)} produto(s)",
+            started_phase="grades",
             worker=lambda: self._run_gradebot_worker(tasks=prepared_tasks, pause=pause, speed=speed),
+        )
+
+    def execute_grades_from_products(self) -> dict[str, Any]:
+        if pyautogui is None:
+            raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
+        self._sync_legacy_automation_files()
+        self._ensure_gradebot_ready()
+        tasks = self._prepare_grade_tasks(self._products.list_products())
+        if not tasks:
+            raise RuntimeError("Nenhum produto com grades validas foi encontrado na lista atual.")
+        return self._start_background_operation(
+            kind="grades",
+            thread_name="lojasync-gradebot-products",
+            started_message=f"Insercao de grades iniciada para {len(tasks)} produto(s)",
+            started_phase="grades",
+            worker=lambda: self._run_gradebot_worker(tasks=tasks, pause=None, speed=None),
         )
 
     def stop_gradebot(self) -> dict[str, str]:
         with self._lock:
-            if not self._running or self._active_job_kind != "grades":
+            grade_stage_active = self._active_job_kind == "grades" or self._active_job_phase == "grades"
+            if not self._running or not grade_stage_active:
                 return {"status": "idle", "message": "Nenhuma automacao de grades em execucao"}
         return self.cancel()
 
@@ -289,39 +345,7 @@ class AutomationService:
             products = self._products.list_products()
             if not products:
                 raise RuntimeError("Nenhum produto disponivel para cadastrar.")
-            if pyautogui is None:
-                raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
-
-            targets = self.load_targets()
-            if not targets:
-                raise RuntimeError("Coordenadas de calibracao nao encontradas.")
-            self._sync_legacy_automation_files()
-
-            byte_empresa = self._load_byte_empresa_module()
-            byte_empresa.recarregar_config_automacao()
-            success, message = byte_empresa.ativar_janela_byte_empresa(targets)
-            if not success:
-                raise RuntimeError(f"Falha ao ativar Byte Empresa: {message}")
-
-            completed_keys: list[str] = []
-            failures = 0
-            for product in products:
-                self._check_cancel()
-                payload = self._product_to_payload(product)
-                ok1 = byte_empresa.executar_tela1_mecanico(payload, targets, self._cancel_event)
-                if not ok1:
-                    failures += 1
-                    continue
-                ok2 = byte_empresa.executar_tela2_mecanico(payload, targets, self._cancel_event)
-                if not ok2:
-                    failures += 1
-                    continue
-                completed_keys.append(product.ordering_key())
-
-            metrics: dict[str, int] = {}
-            if completed_keys:
-                records = self._products.get_by_ordering_keys(completed_keys)
-                metrics = self._products.record_automation_success(records)
+            completed_keys, failures, metrics = self._run_catalog_sequence(products)
 
             duration = f"{time.time() - started_at:.2f}s"
             result = {
@@ -353,12 +377,86 @@ class AutomationService:
                 "job_kind": "catalog",
             }
 
+    def _run_complete_worker(self) -> dict[str, str]:
+        started_at = time.time()
+        try:
+            products = self._products.list_products()
+            if not products:
+                raise RuntimeError("Nenhum produto disponivel para cadastrar.")
+
+            completed_keys, failures, metrics = self._run_catalog_sequence(products)
+            successful_products = self._products.get_by_ordering_keys(completed_keys)
+            grade_tasks = self._prepare_grade_tasks(successful_products)
+
+            result: dict[str, str] = {
+                "status": "success",
+                "message": "Cadastro completo concluido",
+                "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "complete",
+                "sucesso": str(len(completed_keys)),
+                "sucesso_catalogo": str(len(completed_keys)),
+            }
+            if failures:
+                result["falhas"] = str(failures)
+            if metrics:
+                result["tempo_economizado"] = str(metrics.get("tempo_economizado", 0))
+                result["caracteres_digitados"] = str(metrics.get("caracteres_digitados", 0))
+
+            if not grade_tasks:
+                result["message"] = "Cadastro em massa concluido; nenhum item com grade para inserir"
+                return result
+
+            self._set_active_state(
+                "Executando transicao entre cadastro e grades...",
+                phase="transition",
+            )
+            self._run_complete_transition_sequence(self.load_targets())
+
+            grade_result = self._run_gradebot_worker(
+                tasks=grade_tasks,
+                pause=None,
+                speed=None,
+                job_kind="complete",
+                phase="grades",
+            )
+            result.update(grade_result)
+            result["job_kind"] = "complete"
+            result["duration"] = f"{time.time() - started_at:.2f}s"
+            result["sucesso"] = str(len(completed_keys))
+            result["sucesso_catalogo"] = str(len(completed_keys))
+            result["sucesso_grades"] = str(len(grade_tasks))
+            if failures:
+                result["falhas"] = str(failures)
+            if metrics:
+                result["tempo_economizado"] = str(metrics.get("tempo_economizado", 0))
+                result["caracteres_digitados"] = str(metrics.get("caracteres_digitados", 0))
+            if grade_result.get("status") == "success":
+                result["message"] = "Cadastro completo concluido"
+            return result
+        except KeyboardInterrupt as exc:
+            return {
+                "status": "cancelled",
+                "message": str(exc) or "Cadastro completo cancelado",
+                "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "complete",
+            }
+        except Exception as exc:
+            logger.exception("Falha no cadastro completo")
+            return {
+                "status": "error",
+                "message": str(exc),
+                "duration": f"{time.time() - started_at:.2f}s",
+                "job_kind": "complete",
+            }
+
     def _run_gradebot_worker(
         self,
         *,
         tasks: list[dict[str, Any]],
         pause: float | None,
         speed: float | None,
+        job_kind: str = "grades",
+        phase: str = "grades",
     ) -> dict[str, str]:
         started_at = time.time()
         try:
@@ -372,18 +470,20 @@ class AutomationService:
             total = len(tasks)
             executed = 0
             activation_step = True
-            self._set_active_message(
-                "Executando GradeBot..." if total <= 1 else f"Executando GradeBot em lote ({total} produtos)"
+            self._set_active_state(
+                "Executando GradeBot..." if total <= 1 else f"Executando GradeBot em lote ({total} produtos)",
+                phase=phase,
             )
 
             for index, task in enumerate(tasks, start=1):
                 if self._cancel_event.is_set() or gradebot.is_cancel_requested():
-                    raise KeyboardInterrupt("Automacao de grades cancelada pelo usuario")
+                    raise KeyboardInterrupt(self._cancel_reason or "Automacao de grades cancelada pelo usuario")
                 grades_map = task.get("grades") if isinstance(task.get("grades"), dict) else {}
                 if not grades_map:
                     continue
-                self._set_active_message(
-                    f"Executando GradeBot no produto {index}/{total}" if total > 1 else "Executando GradeBot..."
+                self._set_active_state(
+                    f"Executando GradeBot no produto {index}/{total}" if total > 1 else "Executando GradeBot...",
+                    phase=phase,
                 )
                 gradebot.run(grades_map, model_index=task.get("model_index"), activation_step=activation_step)
                 activation_step = False
@@ -394,14 +494,14 @@ class AutomationService:
                 "message": "Fluxo de grades concluido",
                 "duration": f"{time.time() - started_at:.2f}s",
                 "sucesso": str(executed),
-                "job_kind": "grades",
+                "job_kind": job_kind,
             }
         except KeyboardInterrupt as exc:
             return {
                 "status": "cancelled",
                 "message": str(exc) or "Automacao de grades cancelada",
                 "duration": f"{time.time() - started_at:.2f}s",
-                "job_kind": "grades",
+                "job_kind": job_kind,
             }
         except Exception as exc:
             logger.exception("Falha ao executar GradeBot")
@@ -409,12 +509,83 @@ class AutomationService:
                 "status": "error",
                 "message": str(exc),
                 "duration": f"{time.time() - started_at:.2f}s",
-                "job_kind": "grades",
+                "job_kind": job_kind,
             }
+
+    def _run_catalog_sequence(self, products: list[Product]) -> tuple[list[str], int, dict[str, int]]:
+        if pyautogui is None:
+            raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
+
+        targets = self.load_targets()
+        if not targets:
+            raise RuntimeError("Coordenadas de calibracao nao encontradas.")
+        self._sync_legacy_automation_files()
+
+        byte_empresa = self._load_byte_empresa_module()
+        byte_empresa.recarregar_config_automacao()
+        success, message = byte_empresa.ativar_janela_byte_empresa(targets)
+        if not success:
+            raise RuntimeError(f"Falha ao ativar Byte Empresa: {message}")
+
+        completed_keys: list[str] = []
+        failures = 0
+        total = len(products)
+        for index, product in enumerate(products, start=1):
+            self._check_cancel()
+            self._set_active_state(f"Cadastrando produto {index}/{total}", phase="catalog")
+            payload = self._product_to_payload(product)
+            ok1 = byte_empresa.executar_tela1_mecanico(payload, targets, self._cancel_event)
+            if not ok1:
+                failures += 1
+                continue
+            ok2 = byte_empresa.executar_tela2_mecanico(payload, targets, self._cancel_event)
+            if not ok2:
+                failures += 1
+                continue
+            completed_keys.append(product.ordering_key())
+
+        metrics: dict[str, int] = {}
+        if completed_keys:
+            records = self._products.get_by_ordering_keys(completed_keys)
+            metrics = self._products.record_automation_success(records)
+        return completed_keys, failures, metrics
+
+    def _prepare_grade_tasks(self, products: list[Product]) -> list[dict[str, Any]]:
+        tasks: list[dict[str, Any]] = []
+        for product in products:
+            if not product.grades:
+                continue
+            grades_map = {
+                str(item.tamanho).strip(): int(item.quantidade)
+                for item in product.grades
+                if str(item.tamanho).strip() and int(item.quantidade or 0) > 0
+            }
+            if grades_map:
+                tasks.append({"grades": grades_map})
+        return tasks
+
+    def _run_complete_transition_sequence(self, targets: dict[str, Any]) -> None:
+        for index, key in enumerate(COMPLETE_TRANSITION_TARGETS, start=1):
+            point = targets.get(key)
+            if not isinstance(point, dict):
+                raise RuntimeError(f"Coordenada ausente para a transicao do cadastro completo: {key}")
+            self._check_cancel()
+            self._set_active_state(
+                f"Preparando tela de grades ({index}/{len(COMPLETE_TRANSITION_TARGETS)})",
+                phase="transition",
+            )
+            pyautogui.click(int(point["x"]), int(point["y"]))
+            self._wait_cancelable(0.35)
 
     def _check_cancel(self) -> None:
         if self._cancel_event.is_set():
-            raise KeyboardInterrupt("Automacao cancelada pelo usuario")
+            raise KeyboardInterrupt(self._cancel_reason or "Automacao cancelada pelo usuario")
+
+    def _wait_cancelable(self, seconds: float) -> None:
+        end_time = time.time() + max(0.0, float(seconds))
+        while time.time() < end_time:
+            self._check_cancel()
+            time.sleep(min(0.05, max(0.0, end_time - time.time())))
 
     def _ensure_bulk_ready(self) -> None:
         if pyautogui is None:
@@ -429,12 +600,28 @@ class AutomationService:
                 "Calibracao do cadastro em massa incompleta. Ajuste antes de executar: " + ", ".join(missing)
             )
 
+    def _ensure_complete_ready(self) -> None:
+        self._ensure_bulk_ready()
+        products = self._products.list_products()
+        if not products:
+            raise RuntimeError("Nenhum produto disponivel para cadastrar.")
+        if not self._prepare_grade_tasks(products):
+            return
+        self._ensure_gradebot_ready()
+        targets = self.load_targets()
+        missing = [key for key in COMPLETE_TRANSITION_TARGETS if not targets.get(key)]
+        if missing:
+            raise RuntimeError(
+                "Calibracao do Cadastro completo incompleta. Ajuste os cliques de transicao: " + ", ".join(missing)
+            )
+
     def _start_background_operation(
         self,
         *,
         kind: str,
         thread_name: str,
         started_message: str,
+        started_phase: str | None,
         worker: Any,
     ) -> dict[str, Any]:
         with self._lock:
@@ -444,13 +631,18 @@ class AutomationService:
                     running_label = "cadastro em massa"
                 elif self._active_job_kind == "grades":
                     running_label = "insercao de grades"
+                elif self._active_job_kind == "complete":
+                    running_label = "cadastro completo"
                 raise RuntimeError(f"Ja existe uma {running_label} em execucao")
 
             self._cancel_event.clear()
+            self._cancel_reason = None
             self._running = True
             self._last_result = None
             self._active_job_kind = kind
+            self._active_job_phase = started_phase
             self._active_job_message = started_message
+            self._start_mouse_failsafe_monitor_locked()
 
             def _runner() -> None:
                 result: dict[str, str]
@@ -465,21 +657,133 @@ class AutomationService:
                     }
                 finally:
                     with self._lock:
+                        self._stop_mouse_failsafe_monitor_locked()
                         self._running = False
                         self._thread = None
                         self._last_result = result
                         self._active_job_kind = None
+                        self._active_job_phase = None
                         self._active_job_message = None
                         self._cancel_event.clear()
+                        self._cancel_reason = None
 
             self._thread = threading.Thread(target=_runner, name=thread_name, daemon=True)
             self._thread.start()
             return {"status": "started", "message": started_message, "job_kind": kind}
 
-    def _set_active_message(self, message: str) -> None:
+    def _set_active_state(self, message: str, *, phase: str | None = None) -> None:
         with self._lock:
             if self._running:
                 self._active_job_message = message
+                if phase is not None:
+                    self._active_job_phase = phase
+
+    def _request_emergency_stop_locked(self, message: str = EMERGENCY_STOP_MESSAGE) -> None:
+        if not self._running or self._cancel_event.is_set():
+            return
+        self._cancel_reason = message
+        self._cancel_event.set()
+        self._active_job_message = message
+        grade_stage_active = self._active_job_kind == "grades" or self._active_job_phase == "grades"
+        if grade_stage_active:
+            try:
+                self._load_gradebot().request_stop()
+            except Exception:
+                logger.exception("Falha ao solicitar parada emergencial do GradeBot")
+        logger.warning(message)
+
+    def _start_mouse_failsafe_monitor_locked(self) -> None:
+        if pyautogui is None:
+            return
+        if self._failsafe_thread and self._failsafe_thread.is_alive():
+            return
+        stop_event = threading.Event()
+        self._failsafe_stop_event = stop_event
+        self._failsafe_thread = threading.Thread(
+            target=self._monitor_mouse_emergency_stop,
+            args=(stop_event,),
+            name="lojasync-mouse-failsafe",
+            daemon=True,
+        )
+        self._failsafe_thread.start()
+
+    def _stop_mouse_failsafe_monitor_locked(self) -> None:
+        if self._failsafe_stop_event is not None:
+            self._failsafe_stop_event.set()
+        self._failsafe_stop_event = None
+        self._failsafe_thread = None
+
+    def _monitor_mouse_emergency_stop(self, stop_event: threading.Event) -> None:
+        if pyautogui is None:
+            return
+        try:
+            screen_width, screen_height = pyautogui.size()
+        except Exception:
+            return
+
+        drag_started_at: float | None = None
+        drag_distance = 0.0
+        last_pos: tuple[int, int] | None = None
+
+        while not stop_event.wait(EMERGENCY_MONITOR_INTERVAL):
+            try:
+                x, y = pyautogui.position()
+            except Exception:
+                continue
+            current_pos = (int(x), int(y))
+            button_pressed = self._is_any_mouse_button_pressed()
+            now = time.monotonic()
+
+            if button_pressed:
+                if drag_started_at is None or last_pos is None:
+                    drag_started_at = now
+                    drag_distance = 0.0
+                    last_pos = current_pos
+                    continue
+
+                drag_distance += hypot(current_pos[0] - last_pos[0], current_pos[1] - last_pos[1])
+                elapsed = now - drag_started_at
+                last_pos = current_pos
+
+                if (
+                    elapsed <= EMERGENCY_DRAG_MAX_SECONDS
+                    and drag_distance >= EMERGENCY_DRAG_DISTANCE_PX
+                    and self._is_near_screen_edge(current_pos, screen_width, screen_height)
+                ):
+                    with self._lock:
+                        self._request_emergency_stop_locked()
+                    return
+
+                if elapsed > EMERGENCY_DRAG_MAX_SECONDS:
+                    drag_started_at = now
+                    drag_distance = 0.0
+                    last_pos = current_pos
+            else:
+                drag_started_at = None
+                drag_distance = 0.0
+                last_pos = current_pos
+
+    @staticmethod
+    def _is_near_screen_edge(position: tuple[int, int], width: int, height: int) -> bool:
+        x, y = position
+        return (
+            x <= EMERGENCY_EDGE_MARGIN_PX
+            or y <= EMERGENCY_EDGE_MARGIN_PX
+            or x >= max(0, width - EMERGENCY_EDGE_MARGIN_PX)
+            or y >= max(0, height - EMERGENCY_EDGE_MARGIN_PX)
+        )
+
+    @staticmethod
+    def _is_any_mouse_button_pressed() -> bool:
+        if os.name != "nt" or ctypes is None:
+            return False
+        try:
+            user32 = ctypes.windll.user32
+            left_pressed = bool(user32.GetAsyncKeyState(0x01) & 0x8000)
+            right_pressed = bool(user32.GetAsyncKeyState(0x02) & 0x8000)
+            return left_pressed or right_pressed
+        except Exception:
+            return False
 
     def _ensure_gradebot_ready(self) -> None:
         config = self.get_gradebot_config()
@@ -504,7 +808,7 @@ class AutomationService:
             )
 
     def _product_to_payload(self, product: Product) -> dict[str, Any]:
-        descricao = product.descricao_completa or f"{product.nome} {product.marca} {product.codigo}".strip()
+        descricao = self._build_catalog_description(product)
         return {
             "nome": product.nome,
             "codigo": product.codigo,
@@ -528,6 +832,28 @@ class AutomationService:
             else None,
             "ordering_key": product.ordering_key(),
         }
+
+    @staticmethod
+    def _build_catalog_description(product: Product) -> str:
+        parts: list[str] = []
+
+        base_description = str(product.descricao_completa or product.nome or "").strip()
+        if base_description:
+            parts.append(base_description)
+
+        brand = str(product.marca or "").strip()
+        code = str(product.codigo or "").strip()
+
+        normalized_description = f" {base_description.casefold()} " if base_description else ""
+        if brand and f" {brand.casefold()} " not in normalized_description:
+            parts.append(brand)
+        if code and f" {code.casefold()} " not in normalized_description:
+            parts.append(code)
+
+        description = " ".join(part for part in parts if part).strip()
+        if description:
+            return description
+        return f"{product.nome} {brand} {code}".strip()
 
     def _candidate_project_roots(self) -> list[Path]:
         candidates: list[Path] = []

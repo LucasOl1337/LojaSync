@@ -7,6 +7,15 @@ from typing import Any
 
 
 _TRAILING_COMMA_RE = re.compile(r",(?=\s*[}\]])")
+_TARGET_KEYS = (
+    "byte_empresa_posicao",
+    "campo_descricao",
+    "tres_pontinhos",
+    "cadastro_completo_passo_1",
+    "cadastro_completo_passo_2",
+    "cadastro_completo_passo_3",
+    "cadastro_completo_passo_4",
+)
 
 
 def _clean_json_text(text: str) -> str:
@@ -66,7 +75,7 @@ def normalize_targets(payload: Any) -> dict[str, Any]:
     if isinstance(title, str):
         normalized["title"] = title.strip()
 
-    for key in ("byte_empresa_posicao", "campo_descricao", "tres_pontinhos"):
+    for key in _TARGET_KEYS:
         point = normalize_point(data.get(key))
         if point is not None:
             normalized[key] = point

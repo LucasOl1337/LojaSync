@@ -67,6 +67,9 @@ class MetricsStore:
             return Metrics(
                 tempo_economizado=int(payload.get("tempo_economizado", 0) or 0),
                 caracteres_digitados=int(payload.get("caracteres_digitados", 0) or 0),
+                historico_quantidade=int(payload.get("historico_quantidade", 0) or 0),
+                historico_custo=float(payload.get("historico_custo", 0.0) or 0.0),
+                historico_venda=float(payload.get("historico_venda", 0.0) or 0.0),
             )
         except Exception:
             return Metrics()
@@ -77,6 +80,9 @@ class MetricsStore:
                 {
                     "tempo_economizado": metrics.tempo_economizado,
                     "caracteres_digitados": metrics.caracteres_digitados,
+                    "historico_quantidade": metrics.historico_quantidade,
+                    "historico_custo": metrics.historico_custo,
+                    "historico_venda": metrics.historico_venda,
                 },
                 ensure_ascii=False,
                 indent=2,

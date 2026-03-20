@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable
@@ -24,6 +25,82 @@ class ProductsSummary:
     atual: TotalsSnapshot
     historico: TotalsSnapshot
     metrics: Metrics
+
+
+GRADE_SIZE_ORDER = [
+    "1",
+    "2",
+    "3",
+    "01",
+    "02",
+    "03",
+    "04",
+    "06",
+    "08",
+    "10",
+    "12",
+    "14",
+    "16",
+    "18",
+    "U",
+    "PP",
+    "P",
+    "M",
+    "G",
+    "GG",
+    "XG",
+    "XXG",
+    "G1",
+    "G2",
+    "G3",
+    "34",
+    "36",
+    "38",
+    "40",
+    "42",
+    "44",
+    "46",
+    "48",
+    "50",
+    "52",
+    "54",
+    "56",
+]
+GRADE_SIZE_INDEX = {label: index for index, label in enumerate(GRADE_SIZE_ORDER)}
+AVERAGE_INVOICE_ITEMS = 50
+MANUAL_MINUTES_PER_INVOICE = 90
+AUTOMATED_MINUTES_PER_INVOICE = 20
+SECONDS_SAVED_PER_INVOICE = (MANUAL_MINUTES_PER_INVOICE - AUTOMATED_MINUTES_PER_INVOICE) * 60
+NAME_NOISE_TOKENS = {
+    "bb",
+    "bebe",
+    "bebea",
+    "bebea",
+    "bebes",
+    "inf",
+    "infantil",
+    "juvenil",
+    "juv",
+    "masc",
+    "masculino",
+    "fem",
+    "feminino",
+    "unisex",
+    "unissex",
+    "sort",
+    "sortida",
+    "sortido",
+    "sortidos",
+    "sortidas",
+    "tam",
+    "tamanho",
+}
+
+
+def _fold_token(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or ""))
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "", ascii_text.lower())
 
 
 class ProductService:
@@ -112,12 +189,21 @@ class ProductService:
         codigo_norm = (codigo or "").strip().lower()
         nome_norm = (nome or "").strip().lower()
         target: Product | None = None
-
+        codigo_candidates: list[str] = []
         if codigo_norm:
+            codigo_candidates.append(codigo_norm)
+            base_candidate = self._extract_code_size_candidate(codigo or "")
+            if base_candidate:
+                base_code, _ = base_candidate
+                normalized_base = base_code.strip().lower()
+                if normalized_base and normalized_base not in codigo_candidates:
+                    codigo_candidates.append(normalized_base)
+
+        if codigo_candidates:
             for item in items:
                 code_now = (item.codigo or "").strip().lower()
                 code_original = (item.codigo_original or "").strip().lower()
-                if codigo_norm in {code_now, code_original}:
+                if any(candidate in {code_now, code_original} for candidate in codigo_candidates):
                     target = item
                     break
 
@@ -177,9 +263,15 @@ class ProductService:
         active = self.list_products()
         history = self._products.list_history()
         metrics = self._metrics_store.load_metrics()
+        history_totals = self._compute_totals(history)
+        merged_history = TotalsSnapshot(
+            quantidade=history_totals.quantidade + metrics.historico_quantidade,
+            custo=round(history_totals.custo + metrics.historico_custo, 2),
+            venda=round(history_totals.venda + metrics.historico_venda, 2),
+        )
         return ProductsSummary(
             atual=self._compute_totals(active),
-            historico=self._compute_totals(history),
+            historico=merged_history,
             metrics=metrics,
         )
 
@@ -235,61 +327,20 @@ class ProductService:
         items = self.list_products()
         if not items:
             return {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0}
-
-        groups: dict[str, dict[str, object]] = {}
-        for item in items:
-            codigo = (item.codigo or "").strip()
-            if not codigo:
-                continue
-            entry = groups.setdefault(
-                codigo,
-                {
-                    "base": Product.from_dict(item.to_dict()),
-                    "grades": {},
-                    "qtd_livre": 0,
-                    "nome_base": self._strip_size_suffix(item.nome or ""),
-                },
-            )
-            grades_map = entry["grades"]
-            assert isinstance(grades_map, dict)
-            if item.grades:
-                for grade in item.grades:
-                    size = str(getattr(grade, "tamanho", "") or "").strip()
-                    qty = int(getattr(grade, "quantidade", 0) or 0)
-                    if not size or qty <= 0:
-                        continue
-                    grades_map[size] = grades_map.get(size, 0) + qty
-            else:
-                size = self._detect_size_from_name(item.nome or "")
-                qty = int(item.quantidade or 0) or 1
-                if size:
-                    grades_map[size] = grades_map.get(size, 0) + qty
-                else:
-                    entry["qtd_livre"] = int(entry["qtd_livre"] or 0) + qty
-
-        results: list[Product] = []
-        updated_grades = 0
-        for data in groups.values():
-            base = Product.from_dict(data["base"].to_dict())  # type: ignore[union-attr]
-            grades_map = data["grades"]
-            assert isinstance(grades_map, dict)
-            if data.get("nome_base"):
-                base.nome = str(data["nome_base"])
-            if grades_map:
-                base.grades = [GradeItem(tamanho=size, quantidade=int(qty)) for size, qty in grades_map.items()]
-                base.quantidade = sum(item.quantidade for item in base.grades)
-                updated_grades += 1
-            elif int(data.get("qtd_livre") or 0) > 0:
-                base.quantidade = int(data["qtd_livre"])
-            results.append(base.normalize(margin=self.get_default_margin()))
+        results, summary = self._compact_products_with_grades(items, force_merge_all_codes=True)
 
         self._products.replace_active(results)
         return {
             "originais": len(items),
             "resultantes": len(results),
             "removidos": len(items) - len(results),
-            "atualizados_grades": updated_grades,
+            "atualizados_grades": summary["atualizados_grades"],
         }
+
+    def compact_import_batch(self, products: list[Product]) -> tuple[list[Product], dict[str, int]]:
+        if not products:
+            return [], {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0}
+        return self._compact_products_with_grades(products, force_merge_all_codes=False)
 
     def create_set_by_keys(self, key_a: str, key_b: str) -> dict[str, int] | None:
         if not key_a or not key_b or key_a == key_b:
@@ -560,7 +611,9 @@ class ProductService:
     @staticmethod
     def _calculate_metrics(records: Iterable[Product]) -> tuple[int, int]:
         items = list(records)
-        tempo = len(items) * 40
+        total_quantidade = sum(max(int(item.quantidade or 0), 0) for item in items)
+        notas_equivalentes = total_quantidade / AVERAGE_INVOICE_ITEMS if total_quantidade > 0 else 0
+        tempo = int(round(notas_equivalentes * SECONDS_SAVED_PER_INVOICE))
         caracteres = 0
         for item in items:
             caracteres += len(item.nome or "")
@@ -614,11 +667,152 @@ class ProductService:
             result.append(char)
         return "".join(result)
 
+    def _compact_products_with_grades(
+        self,
+        products: list[Product],
+        *,
+        force_merge_all_codes: bool,
+    ) -> tuple[list[Product], dict[str, int]]:
+        if not products:
+            return [], {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0}
+
+        margin = self.get_default_margin()
+        code_size_families: dict[tuple[str, str, str], set[str]] = {}
+        code_family_codes: dict[tuple[str, str, str], set[str]] = {}
+        for item in products:
+            current = Product.from_dict(item.to_dict()).normalize(margin=margin)
+            source_name = str(current.descricao_completa or current.nome or "").strip()
+            canonical_name = self._canonicalize_product_name(current.nome or "", current.descricao_completa)
+            family_candidate = self._extract_code_size_candidate(current.codigo or "")
+            if not family_candidate or not canonical_name:
+                continue
+            base_code, size = family_candidate
+            family_key = (
+                base_code.strip().lower(),
+                canonical_name.strip().lower(),
+                (current.preco or "").strip(),
+            )
+            code_size_families.setdefault(family_key, set()).add(size)
+            code_family_codes.setdefault(family_key, set()).add((current.codigo or "").strip().lower())
+
+        groups: dict[str, dict[str, object]] = {}
+        ordered_codes: list[str] = []
+        passthrough: list[Product] = []
+
+        for item in products:
+            current = Product.from_dict(item.to_dict()).normalize(margin=margin)
+            source_name = str(current.descricao_completa or current.nome or "").strip()
+            canonical_name = self._canonicalize_product_name(current.nome or "", current.descricao_completa)
+            family_candidate = self._extract_code_size_candidate(current.codigo or "")
+            family_size: str | None = None
+            codigo = (current.codigo or "").strip()
+            if family_candidate and canonical_name:
+                base_code, size = family_candidate
+                family_key = (
+                    base_code.strip().lower(),
+                    canonical_name.strip().lower(),
+                    (current.preco or "").strip(),
+                )
+                family_sizes = code_size_families.get(family_key) or set()
+                family_codes = code_family_codes.get(family_key) or set()
+                if len(family_sizes) >= 2 or len(family_codes) >= 2:
+                    codigo = base_code.strip()
+                    family_size = size
+                    current.codigo = codigo
+                    current.codigo_original = codigo
+            if not codigo:
+                passthrough.append(current)
+                continue
+
+            entry = groups.setdefault(
+                codigo,
+                {
+                    "items": [],
+                    "base": Product.from_dict(current.to_dict()),
+                    "grades": {},
+                    "qtd_livre": 0,
+                    "nome_base": canonical_name,
+                    "descricao_base": source_name,
+                    "has_grade_signal": False,
+                },
+            )
+            if codigo not in ordered_codes:
+                ordered_codes.append(codigo)
+
+            group_items = entry["items"]
+            assert isinstance(group_items, list)
+            group_items.append(Product.from_dict(current.to_dict()))
+
+            if canonical_name:
+                entry["nome_base"] = canonical_name
+            if source_name and len(source_name) >= len(str(entry.get("descricao_base") or "")):
+                entry["descricao_base"] = source_name
+
+            grades_map = entry["grades"]
+            assert isinstance(grades_map, dict)
+            if current.grades:
+                entry["has_grade_signal"] = True
+                for grade in current.grades:
+                    size = self._normalize_grade_label(str(getattr(grade, "tamanho", "") or "").strip())
+                    qty = int(getattr(grade, "quantidade", 0) or 0)
+                    if not size or qty <= 0:
+                        continue
+                    grades_map[size] = grades_map.get(size, 0) + qty
+            else:
+                size = self._detect_size_from_name(source_name) or family_size
+                qty = int(current.quantidade or 0) or 1
+                if size:
+                    entry["has_grade_signal"] = True
+                    grades_map[size] = grades_map.get(size, 0) + qty
+                else:
+                    entry["qtd_livre"] = int(entry["qtd_livre"] or 0) + qty
+
+        results: list[Product] = []
+        updated_grades = 0
+        for codigo in ordered_codes:
+            data = groups[codigo]
+            group_items = data["items"]
+            assert isinstance(group_items, list)
+            should_merge = bool(data.get("has_grade_signal")) and (
+                force_merge_all_codes or len(group_items) > 1
+            )
+
+            if not should_merge:
+                for item in group_items:
+                    assert isinstance(item, Product)
+                    results.append(Product.from_dict(item.to_dict()).normalize(margin=margin))
+                continue
+
+            base = Product.from_dict(data["base"].to_dict())  # type: ignore[union-attr]
+            grades_map = data["grades"]
+            assert isinstance(grades_map, dict)
+            if data.get("nome_base"):
+                base.nome = str(data["nome_base"])
+            if data.get("descricao_base"):
+                base.descricao_completa = str(data["descricao_base"]).strip() or None
+            free_qty = int(data.get("qtd_livre") or 0)
+            base.grades = self._sort_grade_items(grades_map)
+            base.quantidade = sum(item.quantidade for item in base.grades) + free_qty
+            if base.grades:
+                updated_grades += 1
+            results.append(base.normalize(margin=margin))
+
+        results.extend(passthrough)
+        return (
+            results,
+            {
+                "originais": len(products),
+                "resultantes": len(results),
+                "removidos": len(products) - len(results),
+                "atualizados_grades": updated_grades,
+            },
+        )
+
     @staticmethod
     def _normalize_grades_map(grades: dict[str, int]) -> list[GradeItem]:
         normalized: list[GradeItem] = []
         for tamanho, quantidade in (grades or {}).items():
-            size = str(tamanho or "").strip()
+            size = ProductService._normalize_grade_label(str(tamanho or "").strip())
             try:
                 qty = int(quantidade)
             except Exception:
@@ -626,19 +820,135 @@ class ProductService:
             if not size or qty <= 0:
                 continue
             normalized.append(GradeItem(tamanho=size, quantidade=qty))
+        normalized.sort(key=lambda item: ProductService._grade_sort_key(item.tamanho))
         return normalized
 
-    @staticmethod
-    def _detect_size_from_name(name: str) -> str | None:
+    @classmethod
+    def _detect_size_from_name(cls, name: str) -> str | None:
         if not name:
             return None
-        match = re.search(r"(?i)\b(?:tam(?:anho)?\.?\s*)([0-9]{1,3}|pp|p|m|g|gg|xg|g[1-4])\b", name)
-        label = match.group(1).strip().upper() if match else ""
-        return label or None
+        match = re.search(
+            r"(?i)\b(?:tam(?:anho)?\.?\s*)([0-9]{1,3}|pp|p|m|g|gg|xg|xxg|g[1-4])\b",
+            name,
+        )
+        if match:
+            label = cls._normalize_grade_label(match.group(1))
+            if label:
+                return label
 
-    @staticmethod
-    def _strip_size_suffix(name: str) -> str:
+        tokens = re.findall(r"[A-Za-zÀ-ÿ0-9]+", str(name or "").upper())
+        for token in reversed(tokens):
+            label = cls._normalize_grade_label(token)
+            if cls._is_known_grade_size(label):
+                return label
+        return None
+
+    @classmethod
+    def _strip_size_suffix(cls, name: str) -> str:
         if not name:
             return ""
-        base = re.sub(r"(?i)\bTam(?:anho)?\.?\s*[A-Z0-9]+\b", "", name).strip()
-        return base or name
+        return cls._canonicalize_product_name(name)
+
+    @staticmethod
+    def _normalize_grade_label(size: str) -> str:
+        label = re.sub(r"(?i)\b(?:tam(?:anho)?\.?)\b", "", str(size or "")).strip().upper()
+        label = re.sub(r"[^A-Z0-9]+", "", label)
+        if not label:
+            return ""
+        if label.isdigit():
+            try:
+                number = int(label)
+            except Exception:
+                number = 0
+            if number <= 0:
+                return ""
+            if number in {4, 6, 8}:
+                return str(number).zfill(2)
+            if len(label) >= 3:
+                return str(number)
+        return label
+
+    @staticmethod
+    def _is_known_grade_size(size: str) -> bool:
+        label = ProductService._normalize_grade_label(size)
+        if not label:
+            return False
+        if label in GRADE_SIZE_INDEX:
+            return True
+        if label.isdigit():
+            try:
+                return 1 <= int(label) <= 56
+            except Exception:
+                return False
+        return False
+
+    @staticmethod
+    def _grade_sort_key(size: str) -> tuple[int, int | str]:
+        label = ProductService._normalize_grade_label(size)
+        if label in GRADE_SIZE_INDEX:
+            return (0, GRADE_SIZE_INDEX[label])
+        if label.isdigit():
+            return (1, int(label))
+        return (2, label)
+
+    @staticmethod
+    def _sort_grade_items(grades_map: dict[str, int]) -> list[GradeItem]:
+        return [
+            GradeItem(tamanho=size, quantidade=int(qty))
+            for size, qty in sorted(
+                (
+                    (ProductService._normalize_grade_label(size), int(qty))
+                    for size, qty in (grades_map or {}).items()
+                    if ProductService._normalize_grade_label(size) and int(qty or 0) > 0
+                ),
+                key=lambda item: ProductService._grade_sort_key(item[0]),
+            )
+        ]
+
+    @classmethod
+    def _extract_code_size_candidate(cls, code: str) -> tuple[str, str] | None:
+        value = str(code or "").strip()
+        if not value:
+            return None
+        match = re.fullmatch(r"(.+?)([-_/])([A-Za-z0-9]+)", value)
+        if not match:
+            return None
+        base = str(match.group(1) or "").strip()
+        suffix = cls._normalize_grade_label(match.group(3))
+        if not base or not suffix or not cls._is_known_grade_size(suffix):
+            return None
+        separators = sum(value.count(token) for token in "-_/")
+        if suffix.isdigit() and not any(char.isalpha() for char in base) and separators < 2:
+            return None
+        return base, suffix
+
+    @staticmethod
+    def _canonicalize_product_name(name: str, descricao_completa: str | None = None) -> str:
+        source = str(descricao_completa or name or "").strip()
+        if not source:
+            return ""
+
+        tokens = re.findall(r"[A-Za-zÀ-ÿ0-9]+", source.upper())
+        cleaned: list[str] = []
+        for token in tokens:
+            folded = _fold_token(token)
+            normalized_size = ProductService._normalize_grade_label(token)
+            if not folded:
+                continue
+            if ProductService._is_known_grade_size(normalized_size):
+                continue
+            if folded in NAME_NOISE_TOKENS:
+                continue
+            if folded.isdigit():
+                continue
+            if cleaned and cleaned[-1] == token:
+                continue
+            cleaned.append(token)
+
+        result = " ".join(cleaned).strip()
+        if result:
+            return result
+
+        fallback = re.sub(r"[\-_]+", " ", source)
+        fallback = re.sub(r"\s+", " ", fallback).strip()
+        return fallback or str(name or "").strip()

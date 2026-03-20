@@ -10,7 +10,6 @@ const elements = {
   price: document.getElementById("product-price"),
   category: document.getElementById("product-category"),
   brand: document.getElementById("product-brand"),
-  saveButton: document.getElementById("btn-salvar"),
   importRomaneioPrimary: document.getElementById("btn-importar"),
   applyCategory: document.getElementById("btn-aplicar-categoria"),
   applyBrand: document.getElementById("btn-aplicar-marca"),
@@ -31,6 +30,7 @@ const elements = {
   totalsGlobalTime: document.getElementById("totals-global-time"),
   totalsGlobalChars: document.getElementById("totals-global-chars"),
   automationStart: document.getElementById("btn-automation-start"),
+  automationComplete: document.getElementById("btn-automation-complete"),
   automationStop: document.getElementById("btn-automation-stop"),
   topInsertGrade: document.getElementById("btn-top-inserir-grade"),
   topStopGrades: document.getElementById("btn-top-parar-grades"),
@@ -39,25 +39,17 @@ const elements = {
   deleteItems: document.getElementById("btn-deletar-itens"),
   editNames: document.getElementById("btn-editar-nomes"),
   allowEdits: document.getElementById("btn-permitir-edicoes"),
+  joinGrades: document.getElementById("btn-juntar-grades"),
   calibrate: document.getElementById("btn-calibrar"),
-  exportJson: document.getElementById("btn-export-json"),
   toggleSimpleMode: document.getElementById("btn-toggle-simple-mode"),
-  agentsCount: document.getElementById("agents-count"),
-  agentsList: document.getElementById("agents-list"),
-  agentsSummaryCount: document.getElementById("agents-summary-count"),
-  agentsSummaryStatus: document.getElementById("agents-summary-status"),
-  agentsSummaryList: document.getElementById("agents-summary-list"),
   exportButton: document.getElementById("export-button"),
   descriptionInput: document.getElementById("description-input"),
   insertGrade: document.getElementById("btn-inserir-grade"),
   viewGrades: document.getElementById("btn-ver-grades"),
   clearGrades: document.getElementById("btn-limpar-grades"),
-  extractGrades: document.getElementById("btn-extrair-grades"),
-  joinGrades: document.getElementById("btn-juntar-grades"),
 };
 
 let importRomaneioInput = null;
-let gradeExtractionInput = null;
 let orderingMode = false;
 let orderingSequence = [];
 let pendingOrderingKeys = null;
@@ -72,11 +64,41 @@ let simpleModeEnabled = false;
 let romaneioStatusModal = null;
 let romaneioStatusInterval = null;
 let romaneioStatusJobId = null;
-let gradeStatusModal = null;
-let gradeStatusInterval = null;
-let gradeStatusJobId = null;
 
 const DEFAULT_CATEGORIES = ["Masculino", "Feminino", "Infantil", "Acessórios"];
+
+const AUTOMATION_TARGET_FIELDS = [
+  { key: "byte_empresa_posicao", label: "PosiÃ§Ã£o Byte Empresa" },
+  { key: "campo_descricao", label: "Campo DescriÃ§Ã£o (Tela 1)" },
+  { key: "tres_pontinhos", label: "BotÃ£o 3 pontinhos (Tela 2)" },
+  { key: "cadastro_completo_passo_1", label: "Cadastro completo · clique 1" },
+  { key: "cadastro_completo_passo_2", label: "Cadastro completo · clique 2" },
+  { key: "cadastro_completo_passo_3", label: "Cadastro completo · clique 3" },
+  { key: "cadastro_completo_passo_4", label: "Cadastro completo · clique 4" },
+];
+const AUTOMATION_PHASE_LABELS = {
+  catalog: "cadastro",
+  transition: "transiÃ§Ã£o",
+  grades: "grades",
+};
+const AUTOMATION_JOB_LABELS = {
+  catalog: "cadastro em massa",
+  complete: "cadastro completo",
+  grades: "inserÃ§Ã£o de grades",
+};
+
+const AUTOMATION_RUN_BUTTON_KEYS = ["automationStart", "automationComplete", "topInsertGrade", "insertGrade"];
+const AUTOMATION_STOP_BUTTON_KEYS = ["automationStop"];
+const GRADE_STOP_BUTTON_KEYS = ["topStopGrades"];
+
+function setButtonsDisabled(keys, disabled) {
+  keys.forEach((key) => {
+    const element = elements[key];
+    if (element) {
+      element.disabled = disabled;
+    }
+  });
+}
 
 function setSimpleMode(enabled) {
   simpleModeEnabled = enabled;
@@ -95,253 +117,6 @@ function setSimpleMode(enabled) {
     void fetchCategories();
   }
   updateDeleteButtonsVisibility();
-}
-
-function ensureGradeExtractionInput() {
-  if (!gradeExtractionInput) {
-    gradeExtractionInput = document.createElement("input");
-    gradeExtractionInput.type = "file";
-    gradeExtractionInput.accept = "image/*,.pdf,.txt";
-    gradeExtractionInput.style.display = "none";
-    document.body.appendChild(gradeExtractionInput);
-  }
-  return gradeExtractionInput;
-}
-
-function createGradeStatusModal() {
-  if (gradeStatusModal) {
-    return gradeStatusModal;
-  }
-
-  const overlay = document.createElement("div");
-  overlay.className = "romaneio-status-overlay";
-
-  const panel = document.createElement("div");
-  panel.className = "romaneio-status-panel";
-
-  const title = document.createElement("h3");
-  title.textContent = "Extraindo grades da NF";
-
-  const stage = document.createElement("div");
-  stage.className = "romaneio-status-stage";
-  stage.textContent = "Preparando...";
-
-  const progressBar = document.createElement("div");
-  progressBar.className = "romaneio-progress";
-  const progressInner = document.createElement("div");
-  progressInner.className = "romaneio-progress-inner";
-  progressBar.appendChild(progressInner);
-
-  const logs = document.createElement("ul");
-  logs.className = "romaneio-status-logs";
-
-  panel.appendChild(title);
-  panel.appendChild(stage);
-  panel.appendChild(progressBar);
-  panel.appendChild(logs);
-  overlay.appendChild(panel);
-
-  const closeModal = () => {
-    overlay.classList.remove("visible");
-  };
-
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) {
-      closeModal();
-    }
-  });
-
-  document.body.appendChild(overlay);
-
-  gradeStatusModal = {
-    overlay,
-    stage,
-    progressInner,
-    logs,
-    lastMessage: null,
-    show(message) {
-      if (message) {
-        stage.textContent = message;
-      }
-      overlay.classList.add("visible");
-    },
-    hide() {
-      overlay.classList.remove("visible");
-    },
-    update(message, progress) {
-      if (message) {
-        stage.textContent = message;
-        if (message !== this.lastMessage) {
-          const listItem = document.createElement("li");
-          listItem.textContent = `${new Date().toLocaleTimeString()} · ${message}`;
-          logs.appendChild(listItem);
-          logs.scrollTop = logs.scrollHeight;
-          this.lastMessage = message;
-        }
-      }
-      if (typeof progress === "number") {
-        progressInner.style.width = `${progress * 100}%`;
-      }
-    },
-    reset() {
-      stage.textContent = "Preparando...";
-      progressInner.style.width = "10%";
-      logs.innerHTML = "";
-      this.lastMessage = null;
-    },
-  };
-
-  return gradeStatusModal;
-}
-
-function stopGradeStatusPolling() {
-  if (gradeStatusInterval) {
-    window.clearInterval(gradeStatusInterval);
-    gradeStatusInterval = null;
-  }
-  gradeStatusJobId = null;
-}
-
-function startGradeStatusPolling(jobId) {
-  stopGradeStatusPolling();
-  gradeStatusJobId = jobId;
-  const modal = createGradeStatusModal();
-  modal.reset();
-  modal.show("Enviando nota para serviço LLM");
-  modal.update("Enviando nota para serviço LLM", 0.2);
-
-  const STAGE_PROGRESS = {
-    pending: 0.1,
-    uploading: 0.3,
-    processing: 0.65,
-    parsing: 0.9,
-    completed: 1,
-    error: 1,
-  };
-
-  const fetchStatus = async () => {
-    if (!gradeStatusJobId) {
-      return;
-    }
-    try {
-      const status = await fetchJSON(
-        `${API_BASE_URL}/actions/parser-grades/status/${gradeStatusJobId}`
-      );
-      const { stage, message, error } = status || {};
-      const progress = STAGE_PROGRESS[String(stage)] ?? 0.1;
-      modal.update(message || "Processando grades...", progress);
-
-      if (stage === "completed") {
-        const jobId = gradeStatusJobId;
-        stopGradeStatusPolling();
-        modal.update("Grades aplicadas", 1);
-        let result;
-        try {
-          result = await fetchJSON(`${API_BASE_URL}/actions/parser-grades/result/${jobId}`);
-        } catch (fetchErr) {
-          console.error("Falha ao obter resultado de grades:", fetchErr);
-          window.alert(
-            `Processo finalizou, mas não foi possível carregar o resultado: ${fetchErr.message || fetchErr}`
-          );
-        }
-        setTimeout(() => {
-          modal.hide();
-          modal.reset();
-        }, 1500);
-        if (result) {
-          const messages = [
-            `Itens detectados: ${result.total_itens || 0}`,
-            `Itens atualizados: ${result.total_atualizados || 0}`,
-          ];
-          if (Array.isArray(result.warnings) && result.warnings.length) {
-            messages.push(`Avisos: ${result.warnings.join(" | ")}`);
-          }
-          window.alert(messages.join("\n"));
-          void refreshProducts();
-        }
-        try {
-          await fetch(`${API_BASE_URL}/actions/parser-grades/status/${jobId}`, {
-            method: "DELETE",
-          });
-        } catch (cleanupErr) {
-          console.warn("Falha ao limpar job de grades:", cleanupErr);
-        }
-        gradeStatusJobId = null;
-        return;
-      }
-
-      if (stage === "error") {
-        stopGradeStatusPolling();
-        modal.update(error || "Falha ao extrair grades", 1);
-        setTimeout(() => {
-          modal.hide();
-          modal.reset();
-        }, 2000);
-        throw new Error(error || "Falha ao extrair grades");
-      }
-    } catch (err) {
-      console.error("Erro ao consultar status de grades:", err);
-      stopGradeStatusPolling();
-      createGradeStatusModal().hide();
-      window.alert(`Falha ao extrair grades: ${err.message || err}`);
-    }
-  };
-
-  fetchStatus();
-  gradeStatusInterval = window.setInterval(fetchStatus, 5000);
-}
-
-async function handleExtractGrades() {
-  const input = ensureGradeExtractionInput();
-  const file = await new Promise((resolve) => {
-    const handler = () => {
-      resolve(input.files && input.files.length ? input.files[0] : null);
-    };
-    input.addEventListener("change", handler, { once: true });
-    input.click();
-  });
-
-  if (!file) {
-    input.value = "";
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  toggleGradeButtons(true);
-  const modal = createGradeStatusModal();
-  modal.reset();
-  modal.show("Iniciando extração de grades...");
-  modal.update("Iniciando extração de grades...", 0.15);
-  pushUndoSnapshot();
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/actions/parser-grades`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || response.statusText);
-    }
-
-    const data = await response.json();
-    const jobId = data?.job_id;
-    if (!jobId) {
-      throw new Error("Resposta inválida do servidor");
-    }
-    startGradeStatusPolling(jobId);
-  } catch (err) {
-    console.error("Erro ao extrair grades:", err);
-    window.alert(`Falha ao extrair grades: ${err.message || err}`);
-    createGradeStatusModal().hide();
-    stopGradeStatusPolling();
-  } finally {
-    toggleGradeButtons(false);
-    input.value = "";
-  }
 }
 
 function normalizePointValue(value) {
@@ -727,14 +502,6 @@ async function fetchJSON(url, options = {}) {
   return response.json().catch(() => ({}));
 }
 
-function handleExportJson() {
-  const anchor = document.createElement("a");
-  anchor.href = `${API_BASE_URL}/actions/export-json`;
-  anchor.target = "_blank";
-  anchor.rel = "noopener";
-  anchor.click();
-}
-
 async function fetchCategories() {
   const select = elements.category;
   if (!select) {
@@ -763,7 +530,7 @@ function toggleSimpleMode() {
   setSimpleMode(!simpleModeEnabled);
 }
 
-function toggleEditNamesMode(forceValue) {
+function _legacyToggleEditNamesMode(forceValue) {
   const nextValue = typeof forceValue === "boolean" ? forceValue : !editNamesMode;
   editNamesMode = nextValue;
   if (elements.editNames) {
@@ -805,13 +572,14 @@ function toggleEditNamesMode(forceValue) {
   setEditNamesMode(nextValue);
 }
 
-let agentsPollTimer = null;
 let captureActive = false;
 let captureCountdownTimer = null;
 let captureCountdownRemaining = 0;
 let captureTargetKey = null;
 let automationPollTimer = null;
 let automationState = "idle";
+let automationJobKind = "";
+let automationPhase = "";
 let deleteMode = false;
 let createSetsMode = false;
 let createSetKeys = [];
@@ -824,7 +592,7 @@ let currentProductsSnapshot = [];
 let isRestoringSnapshot = false;
 let orderingSnapshotTaken = false;
 
-async function fetchJSON(url, options = {}) {
+async function _legacyFetchJSON(url, options = {}) {
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
@@ -840,15 +608,7 @@ async function fetchJSON(url, options = {}) {
   return response.json().catch(() => ({}));
 }
 
-function handleExportJson() {
-  const anchor = document.createElement("a");
-  anchor.href = `${API_BASE_URL}/actions/export-json`;
-  anchor.target = "_blank";
-  anchor.rel = "noopener";
-  anchor.click();
-}
-
-function escapeHtml(value) {
+function _legacyEscapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -857,189 +617,21 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-async function fetchAgents() {
-  try {
-    const data = await fetchJSON(`${API_BASE_URL}/automation/agents`);
-    const agents = processAgentsPayload(data);
-    updateAgentsUI(agents);
-  } catch (err) {
-    console.error("Erro ao carregar agentes:", err);
-  }
-}
-
-function processAgentsPayload(data) {
-  const rawAgents = Array.isArray(data?.agents) ? data.agents : [];
-  const augmented = rawAgents.map((agent) => ({
-    agent_id: agent.agent_id || agent.name || "Agente",
-    status: agent.status || "desconhecido",
-    capabilities: agent.capabilities || [],
-    last_seen: agent.last_seen,
-    last_event: agent.last_event || {},
-    kind: agent.kind || "remote",
-    synchronized: Boolean(agent.synchronized ?? true),
-  }));
-
-  const hasRemote = augmented.some((entry) => entry.kind !== "local");
-  if (!hasRemote) {
-    augmented.push({
-      agent_id: "Executor Local",
-      status: "operacional",
-      capabilities: ["pyautogui"],
-      last_seen: 0,
-      last_event: { message: "Executor embutido" },
-      kind: "local",
-      synchronized: true,
-    });
-  }
-  return augmented;
-}
-
-function updateAgentsUI(agents) {
-  const total = Array.isArray(agents) ? agents.length : 0;
-
-  if (elements.agentsCount) {
-    elements.agentsCount.textContent = String(total);
-  }
-  renderAgents(agents);
-
-  if (elements.agentsSummaryCount) {
-    elements.agentsSummaryCount.textContent = String(total);
-  }
-
-  if (elements.agentsSummaryStatus) {
-    const hasAgents = total > 0;
-    elements.agentsSummaryStatus.textContent = hasAgents ? "Sincronizado" : "Aguardando executores";
-    elements.agentsSummaryStatus.classList.toggle("summary-status-ok", hasAgents);
-    elements.agentsSummaryStatus.classList.toggle("summary-status-waiting", !hasAgents);
-  }
-
-  if (elements.agentsSummaryCount) {
-    elements.agentsSummaryCount.classList.toggle("offline", total === 0);
-  }
-
-  renderAgentsSummary(agents);
-}
-
-function renderAgents(agents) {
-  const list = elements.agentsList;
-  if (!list) {
-    return;
-  }
-
-  list.innerHTML = "";
-
-  if (!agents.length) {
-    const empty = document.createElement("li");
-    empty.className = "agents-empty";
-    empty.textContent = "Nenhum agente conectado";
-    list.appendChild(empty);
-    return;
-  }
-
-  agents.forEach((agent) => {
-    const li = document.createElement("li");
-    li.className = "agents-item";
-    const isOnline = agent.synchronized !== false;
-    li.classList.toggle("offline", !isOnline);
-
-    const left = document.createElement("div");
-    left.className = "agent-info";
-
-    const name = document.createElement("strong");
-    name.textContent = agent.agent_id || "Agente";
-    left.appendChild(name);
-
-    const capabilities = Array.isArray(agent.capabilities) ? agent.capabilities.filter(Boolean) : [];
-    if (capabilities.length) {
-      const caps = document.createElement("span");
-      caps.textContent = `Ações: ${capabilities.join(", ")}`;
-      left.appendChild(caps);
-    }
-
-    const right = document.createElement("div");
-    right.className = "agent-meta";
-    const parts = [];
-    if (agent.status) {
-      parts.push(`Status: ${agent.status}`);
-    }
-    if (agent.last_seen != null) {
-      parts.push(`Ping: ${formatLastSeen(agent.last_seen)}`);
-    }
-    const lastMsg = agent?.last_event?.message;
-    if (lastMsg) {
-      parts.push(lastMsg);
-    }
-    right.textContent = parts.join(" | ") || "Sem dados";
-
-    li.appendChild(left);
-    li.appendChild(right);
-    list.appendChild(li);
+async function startAutomationFlow(endpoint, optimisticStatus = {}) {
+  const data = await fetchJSON(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    body: JSON.stringify({}),
   });
-}
-
-function renderAgentsSummary(agents) {
-  const list = elements.agentsSummaryList;
-  if (!list) {
-    return;
-  }
-
-  list.innerHTML = "";
-
-  if (!agents.length) {
-    const empty = document.createElement("li");
-    empty.className = "agents-summary-empty";
-    empty.textContent = "Nenhum executor sincronizado";
-    list.appendChild(empty);
-    return;
-  }
-
-  agents.forEach((agent) => {
-    const li = document.createElement("li");
-    li.className = "agents-summary-item";
-    const isOnline = agent.synchronized !== false;
-    li.classList.toggle("offline", !isOnline);
-
-    const name = document.createElement("strong");
-    name.textContent = agent.agent_id || "Agente";
-    li.appendChild(name);
-
-    const meta = document.createElement("span");
-    const pieces = [];
-    if (agent.status) {
-      pieces.push(agent.status);
-    }
-    if (agent.last_seen != null) {
-      pieces.push(formatLastSeen(agent.last_seen));
-    }
-    meta.textContent = pieces.join(" · ") || "Sem dados";
-    li.appendChild(meta);
-
-    list.appendChild(li);
+  console.log("AutomaÃ§Ã£o disparada:", data);
+  updateAutomationStatus({
+    estado: "running",
+    message: data?.message || optimisticStatus.message || "Em andamento",
+    job_kind: data?.job_kind || optimisticStatus.job_kind || "",
+    phase: optimisticStatus.phase || "",
   });
-}
-
-function formatLastSeen(seconds) {
-  const value = Number.isFinite(seconds) ? seconds : Number(seconds || 0);
-  if (!Number.isFinite(value)) {
-    return "sem dados";
+  if (!automationPollTimer) {
+    automationPollTimer = window.setInterval(pollAutomationStatus, 1000);
   }
-
-  if (value < 1) {
-    return "agora";
-  }
-  if (value < 60) {
-    return `${Math.round(value)}s atrás`;
-  }
-  const minutes = value / 60;
-  if (minutes < 60) {
-    return `${Math.round(minutes)}min atrás`;
-  }
-  const hours = minutes / 60;
-  if (hours < 24) {
-    return `${Math.round(hours)}h atrás`;
-  }
-  const days = hours / 24;
-  return `${Math.round(days)}d atrás`;
 }
 
 async function handleAutomationStart() {
@@ -1061,7 +653,43 @@ async function handleAutomationStart() {
   } catch (err) {
     window.alert(`Não foi possível iniciar automação: ${err.message || err}`);
   } finally {
-    elements.automationStart.disabled = false;
+    syncAutomationShortcutButtons();
+  }
+}
+
+async function handleAutomationComplete() {
+  if (!elements.automationComplete) {
+    return;
+  }
+  elements.automationComplete.disabled = true;
+  try {
+    await startAutomationFlow("/automation/execute-complete", {
+      job_kind: "complete",
+      phase: "catalog",
+      message: "Cadastro completo em andamento",
+    });
+  } catch (err) {
+    window.alert(`NÃ£o foi possÃ­vel iniciar o cadastro completo: ${err.message || err}`);
+  } finally {
+    syncAutomationShortcutButtons();
+  }
+}
+
+async function handleTopExecuteGrades() {
+  if (!elements.topInsertGrade) {
+    return;
+  }
+  elements.topInsertGrade.disabled = true;
+  try {
+    await startAutomationFlow("/automation/grades/execute-products", {
+      job_kind: "grades",
+      phase: "grades",
+      message: "Execucao de grades em andamento",
+    });
+  } catch (err) {
+    window.alert(`Nao foi possivel iniciar a execucao de grades: ${err.message || err}`);
+  } finally {
+    syncAutomationShortcutButtons();
   }
 }
 
@@ -1077,11 +705,16 @@ async function handleAutomationStop() {
     });
     console.log("Cancelamento solicitado:", result);
     automationState = "stopping";
-    updateAutomationStatus({ estado: "stopping", message: "Cancelando..." });
+    updateAutomationStatus({
+      estado: "stopping",
+      job_kind: automationJobKind,
+      phase: automationPhase,
+      message: "Cancelando...",
+    });
   } catch (err) {
     window.alert(`Não foi possível cancelar: ${err.message || err}`);
   } finally {
-    elements.automationStop.disabled = false;
+    syncAutomationShortcutButtons();
   }
 }
 
@@ -1096,25 +729,24 @@ async function handleTopStopGrades() {
       body: JSON.stringify({}),
     });
     console.log("Parada de grades solicitada:", result);
-    updateAutomationStatus({ estado: "stopping", job_kind: "grades", message: "Parando grades..." });
+    updateAutomationStatus({ estado: "stopping", job_kind: "grades", phase: "grades", message: "Parando grades..." });
   } catch (err) {
     window.alert(`Não foi possível parar as grades: ${err.message || err}`);
   } finally {
-    syncAutomationShortcutButtons({ estado: "stopping", job_kind: "grades" });
+    syncAutomationShortcutButtons({ estado: "stopping", job_kind: "grades", phase: "grades" });
   }
 }
 
 function syncAutomationShortcutButtons(data = {}) {
   const estado = data.estado || automationState;
-  const jobKind = data.job_kind || "";
-  const gradesRunning = estado === "running" && jobKind === "grades";
+  const jobKind = data.job_kind || automationJobKind || "";
+  const phase = data.phase || automationPhase || "";
+  const anyRunning = estado === "running" || estado === "stopping";
+  const gradesRunning = anyRunning && (jobKind === "grades" || phase === "grades");
 
-  if (elements.topInsertGrade) {
-    elements.topInsertGrade.disabled = gradesRunning;
-  }
-  if (elements.topStopGrades) {
-    elements.topStopGrades.disabled = !gradesRunning;
-  }
+  setButtonsDisabled(AUTOMATION_RUN_BUTTON_KEYS, anyRunning);
+  setButtonsDisabled(AUTOMATION_STOP_BUTTON_KEYS, !anyRunning);
+  setButtonsDisabled(GRADE_STOP_BUTTON_KEYS, !gradesRunning);
 }
 
 function updateAutomationStatus(data = {}) {
@@ -1122,20 +754,46 @@ function updateAutomationStatus(data = {}) {
     return;
   }
   const estado = data.estado || automationState;
-  const mensagem =
-    data.message ||
-    data.detail ||
-    data.status ||
-    data.sucesso?.concat ? data.sucesso : data.sucesso || "";
+  automationState = estado;
+  automationJobKind = Object.prototype.hasOwnProperty.call(data, "job_kind")
+    ? data.job_kind || ""
+    : automationJobKind || "";
+  automationPhase = Object.prototype.hasOwnProperty.call(data, "phase")
+    ? data.phase || ""
+    : automationPhase || "";
+  const mensagem = data.message || data.detail || data.status || data.sucesso || "";
   const cancelRequested = data.cancel_requested === "True" ? " (cancelando)" : "";
 
   const linhas = [];
   linhas.push(`Estado: ${estado}${cancelRequested}`);
+  if (automationJobKind) {
+    const fluxoLabels = {
+      catalog: "cadastro em massa",
+      complete: "cadastro completo",
+      grades: "insercao de grades",
+    };
+    const faseLabels = {
+      catalog: "cadastro",
+      transition: "transicao",
+      grades: "grades",
+    };
+    const fluxo = fluxoLabels[automationJobKind] || AUTOMATION_JOB_LABELS[automationJobKind] || automationJobKind;
+    const fase = automationPhase
+      ? faseLabels[automationPhase] || AUTOMATION_PHASE_LABELS[automationPhase] || automationPhase
+      : "";
+    linhas.push(fase ? `Fluxo: ${fluxo} · ${fase}` : `Fluxo: ${fluxo}`);
+  }
   if (mensagem) {
     linhas.push(mensagem);
   }
   if (data.sucesso) {
     linhas.push(`Sucesso: ${data.sucesso}`);
+  }
+  if (data.sucesso_catalogo) {
+    linhas.push(`Cadastro: ${data.sucesso_catalogo}`);
+  }
+  if (data.sucesso_grades) {
+    linhas.push(`Grades: ${data.sucesso_grades}`);
   }
   if (data.falhas) {
     linhas.push(`Falhas: ${data.falhas}`);
@@ -1144,13 +802,41 @@ function updateAutomationStatus(data = {}) {
     linhas.push(`Duração: ${data.duration}`);
   }
   if (data.tempo_economizado) {
-    linhas.push(`Tempo economizado: ${formatDuration(data.tempo_economizado)}`);
+    linhas.push(`Tempo manual evitado: ${formatDuration(data.tempo_economizado)}`);
   }
   if (data.caracteres_digitados) {
     const charsFormatted = Number(data.caracteres_digitados || 0).toLocaleString("pt-BR");
     linhas.push(`Caracteres digitados: ${charsFormatted}`);
   }
   elements.automationStatus.textContent = linhas.join(" | ") || "—";
+  const resumo = [];
+  resumo.push(`Estado: ${estado}${cancelRequested}`);
+  if (automationJobKind && estado !== "idle") {
+    const fluxoLabelsCompact = {
+      catalog: "cadastro",
+      complete: "completo",
+      grades: "grades",
+    };
+    const faseLabelsCompact = {
+      catalog: "cadastro",
+      transition: "transicao",
+      grades: "grades",
+    };
+    const fluxoCompact =
+      fluxoLabelsCompact[automationJobKind] || AUTOMATION_JOB_LABELS[automationJobKind] || automationJobKind;
+    const faseCompact = automationPhase
+      ? faseLabelsCompact[automationPhase] || AUTOMATION_PHASE_LABELS[automationPhase] || automationPhase
+      : "";
+    resumo.push(faseCompact && faseCompact !== fluxoCompact ? `${fluxoCompact} · ${faseCompact}` : fluxoCompact);
+  }
+  if (resumo.length) {
+    resumo[resumo.length - 1] = resumo[resumo.length - 1].replace("Â·", "-");
+  }
+  if (data.duration && estado === "running") {
+    resumo.push(data.duration);
+  }
+  elements.automationStatus.textContent = resumo.join(" | ") || "—";
+  elements.automationStatus.title = linhas.join(" | ") || "";
   syncAutomationShortcutButtons({ ...data, estado });
 }
 
@@ -1159,13 +845,14 @@ async function pollAutomationStatus() {
     const previousState = automationState;
     const data = await fetchJSON(`${API_BASE_URL}/automation/status`);
     updateAutomationStatus(data);
-    automationState = data.estado || automationState;
     if (automationState === "running" && !automationPollTimer) {
       automationPollTimer = window.setInterval(pollAutomationStatus, 1000);
     }
     if (automationState !== "running" && automationPollTimer) {
       window.clearInterval(automationPollTimer);
       automationPollTimer = null;
+      automationJobKind = data?.job_kind || "";
+      automationPhase = data?.phase || "";
     }
     if (previousState === "running" && automationState !== "running") {
       void fetchTotals();
@@ -1176,7 +863,7 @@ async function pollAutomationStatus() {
       window.clearInterval(automationPollTimer);
       automationPollTimer = null;
     }
-    updateAutomationStatus({ estado: "erro", message: err.message || err });
+    updateAutomationStatus({ estado: "erro", job_kind: "", phase: "", message: err.message || err });
   }
 }
 
@@ -1295,6 +982,7 @@ async function openInsertGradesDialog() {
               <div class="actions-title">Automação</div>
               <div class="actions-buttons">
                 <button type="button" class="pill-button secondary" data-action="calibrate-grades">Calibrar Grades</button>
+                <button type="button" class="pill-button secondary" data-action="manage-grade-sizes">Tamanhos</button>
                 <button type="button" class="pill-button accent" data-action="execute-grades">Executar Grades</button>
                 <button type="button" class="pill-button danger" data-action="stop-grades" disabled>Parar</button>
               </div>
@@ -1321,12 +1009,17 @@ async function openInsertGradesDialog() {
   let selectedIndex = -1;
   let products = [];
   let sizes = [];
+  let gradeConfig = {};
   let saveTimer = null;
   let wheelHandler = null;
   let gradeExecutionPollTimer = null;
 
   function normalizeSizeLabel(v) {
     return String(v || "").trim().toLowerCase();
+  }
+
+  function getConfiguredSizeOrder() {
+    return normalizeGradeSizeList(gradeConfig?.erp_size_order || []);
   }
 
   const SMART_PATTERNS = {
@@ -1538,17 +1231,18 @@ async function openInsertGradesDialog() {
 
   function renderEditor(product) {
     if (!editorEl) return;
+    const editorSizes = buildGradeSizeCatalog([product], sizes, getConfiguredSizeOrder());
     const gradesMap = new Map();
     if (Array.isArray(product.grades)) {
       product.grades.forEach((g) => {
         if (g && typeof g.tamanho !== 'undefined') {
-          gradesMap.set(String(g.tamanho).trim(), Number(g.quantidade) || 0);
+          gradesMap.set(normalizeGradeSizeLabel(g.tamanho), Number(g.quantidade) || 0);
         }
       });
     }
-    const cells = sizes
+    const cells = editorSizes
       .map((size) => {
-        const val = gradesMap.get(String(size)) ?? '';
+        const val = gradesMap.get(normalizeGradeSizeLabel(size)) ?? '';
         return `
           <div class="size-cell">
             <label>${escapeHtml(size)}</label>
@@ -1578,6 +1272,7 @@ async function openInsertGradesDialog() {
           <button type="button" class="pill-button accent" data-smart="UNIFORME">Uniforme</button>
         </div>
       </div>
+      <p class="modal-hint">Ordem atual: ${escapeHtml(editorSizes.join(" • "))}</p>
       <div class="sizes-grid">${cells}</div>
       <p class="modal-hint">Dica: deixe em branco ou zero para tamanhos que não existem.</p>
     `;
@@ -1814,42 +1509,43 @@ async function openInsertGradesDialog() {
         const sizesSuggestion = Array.from(editorEl.querySelectorAll('input[data-size]'))
           .map((i) => String(i.dataset.size))
           .join(',');
-        const existingConfig = await fetchJSON(`${API_BASE_URL}/automation/grades/config`).catch(() => ({}));
-        const dialogResult = await openGradeCalibrationDialog(existingConfig?.config || {}, { sizesSuggestion });
+        const existingConfig = await fetchGradeConfig();
+        const dialogResult = await openGradeCalibrationDialog(existingConfig, { sizesSuggestion });
         if (!dialogResult) {
           return;
         }
 
-        const payload = {
-          buttons: dialogResult.buttons,
-          erp_size_order: dialogResult.erpSizeOrder,
-        };
-        if (dialogResult.firstQuantCell) {
-          payload.first_quant_cell = dialogResult.firstQuantCell;
-        }
-        if (dialogResult.secondQuantCell) {
-          payload.second_quant_cell = dialogResult.secondQuantCell;
-        }
-        if (dialogResult.rowHeight) {
-          payload.row_height = dialogResult.rowHeight;
-        }
-        if (dialogResult.modelIndex !== undefined) {
-          payload.model_index = dialogResult.modelIndex;
-        }
-        if (dialogResult.modelHotkey !== undefined) {
-          payload.model_hotkey = dialogResult.modelHotkey;
-        }
-
-        const res = await fetch(`${API_BASE_URL}/automation/grades/config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error(await res.text());
+        const payload = buildGradeConfigPayload(dialogResult);
+        await saveGradeConfig(payload);
         window.alert('Calibração salva.');
       } catch (e) {
         console.error('Calibração falhou', e);
         window.alert(`Falha ao calibrar: ${e?.message || e}`);
+      } finally {
+        target.disabled = false;
+      }
+      return;
+    }
+    if (target.dataset?.action === 'manage-grade-sizes') {
+      if (target.disabled) {
+        return;
+      }
+      target.disabled = true;
+      try {
+        const currentCatalog = buildGradeSizeCatalog(products, sizes, getConfiguredSizeOrder());
+        const updatedOrder = await openGradeOrderDialog(currentCatalog);
+        if (!updatedOrder) {
+          return;
+        }
+        gradeConfig = await saveGradeConfig({ erp_size_order: updatedOrder });
+        sizes = buildGradeSizeCatalog(products, sizes, getConfiguredSizeOrder());
+        if (selected) {
+          renderEditor(selected);
+        }
+        window.alert('Ordem de tamanhos atualizada.');
+      } catch (e) {
+        console.error('Falha ao atualizar tamanhos', e);
+        window.alert(`Falha ao salvar tamanhos: ${e?.message || e}`);
       } finally {
         target.disabled = false;
       }
@@ -1991,12 +1687,14 @@ async function openInsertGradesDialog() {
 
   // Busca assíncrona de dados
   try {
-    const [productsPayload, sizesData] = await Promise.all([
+    const [productsPayload, sizesData, gradeConfigData] = await Promise.all([
       fetchJSON(`${API_BASE_URL}/products`).catch(() => ({ items: [] })),
       fetchSizesCatalog(),
+      fetchGradeConfig(),
     ]);
     products = Array.isArray(productsPayload?.items) ? productsPayload.items : [];
-    sizes = Array.isArray(sizesData) ? sizesData : [];
+    gradeConfig = gradeConfigData || {};
+    sizes = buildGradeSizeCatalog(products, Array.isArray(sizesData) ? sizesData : [], getConfiguredSizeOrder());
     renderProductsList();
 
     // Seleciona automaticamente o primeiro produto sem grade (ou o primeiro)
@@ -2925,7 +2623,8 @@ function beginInlineEdit(cell) {
   cell.textContent = "";
   cell.appendChild(input);
   input.focus();
-  input.setSelectionRange(0, input.value.length);
+  const caretPosition = input.value.length;
+  input.setSelectionRange(caretPosition, caretPosition);
   activeCellEditor = { cell, input, originalValue, field, orderingKey };
 }
 
@@ -3262,21 +2961,198 @@ async function handleJoinDuplicates() {
   }
 }
 
+const GRADE_SIZE_PRIORITY = [
+  "1",
+  "2",
+  "3",
+  "01",
+  "02",
+  "03",
+  "04",
+  "06",
+  "08",
+  "10",
+  "12",
+  "14",
+  "16",
+  "18",
+  "U",
+  "PP",
+  "P",
+  "M",
+  "G",
+  "GG",
+  "XG",
+  "XXG",
+  "G1",
+  "G2",
+  "G3",
+  "34",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48",
+  "50",
+  "52",
+  "54",
+  "56",
+];
+const GRADE_SIZE_PRIORITY_INDEX = new Map(GRADE_SIZE_PRIORITY.map((size, index) => [size, index]));
+
+function normalizeGradeSizeLabel(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function compareGradeSizeLabels(a, b) {
+  const left = normalizeGradeSizeLabel(a);
+  const right = normalizeGradeSizeLabel(b);
+  const leftRank = GRADE_SIZE_PRIORITY_INDEX.has(left) ? GRADE_SIZE_PRIORITY_INDEX.get(left) : Number.POSITIVE_INFINITY;
+  const rightRank = GRADE_SIZE_PRIORITY_INDEX.has(right) ? GRADE_SIZE_PRIORITY_INDEX.get(right) : Number.POSITIVE_INFINITY;
+  if (leftRank !== rightRank) {
+    return leftRank - rightRank;
+  }
+  return left.localeCompare(right, "pt-BR");
+}
+
+function normalizeGradeSizeList(values) {
+  const unique = new Map();
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const label = normalizeGradeSizeLabel(value);
+    if (!label || unique.has(label)) {
+      return;
+    }
+    unique.set(label, label);
+  });
+  return Array.from(unique.values());
+}
+
+function buildGradeSizeCatalog(products, catalogSizes, preferredOrder = []) {
+  const merged = new Map();
+
+  const pushValue = (value) => {
+    const label = normalizeGradeSizeLabel(value);
+    if (!label || merged.has(label)) {
+      return;
+    }
+    merged.set(label, label);
+  };
+
+  normalizeGradeSizeList(preferredOrder).forEach(pushValue);
+  (Array.isArray(catalogSizes) ? catalogSizes : []).forEach(pushValue);
+  (Array.isArray(products) ? products : []).forEach((product) => {
+    if (!Array.isArray(product?.grades)) {
+      return;
+    }
+    product.grades.forEach((grade) => pushValue(grade?.tamanho));
+  });
+
+  const preferredIndex = new Map(
+    normalizeGradeSizeList(preferredOrder).map((size, index) => [normalizeGradeSizeLabel(size), index])
+  );
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const left = normalizeGradeSizeLabel(a);
+    const right = normalizeGradeSizeLabel(b);
+    const leftPreferred = preferredIndex.has(left) ? preferredIndex.get(left) : Number.POSITIVE_INFINITY;
+    const rightPreferred = preferredIndex.has(right) ? preferredIndex.get(right) : Number.POSITIVE_INFINITY;
+    if (leftPreferred !== rightPreferred) {
+      return leftPreferred - rightPreferred;
+    }
+    return compareGradeSizeLabels(left, right);
+  });
+}
+
+function openGradeOrderDialog(currentSizes = []) {
+  const normalizedSizes = normalizeGradeSizeList(currentSizes);
+  const dialog = createDialogElement(`
+    <h3>Personalizar Tamanhos</h3>
+    <label class="modal-input">
+      <span>Ordem dos tamanhos</span>
+      <textarea id="grade-order-manager-input" rows="6" placeholder="Ex.: PP, P, M, G, GG, XG">${normalizedSizes.join(", ")}</textarea>
+    </label>
+    <p class="modal-hint">Adicione novos tamanhos e reorganize a ordem separando por vírgula. Isso atualiza o webapp e o bot de automação.</p>
+  `);
+
+  document.body.appendChild(dialog);
+
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      dialog.remove();
+      document.removeEventListener("keydown", escListener);
+    };
+
+    const escListener = (event) => {
+      if (event.key === "Escape") {
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    document.addEventListener("keydown", escListener);
+
+    dialog.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) {
+        return;
+      }
+      const action = button.dataset.action;
+      if (action === "cancel") {
+        cleanup();
+        resolve(null);
+        return;
+      }
+      if (action === "confirm") {
+        const input = dialog.querySelector("#grade-order-manager-input");
+        const values = String(input?.value || "")
+          .split(",")
+          .map((item) => normalizeGradeSizeLabel(item))
+          .filter(Boolean);
+        const normalized = normalizeGradeSizeList(values);
+        if (!normalized.length) {
+          window.alert("Informe pelo menos um tamanho.");
+          return;
+        }
+        cleanup();
+        resolve(normalized);
+      }
+    });
+  });
+}
+
 async function handleJoinGrades() {
-  toggleGradeButtons(true);
+  if (!elements.joinGrades) {
+    return;
+  }
+
+  const button = elements.joinGrades;
+  const previousLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Juntando...";
+
   try {
     pushUndoSnapshot();
-    const res = await fetchJSON(`${API_BASE_URL}/actions/join-grades`, { method: "POST" });
-    const msg = `Consolidação concluída. Itens originais: ${res.originais} | Restantes: ${res.resultantes} | Removidos: ${res.removidos} | Atualizados com grade: ${res.atualizados_grades}`;
-    console.log(msg);
+    const result = await fetchJSON(`${API_BASE_URL}/actions/join-grades`, {
+      method: "POST",
+    });
     await refreshProducts();
     await fetchTotals();
-    window.alert(msg);
+
+    window.alert(
+      [
+        `Produtos finais: ${Number(result?.resultantes || 0)}`,
+        `Grades criadas/atualizadas: ${Number(result?.atualizados_grades || 0)}`,
+        `Linhas unificadas: ${Number(result?.removidos || 0)}`,
+      ].join("\n")
+    );
   } catch (err) {
-    console.error("Erro ao juntar com grades:", err);
-    window.alert(`Falha ao juntar com grades: ${err.message || err}`);
+    console.error("Erro ao juntar grades:", err);
+    window.alert(`Falha ao juntar grades: ${err.message || err}`);
   } finally {
-    toggleGradeButtons(false);
+    button.disabled = false;
+    button.textContent = previousLabel;
   }
 }
 
@@ -3312,19 +3188,12 @@ function toggleImportButtons(disabled) {
     elements.importRomaneioSecondary.disabled = disabled;
   }
 }
-
-function toggleGradeButtons(disabled) {
+function toggleGradeButtons(disabled) {
   if (elements.insertGrade) {
     elements.insertGrade.disabled = disabled;
   }
   if (elements.topInsertGrade) {
     elements.topInsertGrade.disabled = disabled;
-  }
-  if (elements.extractGrades) {
-    elements.extractGrades.disabled = disabled;
-  }
-  if (elements.joinGrades) {
-    elements.joinGrades.disabled = disabled;
   }
 }
 
@@ -3579,9 +3448,8 @@ async function fetchTargets() {
 }
 
 function normalizeTargets(raw) {
-  const keys = ["byte_empresa_posicao", "campo_descricao", "tres_pontinhos"];
   const normalized = {};
-  keys.forEach((key) => {
+  AUTOMATION_TARGET_FIELDS.forEach(({ key }) => {
     const entry = raw?.[key];
     if (entry && Number.isFinite(Number(entry.x)) && Number.isFinite(Number(entry.y))) {
       normalized[key] = { x: Number(entry.x), y: Number(entry.y) };
@@ -3593,6 +3461,16 @@ function normalizeTargets(raw) {
   return normalized;
 }
 
+async function fetchGradeConfig() {
+  try {
+    const data = await fetchJSON(`${API_BASE_URL}/automation/grades/config`);
+    return data?.config || {};
+  } catch (err) {
+    console.error("Erro ao carregar configuracao de grades:", err);
+    return {};
+  }
+}
+
 async function saveTargets(payload) {
   try {
     const response = await fetchJSON(`${API_BASE_URL}/automation/targets`, {
@@ -3602,6 +3480,42 @@ async function saveTargets(payload) {
     return normalizeTargets(response || {});
   } catch (err) {
     console.error("Erro ao salvar targets:", err);
+    throw err;
+  }
+}
+
+function buildGradeConfigPayload(dialogResult) {
+  const payload = {
+    buttons: dialogResult.buttons,
+    erp_size_order: dialogResult.erpSizeOrder,
+  };
+  if (dialogResult.firstQuantCell) {
+    payload.first_quant_cell = dialogResult.firstQuantCell;
+  }
+  if (dialogResult.secondQuantCell) {
+    payload.second_quant_cell = dialogResult.secondQuantCell;
+  }
+  if (dialogResult.rowHeight) {
+    payload.row_height = dialogResult.rowHeight;
+  }
+  if (dialogResult.modelIndex !== undefined) {
+    payload.model_index = dialogResult.modelIndex;
+  }
+  if (dialogResult.modelHotkey !== undefined) {
+    payload.model_hotkey = dialogResult.modelHotkey;
+  }
+  return payload;
+}
+
+async function saveGradeConfig(payload) {
+  try {
+    const response = await fetchJSON(`${API_BASE_URL}/automation/grades/config`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response?.config || {};
+  } catch (err) {
+    console.error("Erro ao salvar configuracao de grades:", err);
     throw err;
   }
 }
@@ -3651,6 +3565,28 @@ function openTargetPickerDialog(existingTargets = {}) {
   const confirmButton = dialog.querySelector(".modal-actions [data-action=confirm]");
   if (confirmButton) {
     confirmButton.textContent = "Salvar";
+  }
+  const feedbackEl = dialog.querySelector("#calibration-capture-feedback");
+  if (feedbackEl) {
+    const hint = document.createElement("p");
+    hint.className = "modal-hint";
+    hint.textContent = "Os 4 cliques de Cadastro completo sÃ£o usados na transiÃ§Ã£o entre cadastro em massa e grades.";
+    hint.textContent = "Os 4 cliques de Cadastro completo sao usados na transicao entre cadastro em massa e grades.";
+    feedbackEl.insertAdjacentElement("beforebegin", hint);
+
+    AUTOMATION_TARGET_FIELDS.filter(({ key }) => key.startsWith("cadastro_completo_passo_")).forEach(({ key }) => {
+      const row = document.createElement("div");
+      row.className = "calibration-target";
+      row.dataset.target = key;
+      row.innerHTML = `
+        <div class="calibration-info">
+          <strong>${labelForTarget(key)}</strong>
+          <span class="calibration-coords">${makeCoordsText(key)}</span>
+        </div>
+        <button type="button" class="pill-button accent" data-action="capture" data-target="${key}">Capturar</button>
+      `;
+      feedbackEl.insertAdjacentElement("beforebegin", row);
+    });
   }
 
   let currentTargets = { ...existingTargets };
@@ -3758,6 +3694,22 @@ function openTargetPickerDialog(existingTargets = {}) {
 }
 
 function labelForTarget(key) {
+  const safeLabels = {
+    byte_empresa_posicao: "Posicao Byte Empresa",
+    campo_descricao: "Campo Descricao",
+    tres_pontinhos: "Botao 3 pontinhos",
+    cadastro_completo_passo_1: "Cadastro completo - clique 1",
+    cadastro_completo_passo_2: "Cadastro completo - clique 2",
+    cadastro_completo_passo_3: "Cadastro completo - clique 3",
+    cadastro_completo_passo_4: "Cadastro completo - clique 4",
+  };
+  if (safeLabels[key]) {
+    return safeLabels[key];
+  }
+  const item = AUTOMATION_TARGET_FIELDS.find((entry) => entry.key === key);
+  if (item?.label) {
+    return item.label;
+  }
   switch (key) {
     case "byte_empresa_posicao":
       return "Posição Byte Empresa";
@@ -3886,7 +3838,7 @@ async function handleCalibrationClick() {
     if (result.title) {
       toPersist.title = result.title;
     }
-    ["byte_empresa_posicao", "campo_descricao", "tres_pontinhos"].forEach((key) => {
+    AUTOMATION_TARGET_FIELDS.forEach(({ key }) => {
       if (result[key]) {
         toPersist[key] = result[key];
       }
@@ -3905,6 +3857,72 @@ async function handleCalibrationClick() {
   }
 }
 
+async function handleFullAutomationCalibrationClick() {
+  if (!elements.calibrate) {
+    return;
+  }
+
+  if (elements.calibrate.disabled) {
+    return;
+  }
+
+  elements.calibrate.disabled = true;
+  try {
+    const currentTargets = await fetchTargets();
+    const targetResult = await openTargetPickerDialog(currentTargets);
+    if (!targetResult) {
+      return;
+    }
+
+    const targetPayload = {};
+    if (targetResult.title) {
+      targetPayload.title = targetResult.title;
+    }
+    AUTOMATION_TARGET_FIELDS.forEach(({ key }) => {
+      if (targetResult[key]) {
+        targetPayload[key] = targetResult[key];
+      }
+    });
+
+    let savedTargets = false;
+    if (Object.keys(targetPayload).length) {
+      await saveTargets(targetPayload);
+      savedTargets = true;
+    }
+
+    const currentGradeConfig = await fetchGradeConfig();
+    const gradeResult = await openGradeCalibrationDialog(currentGradeConfig, {});
+
+    let savedGrades = false;
+    if (gradeResult) {
+      const gradePayload = buildGradeConfigPayload(gradeResult);
+      if (Object.keys(gradePayload).length) {
+        await saveGradeConfig(gradePayload);
+        savedGrades = true;
+      }
+    }
+
+    if (!savedTargets && !savedGrades) {
+      window.alert("Nenhuma coordenada nova para salvar.");
+      return;
+    }
+    if (savedTargets && savedGrades) {
+      window.alert("Calibracao completa salva com sucesso.");
+      return;
+    }
+    if (savedTargets) {
+      window.alert("Coordenadas do cadastro salvas com sucesso.");
+      return;
+    }
+    window.alert("Coordenadas das grades salvas com sucesso.");
+  } catch (err) {
+    console.error("Erro durante calibracao completa:", err);
+    window.alert(`Falha na calibracao: ${err.message || err}`);
+  } finally {
+    elements.calibrate.disabled = false;
+  }
+}
+
 function registerEvents() {
   elements.form?.addEventListener("submit", handleSubmit);
   elements.applyCategory?.addEventListener("click", handleApplyCategory);
@@ -3913,36 +3931,28 @@ function registerEvents() {
   elements.clearList?.addEventListener("click", handleClearList);
   elements.importRomaneioPrimary?.addEventListener("click", handleImportRomaneio);
   elements.importRomaneioSecondary?.addEventListener("click", handleImportRomaneio);
-  elements.extractGrades?.addEventListener("click", () => {
-    void handleExtractGrades();
-  });
-  elements.joinGrades?.addEventListener("click", () => {
-    void handleJoinGrades();
-  });
   elements.formatCodes?.addEventListener("click", handleFormatCodes);
-  elements.calibrate?.addEventListener("click", handleCalibrationClick);
+  elements.calibrate?.addEventListener("click", handleFullAutomationCalibrationClick);
   elements.improveDescription?.addEventListener("click", handleImproveDescription);
   elements.deleteItems?.addEventListener("click", handleDeleteItemsClick);
   elements.toggleOrdering?.addEventListener("click", handleToggleOrdering);
   elements.createSets?.addEventListener("click", handleCreateSetsClick);
+  elements.joinGrades?.addEventListener("click", handleJoinGrades);
   elements.editNames?.addEventListener("click", toggleEditNamesMode);
   elements.allowEdits?.addEventListener("click", () => toggleGlobalEditMode());
   elements.toggleSimpleMode?.addEventListener("click", toggleSimpleMode);
-  elements.exportJson?.addEventListener("click", handleExportJson);
   elements.insertGrade?.addEventListener("click", () => {
     void openInsertGradesDialog();
   });
-  elements.topInsertGrade?.addEventListener("click", () => {
-    void openInsertGradesDialog();
-  });
+  elements.topInsertGrade?.addEventListener("click", handleTopExecuteGrades);
   document.getElementById("btn-nova-marca")?.addEventListener("click", handleNewBrand);
   elements.automationStart?.addEventListener("click", handleAutomationStart);
+  elements.automationComplete?.addEventListener("click", handleAutomationComplete);
   elements.automationStop?.addEventListener("click", handleAutomationStop);
   elements.topStopGrades?.addEventListener("click", handleTopStopGrades);
 
   const marginPrimary = document.getElementById("btn-open-margin");
-  const marginSecondary = document.getElementById("btn-margem");
-  [marginPrimary, marginSecondary]
+  [marginPrimary]
     .filter(Boolean)
     .forEach((button) =>
       button.addEventListener("click", () => {
@@ -3965,7 +3975,6 @@ async function init() {
       refreshProducts(),
       fetchTotals(),
       fetchBrands(),
-      fetchAgents(),
       pollAutomationStatus(),
       fetchCategories(),
     ]);
@@ -3977,13 +3986,11 @@ async function init() {
     await fetchMarginSettings();
     await fetchTotals();
     await refreshProducts();
-    await fetchAgents();
   } catch (err) {
     console.error("Falha ao atualizar dados iniciais:", err);
   }
 
   startUIRealtime();
-  startAgentsPolling();
 }
 
 document.addEventListener("DOMContentLoaded", init);
@@ -3992,8 +3999,6 @@ const UI_WS_PATH = "/ws/ui";
 const UI_WS_PING_INTERVAL_MS = 20000;
 const UI_WS_REFRESH_DEBOUNCE_MS = 150;
 const UI_FALLBACK_POLL_INTERVAL_MS = 5000;
-const AGENTS_POLL_INTERVAL_MS = 5000;
-const AGENTS_POLL_INTERVAL_WS_MS = 15000;
 
 const ROMANEIO_STAGE_PROGRESS = {
   pending: 0.1,
@@ -4002,15 +4007,7 @@ const ROMANEIO_STAGE_PROGRESS = {
   parsing: 0.85,
   completed: 1,
   error: 1,
-};
-const GRADE_STAGE_PROGRESS = {
-  pending: 0.1,
-  uploading: 0.3,
-  processing: 0.65,
-  parsing: 0.9,
-  completed: 1,
-  error: 1,
-};
+};
 
 let uiWs = null;
 let uiWsConnected = false;
@@ -4067,9 +4064,6 @@ async function flushUiScopesRefresh() {
   }
   if (scopes.includes("brands")) {
     tasks.push(fetchBrands());
-  }
-  if (scopes.includes("agents")) {
-    tasks.push(fetchAgents());
   }
   if (scopes.includes("automation")) {
     tasks.push(pollAutomationStatus());
@@ -4141,13 +4135,7 @@ function handleUiJobUpdated(payload) {
     const progress = ROMANEIO_STAGE_PROGRESS[String(stage)] ?? 0.1;
     modal.update(message || "Processando...", progress);
     return;
-  }
-
-  if (job === "parser_grades" && gradeStatusJobId && jobId === gradeStatusJobId) {
-    const modal = createGradeStatusModal();
-    const progress = GRADE_STAGE_PROGRESS[String(stage)] ?? 0.1;
-    modal.update(message || "Processando grades...", progress);
-  }
+  }
 }
 
 function handleUiWsMessage(raw) {
@@ -4200,8 +4188,7 @@ function connectUiWs() {
     uiWsConnected = true;
     uiWsReconnectDelayMs = 1000;
     stopUiFallbackPolling();
-    restartAgentsPolling();
-    scheduleUiScopesRefresh(["products", "totals", "brands", "agents", "automation", "margin"]);
+    scheduleUiScopesRefresh(["products", "totals", "brands", "automation", "margin"]);
     startUiWsPing();
   });
 
@@ -4213,7 +4200,6 @@ function connectUiWs() {
     uiWsConnected = false;
     stopUiWsPing();
     startUiFallbackPolling();
-    restartAgentsPolling();
     scheduleUiWsReconnect();
   });
 
@@ -4240,27 +4226,4 @@ function startUIRealtime() {
     }
   });
 }
-
-function startAgentsPolling() {
-  if (agentsPollTimer) {
-    return;
-  }
-  const interval = uiWsConnected ? AGENTS_POLL_INTERVAL_WS_MS : AGENTS_POLL_INTERVAL_MS;
-  agentsPollTimer = window.setInterval(() => {
-    if (document.visibilityState === "visible") {
-      void fetchAgents();
-    }
-  }, interval);
-}
-
-function stopAgentsPolling() {
-  if (agentsPollTimer) {
-    window.clearInterval(agentsPollTimer);
-    agentsPollTimer = null;
-  }
-}
-
-function restartAgentsPolling() {
-  stopAgentsPolling();
-  startAgentsPolling();
-}
+

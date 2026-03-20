@@ -206,7 +206,7 @@ async def index():
       </head>
       <body>
         <div class="container">
-          <h1>LLM3 · Qwen3 VL</h1>
+          <h1>LLM3 · Qwen3.5 Cloud</h1>
           <div class="status-bar">
             <div class="status-indicator" id="status-dot"></div>
             <span class="status-text" id="status-text">Verificando conexão...</span>

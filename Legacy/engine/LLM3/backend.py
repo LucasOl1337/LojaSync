@@ -5,10 +5,11 @@ import os
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 from typing import Dict, List, Optional
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 try:  # Importa somente se existir
@@ -33,25 +34,43 @@ OLLAMA_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "600"))
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
 OLLAMA_API_KEY_HEADER = os.getenv("OLLAMA_API_KEY_HEADER", "Authorization")
 OLLAMA_API_KEY_SCHEME = os.getenv("OLLAMA_API_KEY_SCHEME", "Bearer")
+_JOB_API_KEYS: Dict[str, tuple[str, str]] = {}
+_JOB_API_KEYS_LOCK = Lock()
 
 
-def _resolve_api_key() -> Optional[str]:
+def _has_configured_api_key() -> bool:
+    return bool((OLLAMA_API_KEY or "").strip()) or bool(api_keys and api_keys.has_keys())
+
+
+def _resolve_api_key(job_id: Optional[str] = None) -> Optional[str]:
     if OLLAMA_API_KEY:
         return OLLAMA_API_KEY.strip() or None
     if api_keys and api_keys.has_keys():
-        pair = api_keys.get_next_key_with_name()
+        pair: Optional[tuple[str, str]]
+        announce = False
+        if job_id:
+            with _JOB_API_KEYS_LOCK:
+                pair = _JOB_API_KEYS.get(job_id)
+                if pair is None:
+                    pair = api_keys.get_next_key_with_name()
+                    if pair:
+                        _JOB_API_KEYS[job_id] = pair
+                        announce = True
+        else:
+            pair = api_keys.get_next_key_with_name()
+            announce = True
         if not pair:
             return None
         name, key = pair
-        if key:
+        if key and announce:
             print(f"[LLM3] utilizando chave '{name}'")
         return key.strip() if key else None
     return None
 
 
-def _build_llm_headers() -> Dict[str, str]:
+def _build_llm_headers(job_id: Optional[str] = None) -> Dict[str, str]:
     headers: Dict[str, str] = {}
-    api_key_value = _resolve_api_key()
+    api_key_value = _resolve_api_key(job_id=job_id)
     if api_key_value:
         value = api_key_value
         if OLLAMA_API_KEY_SCHEME:
@@ -68,32 +87,45 @@ def _truncate_text(value: str, max_chars: int) -> str:
     return value[:max_chars].rstrip()
 
 
-if _resolve_api_key() and not _OLLAMA_BASE_URL_ENV:
+if _has_configured_api_key() and not _OLLAMA_BASE_URL_ENV:
     OLLAMA_BASE_URL = "https://ollama.com"
 
 
 OLLAMA_URL = _join_url(OLLAMA_BASE_URL, OLLAMA_API_CHAT_PATH)
 OLLAMA_STATUS_URL = _join_url(OLLAMA_BASE_URL, OLLAMA_API_STATUS_PATH)
-MODEL_NAME = "qwen3-vl:235b-cloud"
+MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen3.5:cloud")
 LLM3_MAX_DOC_CHARS = int(os.getenv("LLM3_MAX_DOC_CHARS", "14000"))
 LLM3_MAX_PROMPT_CHARS = int(os.getenv("LLM3_MAX_PROMPT_CHARS", "20000"))
 LLM3_RETRY_STATUS_CODES = {500, 502, 503, 504}
 ROMANEIO_PROMPT = (
-    "extract the data on a table, we only need as output the products: Code, Description, Quantity, Price and Total."
-    
+    "You are an information extraction assistant for shipment manifests (romaneios). "
+    "Return ONLY JSON in the form {\"items\": [...]}."
+    " Do not wrap the response in markdown fences."
+    " Each item must contain: "
+    "\"codigo\", \"descricao_original\", \"nome_curto\", \"quantidade\", \"preco\", and optionally \"tamanho\" or \"grades\". "
+    "\"nome_curto\" must be a short canonical product name with only the core defining words. "
+    "Remove noise such as age/gender markers (INF, JUV, BB, MASC, FEM, UNISSEX), colors, references, observations, "
+    "\"SORTIDO\", and any size markers. "
+    "Example: \"JAQUETA AVULSA INF MASC MOLETOM (Tam 04)\" -> \"JAQUETA AVULSA MOLETOM\". "
+    "Prefer the explicit product SKU/code column for \"codigo\". Do not use NCM/SH, CFOP, barcodes, or long reference numbers as \"codigo\" when a short product code is present. "
+    "If a row has one size, fill \"tamanho\" preserving labels like 1, 2, 3, 04, 06, 08, 10, 12, 14, P, M, G, GG or 34..56. "
+    "Copy sizes exactly as printed. Never convert numeric sizes to letter sizes. If a trailing token is only a size, keep it in \"tamanho\" and do not append it to \"codigo\". "
+    "If the document already shows a full grade distribution for one product, fill \"grades\" as an object mapping size to quantity. "
+    "Do not merge rows. Quantities must be integers and \"preco\" must be the unit price."
 )
 
 # Prompt para extração de grades a partir de NF/romaneio
 GRADE_PROMPT = (
     "You are an information extraction assistant. Extract product GRADES from the provided invoice/romaneio text or images. "
     "Return ONLY JSON. The JSON must be an object with a key 'items' that is an array. Each item must contain: "
+    "Do not wrap the response in markdown fences. "
     "'codigo' (string or null), 'nome' (string or null), and 'grades' (object mapping size labels to integer quantities). "
     "Example: {\n  \"items\": [ { \"codigo\": \"123\", \"nome\": \"CAMISETA X\", \"grades\": { \"P\": 2, \"M\": 3, \"G\": 1 } } ]\n}. "
     "Use usual apparel sizes like PP, P, M, G, GG, or numeric sizes like 34..52 when applicable. Quantities must be integers."
 )
 
 print(
-    f"[LLM3] LLM host={OLLAMA_BASE_URL} chat_path={OLLAMA_API_CHAT_PATH} auth={'enabled' if _resolve_api_key() else 'disabled'}"
+    f"[LLM3] LLM host={OLLAMA_BASE_URL} chat_path={OLLAMA_API_CHAT_PATH} auth={'enabled' if _has_configured_api_key() else 'disabled'}"
 )
 
 
@@ -125,6 +157,10 @@ class ChatResponse(BaseModel):
     role: str
     content: str
     saved_file: Optional[str] = None
+    llm_prompt: Optional[str] = None
+    llm_prompt_len: Optional[int] = None
+    llm_model: Optional[str] = None
+    llm_images: Optional[int] = None
 
 
 async def _extract_text(message):
@@ -314,8 +350,9 @@ def _save_to_desktop(content: str, prefix: str) -> Optional[str]:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, http_request: Request):
     user_message = (request.message or "").strip()
+    job_id = (http_request.headers.get("x-job-id") or "").strip() or None
     images_payload: List[str] = []
     image_notes: List[str] = []
 
@@ -384,6 +421,9 @@ async def chat(request: ChatRequest):
         ],
         "stream": False,
     }
+    if request.mode in {Mode.ROMANEIO, Mode.GRADE}:
+        payload["format"] = "json"
+        payload["think"] = False
     attempt = 0
     last_error: Optional[Exception] = None
     while attempt < 3:
@@ -393,18 +433,8 @@ async def chat(request: ChatRequest):
             ) as client:
                 response = await client.post(
                     OLLAMA_URL,
-                    json={
-                        "model": MODEL_NAME,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": content_string,
-                                **({"images": images_payload} if images_payload else {}),
-                            }
-                        ],
-                        "stream": False,
-                    },
-                    headers=_build_llm_headers(),
+                    json=payload,
+                    headers=_build_llm_headers(job_id=job_id),
                 )
                 response.raise_for_status()
                 break
@@ -437,4 +467,12 @@ async def chat(request: ChatRequest):
     if request.mode == Mode.ROMANEIO and content:
         saved_file = _save_to_desktop(content, "romaneio")
 
-    return ChatResponse(role=role, content=content, saved_file=saved_file)
+    return ChatResponse(
+        role=role,
+        content=content,
+        saved_file=saved_file,
+        llm_prompt=content_string,
+        llm_prompt_len=len(content_string),
+        llm_model=MODEL_NAME,
+        llm_images=len(images_payload),
+    )

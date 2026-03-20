@@ -191,6 +191,12 @@ def _sanitize_chat_response(payload: Any) -> Any:
         sanitized["content"] = info["value"]
         sanitized["content_len"] = info["len"]
         sanitized["content_truncated"] = info["truncated"]
+    prompt = sanitized.get("llm_prompt")
+    if isinstance(prompt, str):
+        info = _truncate_text(prompt, limit=LLM_MONITOR_MAX_TEXT_CHARS)
+        sanitized["llm_prompt"] = info["value"]
+        sanitized["llm_prompt_len"] = info["len"]
+        sanitized["llm_prompt_truncated"] = info["truncated"]
     return sanitized
 
 
@@ -264,7 +270,7 @@ INDEX_HTML = """<!doctype html>
     header .meta { opacity: .8; font-size: 12px; }
     .wrap { display: grid; grid-template-columns: 420px 1fr; gap: 0; height: calc(100vh - 52px); }
     .panel { border-right: 1px solid #1b2640; overflow: auto; }
-    .detail { overflow: auto; }
+    .detail { overflow: auto; background: #0b0f17; }
     .toolbar { padding: 10px 12px; border-bottom: 1px solid #1b2640; display: flex; gap: 8px; }
     input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #223055; background: #0f1626; color: #e8eefc; }
     .list { padding: 6px; }
@@ -274,6 +280,11 @@ INDEX_HTML = """<!doctype html>
     .item .path { font-weight: 600; }
     .item .sub { opacity: .75; font-size: 12px; margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
     .pill { border: 1px solid #223055; padding: 2px 8px; border-radius: 999px; }
+    .detail-stack { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .detail-card { border: 1px solid #1b2640; background: #0f1626; border-radius: 10px; overflow: hidden; }
+    .detail-card-header { padding: 10px 14px; border-bottom: 1px solid #1b2640; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .detail-card-header h3 { margin: 0; font-size: 13px; }
+    .detail-card-header .meta { opacity: .7; font-size: 12px; }
     pre { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-word; }
     .empty { padding: 14px; opacity: .8; }
   </style>
@@ -341,11 +352,64 @@ INDEX_HTML = """<!doctype html>
     });
   }
 
-  function renderDetail(ev) {
-    detailEl.innerHTML = `<pre>${escapeHtml(JSON.stringify(ev, null, 2))}</pre>`;
+  function stringifyJson(value) {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
   }
 
-  function escapeHtml(s) {
+  function renderCard(title, body, meta = '') {
+    return `
+      <section class="detail-card">
+        <div class="detail-card-header">
+          <h3>${escapeHtml(title)}</h3>
+          ${meta ? `<div class="meta">${escapeHtml(meta)}</div>` : ''}
+        </div>
+        <pre>${escapeHtml(body)}</pre>
+      </section>
+    `;
+  }
+
+  function renderDetail(ev) {
+    const response = ev && ev.response && typeof ev.response === 'object' ? { ...ev.response } : ev.response;
+    const request = ev && ev.request && typeof ev.request === 'object' ? { ...ev.request } : ev.request;
+    const prompt = response && typeof response === 'object' ? response.llm_prompt : null;
+
+    let promptMeta = '';
+    if (response && typeof response === 'object') {
+      const bits = [];
+      if (response.llm_model) bits.push(`modelo: ${response.llm_model}`);
+      if (typeof response.llm_images !== 'undefined') bits.push(`imagens: ${response.llm_images}`);
+      if (typeof response.llm_prompt_len !== 'undefined') bits.push(`chars: ${response.llm_prompt_len}`);
+      if (response.llm_prompt_truncated) bits.push('truncado');
+      promptMeta = bits.join(' | ');
+      delete response.llm_prompt;
+    }
+
+    const sections = [
+      renderCard(
+        'Resumo',
+        stringifyJson({
+          endpoint: ev?.endpoint,
+          method: ev?.method,
+          job_id: ev?.job_id,
+          status_code: ev?.status_code,
+          duration_ms: ev?.duration_ms,
+          ts: ev?.ts,
+        })
+      ),
+      prompt ? renderCard('Prompt Final Enviado Ao LLM', prompt, promptMeta) : '',
+      renderCard('Request Recebido Pelo Monitor', stringifyJson(request)),
+      renderCard('Response Retornado Pelo LLM3', stringifyJson(response)),
+    ].filter(Boolean);
+
+    detailEl.innerHTML = `<div class="detail-stack">${sections.join('')}</div>`;
+  }
+
+  function escapeHtml(value) {
+    const s = String(value ?? '');
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 

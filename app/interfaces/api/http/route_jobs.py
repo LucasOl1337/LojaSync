@@ -55,17 +55,21 @@ _grade_lock = RLock()
 
 ROMANEIO_IMAGE_MESSAGE = (
     "The attached image is a scanned invoice product table. "
-    "Extract every visible product row. "
+    "Extract every visible product row and return JSON only in the format "
+    '{"items":[{"codigo":"","nome":"","quantidade":0,"preco":""}]}. '
     "Use the short SKU/product code as codigo, not NCM/SH, CFOP, barcode, or long reference numbers. "
     "Copy sizes exactly as printed; never convert numeric sizes to letter sizes. "
-    "If a trailing token is only a size, put it in tamanho and do not append it to codigo."
+    "If a trailing token is only a size, put it in tamanho and do not append it to codigo. "
+    "If a row is unreadable, partially cut, or ambiguous, skip it instead of guessing."
 )
 ROMANEIO_CROPPED_IMAGE_MESSAGE = (
     "The attached image is a cropped segment of a tall scanned invoice product table. "
-    "Extract only the visible product rows from this crop. "
+    "Extract only the fully visible product rows from this crop and return JSON only in the format "
+    '{"items":[{"codigo":"","nome":"","quantidade":0,"preco":""}]}. '
     "Use the short SKU/product code as codigo, not NCM/SH, CFOP, barcode, or long reference numbers. "
     "Copy sizes exactly as printed; never convert numeric sizes to letter sizes. "
-    "If a trailing token is only a size, put it in tamanho and do not append it to codigo."
+    "If a trailing token is only a size, put it in tamanho and do not append it to codigo. "
+    "Do not guess rows cut by the crop boundary; ignore partial rows."
 )
 
 
@@ -1096,6 +1100,35 @@ def _filter_suspect_records(records: list[Product]) -> list[Product]:
     return filtered
 
 
+def _collect_import_quality_issues(records: list[Product]) -> list[str]:
+    if not records:
+        return []
+
+    issues: list[str] = []
+    normalized_codes = [
+        re.sub(r"[^0-9A-Za-z]", "", str(record.codigo or "").upper())
+        for record in records
+        if str(record.codigo or "").strip()
+    ]
+    short_codes = [code for code in normalized_codes if 0 < len(code) <= 5]
+    if len(short_codes) >= 2 and len(short_codes) >= max(2, int(len(normalized_codes) * 0.25)):
+        issues.append("Muitos codigos curtos demais para um romaneio, possivel OCR truncado.")
+
+    prefix_collisions = 0
+    for code in normalized_codes:
+        if len(code) < 5:
+            continue
+        longer_matches = sum(
+            1 for other in normalized_codes if other != code and len(other) > len(code) and other.startswith(code)
+        )
+        if longer_matches >= 2:
+            prefix_collisions += 1
+    if prefix_collisions >= 1:
+        issues.append("Foram detectados codigos que parecem prefixos truncados de outros itens do mesmo lote.")
+
+    return issues
+
+
 def _parse_pdf_tables_bytes(contents: bytes) -> list[Product]:
     try:
         import pdfplumber  # type: ignore
@@ -1349,8 +1382,6 @@ def run_import_job(
     parsed_items: list[Product] = []
     selected_source = ""
     selected_text = ""
-    local_candidates: list[Product] = []
-    pdf_rows: list[Product] = []
     llm_candidates: list[Product] = []
     llm_chat_attempted = False
     total_started = time.perf_counter()
@@ -1368,7 +1399,6 @@ def run_import_job(
         "upload_documents_chars": 0,
         "upload_images": 0,
         "local_text_chars": 0,
-        "pdf_table_items": 0,
         "selected_source": "",
     }
 
@@ -1379,36 +1409,11 @@ def run_import_job(
         metrics=metrics,
     )
     upload_data: dict[str, Any] = {}
-    local_first_enabled = _env_flag("ROMANEIO_LOCAL_FIRST", "1")
-
     decode_started = time.perf_counter()
     local_text, local_warnings = _decode_text_content(contents, filename, content_type)
     metrics["local_decode_ms"] = int((time.perf_counter() - decode_started) * 1000)
     metrics["local_text_chars"] = len(local_text or "")
     warnings.extend(local_warnings)
-
-    if local_first_enabled and local_text.strip():
-        local_parse_started = time.perf_counter()
-        local_candidates = _parse_candidate_content(local_text)
-        metrics["local_parse_ms"] = int((time.perf_counter() - local_parse_started) * 1000)
-        metrics["local_candidate_items"] = len(local_candidates)
-        if local_candidates:
-            parsed_items = local_candidates
-            selected_source = "local"
-            selected_text = local_text
-            warnings.append("Servico LLM pulado: parser local encontrou itens validos antes do upload.")
-
-    is_pdf_input = (filename or "").lower().endswith(".pdf") or "pdf" in (content_type or "").lower()
-    if local_first_enabled and not parsed_items and is_pdf_input:
-        pdf_started = time.perf_counter()
-        pdf_rows = _filter_suspect_records(_parse_pdf_tables_bytes(contents))
-        metrics["pdf_tables_ms"] = int((time.perf_counter() - pdf_started) * 1000)
-        metrics["pdf_table_items"] = len(pdf_rows)
-        if pdf_rows:
-            parsed_items = pdf_rows
-            selected_source = "pdf_tables"
-            selected_text = local_text
-            warnings.append("Servico LLM pulado: tabelas do PDF foram extraidas localmente com sucesso.")
 
     if not parsed_items:
         update_import_job(
@@ -1449,86 +1454,75 @@ def run_import_job(
                 metrics["upload_documents_chars"] = len(upload_docs_text or "")
                 metrics["upload_images"] = len(images)
 
-                if upload_docs_text:
-                    upload_parse_started = time.perf_counter()
-                    upload_candidates = _parse_candidate_content(upload_docs_text)
-                    metrics["upload_parse_ms"] = int((time.perf_counter() - upload_parse_started) * 1000)
-                    metrics["upload_candidate_items"] = len(upload_candidates)
-                    if upload_candidates:
-                        parsed_items = upload_candidates
-                        selected_source = "upload_docs"
-                        selected_text = upload_docs_text
-                        warnings.append("Chat do LLM pulado: o texto retornado no upload ja continha itens validos.")
-
-                if not parsed_items:
-                    update_import_job(
-                        job_id,
-                        "processing",
-                        message="Processando com servico LLM",
-                        metrics=metrics,
-                    )
-                    chunks = _split_text_chunks(
-                        upload_docs_text,
-                        max_chars=_coerce_int_env("LLM_DOC_CHUNK_CHARS", 8000),
-                    )
-                    if chunks:
+                update_import_job(
+                    job_id,
+                    "processing",
+                    message="Processando com servico LLM",
+                    metrics=metrics,
+                )
+                chunks = _split_text_chunks(
+                    upload_docs_text,
+                    max_chars=_coerce_int_env("LLM_DOC_CHUNK_CHARS", 8000),
+                )
+                if chunks:
+                    parts: list[str] = []
+                    total = len(chunks)
+                    metrics["llm_chunk_count"] = total
+                    for idx, chunk in enumerate(chunks, start=1):
+                        update_import_job(
+                            job_id,
+                            "processing",
+                            message=f"Processando texto {idx}/{total} com servico LLM",
+                            metrics=metrics,
+                        )
+                        call_started = time.perf_counter()
+                        chat_text, chat_saved = _post_llm_chat(
+                            client,
+                            job_id=job_id,
+                            message="",
+                            documents=[{"name": f"parte_{idx}", "content": chunk}],
+                            images=images if idx == 1 else [],
+                        )
+                        call_ms = int((time.perf_counter() - call_started) * 1000)
+                        metrics["llm_chat_used"] = True
+                        metrics["llm_chat_calls"] = int(metrics.get("llm_chat_calls") or 0) + 1
+                        metrics["llm_chat_total_ms"] = int(metrics.get("llm_chat_total_ms") or 0) + call_ms
+                        details = list(metrics.get("llm_chat_calls_details") or [])
+                        details.append(
+                            {
+                                "chunk": idx,
+                                "duration_ms": call_ms,
+                                "document_chars": len(chunk),
+                                "images": len(images) if idx == 1 else 0,
+                            }
+                        )
+                        metrics["llm_chat_calls_details"] = details
+                        llm_chat_attempted = True
+                        if chat_saved and not saved_file:
+                            saved_file = chat_saved
+                        if chat_text:
+                            parts.append(chat_text)
+                            llm_candidates.extend(_parse_candidate_content(chat_text))
+                    llm_text = "\n\n".join(parts).strip()
+                elif images:
                         parts: list[str] = []
-                        total = len(chunks)
-                        metrics["llm_chunk_count"] = total
-                        for idx, chunk in enumerate(chunks, start=1):
-                            update_import_job(
-                                job_id,
-                                "processing",
-                                message=f"Processando texto {idx}/{total} com servico LLM",
-                                metrics=metrics,
-                            )
-                            call_started = time.perf_counter()
-                            chat_text, chat_saved = _post_llm_chat(
-                                client,
-                                job_id=job_id,
-                                message="",
-                                documents=[{"name": f"parte_{idx}", "content": chunk}],
-                                images=images if idx == 1 else [],
-                            )
-                            call_ms = int((time.perf_counter() - call_started) * 1000)
-                            metrics["llm_chat_used"] = True
-                            metrics["llm_chat_calls"] = int(metrics.get("llm_chat_calls") or 0) + 1
-                            metrics["llm_chat_total_ms"] = int(metrics.get("llm_chat_total_ms") or 0) + call_ms
-                            details = list(metrics.get("llm_chat_calls_details") or [])
-                            details.append(
-                                {
-                                    "chunk": idx,
-                                    "duration_ms": call_ms,
-                                    "document_chars": len(chunk),
-                                    "images": len(images) if idx == 1 else 0,
-                                }
-                            )
-                            metrics["llm_chat_calls_details"] = details
-                            llm_chat_attempted = True
-                            if chat_saved and not saved_file:
-                                saved_file = chat_saved
-                            if chat_text:
-                                parts.append(chat_text)
-                                llm_candidates.extend(_parse_candidate_content(chat_text))
-                        llm_text = "\n\n".join(parts).strip()
-                    elif images:
-                        image_inputs = _slice_image_payloads(
-                            images,
-                            vertical_slices=_coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 4),
-                        )
-                        image_batches = _split_image_batches(
-                            image_inputs,
-                            batch_size=_coerce_int_env("LLM_IMAGE_BATCH_SIZE", 1),
-                        )
-                        parts = []
-                        total = len(image_batches)
-                        metrics["llm_chunk_count"] = total
+                        image_batch_size = _coerce_int_env("LLM_IMAGE_BATCH_SIZE", 1)
+                        full_page_batches = _split_image_batches(images, batch_size=image_batch_size)
+                        full_page_total = len(full_page_batches)
+                        metrics["llm_chunk_count"] = full_page_total
                         metrics["llm_chat_used"] = True
                         metrics["llm_chat_calls"] = 0
                         metrics["llm_chat_total_ms"] = 0
                         metrics["llm_chat_calls_details"] = []
-                        for idx, image_batch in enumerate(image_batches, start=1):
-                            label = f"Processando imagens {idx}/{total} com servico LLM" if total > 1 else "Processando imagens com servico LLM"
+
+                        # Full-page OCR is more stable for scanned romaneios; only fall back to
+                        # vertical slices when whole pages do not yield valid products.
+                        for idx, image_batch in enumerate(full_page_batches, start=1):
+                            label = (
+                                f"Processando paginas {idx}/{full_page_total} com servico LLM"
+                                if full_page_total > 1
+                                else "Processando pagina com servico LLM"
+                            )
                             update_import_job(
                                 job_id,
                                 "processing",
@@ -1550,6 +1544,7 @@ def run_import_job(
                             details.append(
                                 {
                                     "chunk": idx,
+                                    "attempt": "full_page",
                                     "duration_ms": call_ms,
                                     "document_chars": 0,
                                     "images": len(image_batch),
@@ -1562,9 +1557,66 @@ def run_import_job(
                             if chat_text:
                                 parts.append(chat_text)
                                 llm_candidates.extend(_parse_candidate_content(chat_text))
+
                         llm_text = "\n\n".join(parts).strip()
-                    else:
-                        warnings.append("Upload do LLM nao retornou documentos ou imagens.")
+
+                        fallback_slices = max(
+                            _coerce_int_env("LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES", 1),
+                            _coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 4),
+                        )
+                        if not llm_candidates and fallback_slices > 1:
+                            warnings.append(
+                                "OCR por pagina inteira sem itens validos; tentando recortes verticais como fallback."
+                            )
+                            image_inputs = _slice_image_payloads(images, vertical_slices=fallback_slices)
+                            image_batches = _split_image_batches(
+                                image_inputs,
+                                batch_size=image_batch_size,
+                            )
+                            metrics["llm_chunk_count"] = full_page_total + len(image_batches)
+                            for idx, image_batch in enumerate(image_batches, start=1):
+                                label = (
+                                    f"Tentando recortes verticais {idx}/{len(image_batches)} com servico LLM"
+                                    if len(image_batches) > 1
+                                    else "Tentando recorte vertical com servico LLM"
+                                )
+                                update_import_job(
+                                    job_id,
+                                    "processing",
+                                    message=label,
+                                    metrics=metrics,
+                                )
+                                call_started = time.perf_counter()
+                                chat_text, chat_saved = _post_llm_chat(
+                                    client,
+                                    job_id=job_id,
+                                    message=_build_romaneio_image_message(image_batch),
+                                    documents=[],
+                                    images=image_batch,
+                                )
+                                call_ms = int((time.perf_counter() - call_started) * 1000)
+                                metrics["llm_chat_calls"] = int(metrics.get("llm_chat_calls") or 0) + 1
+                                metrics["llm_chat_total_ms"] = int(metrics.get("llm_chat_total_ms") or 0) + call_ms
+                                details = list(metrics.get("llm_chat_calls_details") or [])
+                                details.append(
+                                    {
+                                        "chunk": full_page_total + idx,
+                                        "attempt": "vertical_slices",
+                                        "duration_ms": call_ms,
+                                        "document_chars": 0,
+                                        "images": len(image_batch),
+                                    }
+                                )
+                                metrics["llm_chat_calls_details"] = details
+                                llm_chat_attempted = True
+                                if chat_saved and not saved_file:
+                                    saved_file = chat_saved
+                                if chat_text:
+                                    parts.append(chat_text)
+                                    llm_candidates.extend(_parse_candidate_content(chat_text))
+                            llm_text = "\n\n".join(parts).strip()
+                else:
+                    warnings.append("Upload do LLM nao retornou documentos ou imagens.")
         except Exception as exc:
             logger.warning("Falha no pipeline de importacao LLM (job_id=%s): %s", job_id, exc)
             warnings.append(f"Falha ao processar com o servico LLM: {exc}")
@@ -1582,45 +1634,33 @@ def run_import_job(
             selected_source = "llm"
             selected_text = llm_text or selected_text
 
-    if not parsed_items:
-        for source, text in (
-            ("llm", llm_text),
-            ("upload_docs", upload_docs_text),
-            ("local", local_text),
-        ):
-            current = (text or "").strip()
-            if not current:
-                continue
-            candidates = _parse_candidate_content(current)
-            if candidates:
-                parsed_items = candidates
-                selected_source = source
-                selected_text = current
-                break
-
-    if not parsed_items and not pdf_rows and is_pdf_input:
-        pdf_started = time.perf_counter()
-        pdf_rows = _filter_suspect_records(_parse_pdf_tables_bytes(contents))
-        metrics["pdf_tables_ms"] = int((time.perf_counter() - pdf_started) * 1000)
-        metrics["pdf_table_items"] = len(pdf_rows)
-
-    if not parsed_items and pdf_rows:
-        parsed_items = pdf_rows
-        selected_source = "pdf_tables"
-        selected_text = selected_text or local_text
-
-    if llm_chat_attempted and selected_source and selected_source != "llm":
-        fallback_label = {
-            "upload_docs": "texto bruto retornado no upload do LLM",
-            "local": "parser local do arquivo",
-            "pdf_tables": "parser local de tabelas PDF",
-        }.get(selected_source, selected_source)
-        warnings.append(f"Saida principal do LLM sem itens validos; usado fallback: {fallback_label}.")
+    if not parsed_items and (llm_text or upload_docs_text):
+        llm_fallback_text = (llm_text or upload_docs_text).strip()
+        if llm_fallback_text:
+            parsed_items = _parse_candidate_content(llm_fallback_text)
+            if parsed_items:
+                selected_source = "llm"
+                selected_text = llm_fallback_text
 
     metrics["selected_source"] = selected_source or "none"
     metrics["selected_items"] = len(parsed_items)
     metrics["selected_items_raw"] = len(parsed_items)
     metrics["parsing_total_ms"] = int((time.perf_counter() - total_started) * 1000)
+
+    quality_issues = _collect_import_quality_issues(parsed_items)
+    metrics["quality_issues"] = quality_issues
+    if quality_issues and selected_source == "llm":
+        warnings.extend(quality_issues)
+        update_import_job(
+            job_id,
+            "error",
+            error=(
+                "Importacao bloqueada por seguranca: o OCR/LLM retornou itens com sinais de leitura truncada. "
+                "Tente novamente ou use um PDF mais nitido."
+            ),
+            metrics=metrics,
+        )
+        return
 
     compact_summary = {"originais": len(parsed_items), "resultantes": len(parsed_items), "removidos": 0, "atualizados_grades": 0}
     compact_import_batch = getattr(service, "compact_import_batch", None)

@@ -1146,19 +1146,42 @@ async function openInsertGradesDialog() {
     await fetchTotals();
   }
 
-  async function clearCurrentGrades() {
-    if (!selected) return;
-    const inputs = Array.from(editorEl.querySelectorAll('input[data-size]'));
-    inputs.forEach((inp) => {
-      inp.value = '';
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    computeSumAndDiff(selected.quantidade, inputs);
+  async function clearAllGrades() {
+    const loadedProducts = Array.isArray(products) ? products.filter((product) => product?.ordering_key) : [];
+    if (!loadedProducts.length) {
+      return 0;
+    }
+
     if (saveTimer) {
       window.clearTimeout(saveTimer);
       saveTimer = null;
     }
-    await saveCurrentGrades();
+
+    await Promise.all(
+      loadedProducts.map((product) =>
+        fetchJSON(`${API_BASE_URL}/products/${encodeURIComponent(product.ordering_key)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ grades: [] }),
+        })
+      )
+    );
+
+    loadedProducts.forEach((product) => {
+      product.grades = [];
+    });
+
+    if (selected) {
+      const inputs = Array.from(editorEl.querySelectorAll('input[data-size]'));
+      inputs.forEach((inp) => {
+        inp.value = '';
+      });
+      computeSumAndDiff(selected.quantidade, inputs);
+      renderProductsList(selected.ordering_key);
+    }
+
+    await refreshProducts();
+    await fetchTotals();
+    return loadedProducts.length;
   }
 
   async function saveAndNext() {
@@ -1577,18 +1600,19 @@ async function openInsertGradesDialog() {
       return;
     }
     if (target.dataset?.action === 'clear-grades') {
-      if (!selected) {
-        window.alert('Selecione um produto primeiro.');
+      const totalProducts = Array.isArray(products) ? products.length : 0;
+      if (!totalProducts) {
+        window.alert('Nenhum produto carregado para limpar.');
         return;
       }
-      const confirmed = window.confirm(`Limpar todas as quantidades da grade de "${selected.nome || 'produto'}"?`);
+      const confirmed = window.confirm(`Limpar as grades de todos os ${totalProducts} produtos carregados? Essa ação zera os preenchimentos atuais.`);
       if (!confirmed) {
         return;
       }
       target.disabled = true;
       try {
-        await clearCurrentGrades();
-        window.alert('Grade limpa com sucesso.');
+        const clearedCount = await clearAllGrades();
+        window.alert(`Grades limpas com sucesso em ${clearedCount} produto(s).`);
       } catch (e) {
         console.error('Falha ao limpar grade', e);
         window.alert(`Falha ao limpar grade: ${e?.message || e}`);

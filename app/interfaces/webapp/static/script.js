@@ -195,7 +195,7 @@ async function openGradeCalibrationDialog(existingConfig = {}, options = {}) {
         <input type="number" id="grade-row-height" min="1" step="1" value="${state.rowHeight || ''}" />
       </label>
       <label class="modal-input">
-        <span>Ordem dos tamanhos (separados por vírgula)</span>
+        <span>Ordem do ByteEmpresa para execucao (separados por virgula)</span>
         <textarea id="grade-order-input" rows="3">${state.erpOrder || ''}</textarea>
       </label>
       <div class="two-columns">
@@ -983,6 +983,7 @@ async function openInsertGradesDialog() {
               <div class="actions-buttons">
                 <button type="button" class="pill-button secondary" data-action="calibrate-grades">Calibrar Grades</button>
                 <button type="button" class="pill-button secondary" data-action="manage-grade-sizes">Tamanhos</button>
+                <button type="button" class="pill-button secondary" data-action="clear-grades">Limpar Grades</button>
                 <button type="button" class="pill-button accent" data-action="execute-grades">Executar Grades</button>
                 <button type="button" class="pill-button danger" data-action="stop-grades" disabled>Parar</button>
               </div>
@@ -1020,6 +1021,11 @@ async function openInsertGradesDialog() {
 
   function getConfiguredSizeOrder() {
     return normalizeGradeSizeList(gradeConfig?.erp_size_order || []);
+  }
+
+  function getVisualSizeOrder() {
+    const visualOrder = normalizeGradeSizeList(gradeConfig?.ui_size_order || []);
+    return visualOrder.length ? visualOrder : getConfiguredSizeOrder();
   }
 
   const SMART_PATTERNS = {
@@ -1140,6 +1146,21 @@ async function openInsertGradesDialog() {
     await fetchTotals();
   }
 
+  async function clearCurrentGrades() {
+    if (!selected) return;
+    const inputs = Array.from(editorEl.querySelectorAll('input[data-size]'));
+    inputs.forEach((inp) => {
+      inp.value = '';
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    computeSumAndDiff(selected.quantidade, inputs);
+    if (saveTimer) {
+      window.clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    await saveCurrentGrades();
+  }
+
   async function saveAndNext() {
     try {
       await saveCurrentGrades();
@@ -1231,7 +1252,7 @@ async function openInsertGradesDialog() {
 
   function renderEditor(product) {
     if (!editorEl) return;
-    const editorSizes = buildGradeSizeCatalog([product], sizes, getConfiguredSizeOrder());
+    const editorSizes = buildGradeSizeCatalog([product], sizes, getVisualSizeOrder());
     const gradesMap = new Map();
     if (Array.isArray(product.grades)) {
       product.grades.forEach((g) => {
@@ -1532,20 +1553,45 @@ async function openInsertGradesDialog() {
       }
       target.disabled = true;
       try {
-        const currentCatalog = buildGradeSizeCatalog(products, sizes, getConfiguredSizeOrder());
+        const currentCatalog = buildGradeSizeCatalog(products, sizes, getVisualSizeOrder());
         const updatedOrder = await openGradeOrderDialog(currentCatalog);
         if (!updatedOrder) {
           return;
         }
-        gradeConfig = await saveGradeConfig({ erp_size_order: updatedOrder });
-        sizes = buildGradeSizeCatalog(products, sizes, getConfiguredSizeOrder());
+        const nextErpOrder = mergeNewSizesIntoErpOrder(getConfiguredSizeOrder(), updatedOrder);
+        gradeConfig = await saveGradeConfig({
+          ui_size_order: updatedOrder,
+          erp_size_order: nextErpOrder,
+        });
+        sizes = buildGradeSizeCatalog(products, sizes, getVisualSizeOrder());
         if (selected) {
           renderEditor(selected);
         }
-        window.alert('Ordem de tamanhos atualizada.');
+        window.alert('Ordem visual atualizada. A ordem antiga do ByteEmpresa foi mantida, com novos tamanhos adicionados no final.');
       } catch (e) {
         console.error('Falha ao atualizar tamanhos', e);
         window.alert(`Falha ao salvar tamanhos: ${e?.message || e}`);
+      } finally {
+        target.disabled = false;
+      }
+      return;
+    }
+    if (target.dataset?.action === 'clear-grades') {
+      if (!selected) {
+        window.alert('Selecione um produto primeiro.');
+        return;
+      }
+      const confirmed = window.confirm(`Limpar todas as quantidades da grade de "${selected.nome || 'produto'}"?`);
+      if (!confirmed) {
+        return;
+      }
+      target.disabled = true;
+      try {
+        await clearCurrentGrades();
+        window.alert('Grade limpa com sucesso.');
+      } catch (e) {
+        console.error('Falha ao limpar grade', e);
+        window.alert(`Falha ao limpar grade: ${e?.message || e}`);
       } finally {
         target.disabled = false;
       }
@@ -1694,7 +1740,7 @@ async function openInsertGradesDialog() {
     ]);
     products = Array.isArray(productsPayload?.items) ? productsPayload.items : [];
     gradeConfig = gradeConfigData || {};
-    sizes = buildGradeSizeCatalog(products, Array.isArray(sizesData) ? sizesData : [], getConfiguredSizeOrder());
+    sizes = buildGradeSizeCatalog(products, Array.isArray(sizesData) ? sizesData : [], getVisualSizeOrder());
     renderProductsList();
 
     // Seleciona automaticamente o primeiro produto sem grade (ou o primeiro)
@@ -3070,10 +3116,10 @@ function openGradeOrderDialog(currentSizes = []) {
   const dialog = createDialogElement(`
     <h3>Personalizar Tamanhos</h3>
     <label class="modal-input">
-      <span>Ordem dos tamanhos</span>
+      <span>Ordem visual dos tamanhos no webapp</span>
       <textarea id="grade-order-manager-input" rows="6" placeholder="Ex.: PP, P, M, G, GG, XG">${normalizedSizes.join(", ")}</textarea>
     </label>
-    <p class="modal-hint">Adicione novos tamanhos e reorganize a ordem separando por vírgula. Isso atualiza o webapp e o bot de automação.</p>
+    <p class="modal-hint">Adicione novos tamanhos e reorganize a ordem separando por virgula. O visual do webapp muda, mas a ordem antiga do ByteEmpresa fica preservada; tamanhos novos entram no fim da automacao.</p>
   `);
 
   document.body.appendChild(dialog);
@@ -3518,6 +3564,16 @@ async function saveGradeConfig(payload) {
     console.error("Erro ao salvar configuracao de grades:", err);
     throw err;
   }
+}
+
+function mergeNewSizesIntoErpOrder(erpOrder, uiOrder) {
+  const merged = normalizeGradeSizeList(erpOrder);
+  normalizeGradeSizeList(uiOrder).forEach((size) => {
+    if (!merged.includes(size)) {
+      merged.push(size);
+    }
+  });
+  return merged;
 }
 
 function openTargetPickerDialog(existingTargets = {}) {

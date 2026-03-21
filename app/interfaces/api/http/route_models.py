@@ -167,6 +167,7 @@ class GradeConfigPayload(BaseModel):
     model_index: int | None = None
     model_hotkey: str | None = None
     erp_size_order: list[str] | None = None
+    ui_size_order: list[str] | None = None
 
 
 class GradeRunPayload(BaseModel):

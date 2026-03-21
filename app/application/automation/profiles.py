@@ -16,6 +16,52 @@ _TARGET_KEYS = (
     "cadastro_completo_passo_3",
     "cadastro_completo_passo_4",
 )
+_DEFAULT_ERP_SIZE_ORDER = (
+    "PP",
+    "P",
+    "M",
+    "G",
+    "GG",
+    "XG",
+    "01",
+    "02",
+    "03",
+    "04",
+    "06",
+    "08",
+    "10",
+    "12",
+    "14",
+    "16",
+    "18",
+    "32",
+    "34",
+    "36",
+    "38",
+    "40",
+    "42",
+    "44",
+    "46",
+    "48",
+    "50",
+    "52",
+    "54",
+    "56",
+    "G1",
+    "G2",
+    "G3",
+    "G4",
+    "G5",
+    "G6",
+    "6M",
+    "9M",
+    "12M",
+    "18M",
+    "U",
+    "XXG",
+    "XGG",
+    "P/M",
+)
 
 
 def _clean_json_text(text: str) -> str:
@@ -83,6 +129,22 @@ def normalize_targets(payload: Any) -> dict[str, Any]:
     return normalized
 
 
+def _normalize_string_list(value: Any) -> list[str]:
+    items = value if isinstance(value, list) else []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        text = str(item or "").strip()
+        if not text:
+            continue
+        key = text.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(key)
+    return normalized
+
+
 def normalize_gradebot_config(payload: Any) -> dict[str, Any]:
     data = payload if isinstance(payload, dict) else {}
 
@@ -128,15 +190,15 @@ def normalize_gradebot_config(payload: Any) -> dict[str, Any]:
         "hotkey": hotkey,
     }
 
-    order_raw = data.get("erp_size_order")
-    order_list = order_raw if isinstance(order_raw, list) else []
-    erp_size_order = [str(item).strip() for item in order_list if str(item).strip()]
+    erp_size_order = _normalize_string_list(data.get("erp_size_order")) or list(_DEFAULT_ERP_SIZE_ORDER)
+    ui_size_order = _normalize_string_list(data.get("ui_size_order")) or list(erp_size_order)
 
     normalized: dict[str, Any] = {
         "buttons": buttons,
         "grid": grid,
         "model": model,
         "erp_size_order": erp_size_order,
+        "ui_size_order": ui_size_order,
     }
     return normalized
 
@@ -146,8 +208,9 @@ def has_gradebot_configuration(payload: dict[str, Any] | None) -> bool:
         return False
     buttons = payload.get("buttons")
     grid = payload.get("grid")
-    order = payload.get("erp_size_order")
-    return bool(buttons) or bool(grid) or bool(order)
+    erp_order = payload.get("erp_size_order")
+    ui_order = payload.get("ui_size_order")
+    return bool(buttons) or bool(grid) or bool(erp_order) or bool(ui_order)
 
 
 def merge_gradebot_config(current: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
@@ -186,9 +249,13 @@ def merge_gradebot_config(current: dict[str, Any], updates: dict[str, Any]) -> d
         model["hotkey"] = hotkey
         model["strategy"] = "hotkey" if hotkey else "index"
 
-    erp_size_order = current_normalized.get("erp_size_order") or []
+    erp_size_order = current_normalized.get("erp_size_order") or list(_DEFAULT_ERP_SIZE_ORDER)
     if isinstance(updates.get("erp_size_order"), list):
-        erp_size_order = [str(item).strip() for item in updates["erp_size_order"] if str(item).strip()]
+        erp_size_order = _normalize_string_list(updates.get("erp_size_order")) or list(_DEFAULT_ERP_SIZE_ORDER)
+
+    ui_size_order = current_normalized.get("ui_size_order") or list(erp_size_order)
+    if isinstance(updates.get("ui_size_order"), list):
+        ui_size_order = _normalize_string_list(updates.get("ui_size_order")) or list(erp_size_order)
 
     return normalize_gradebot_config(
         {
@@ -196,5 +263,6 @@ def merge_gradebot_config(current: dict[str, Any], updates: dict[str, Any]) -> d
             "grid": grid,
             "model": model,
             "erp_size_order": erp_size_order,
+            "ui_size_order": ui_size_order,
         }
     )

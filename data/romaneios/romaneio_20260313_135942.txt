@@ -1,0 +1,246 @@
+```json
+{
+  "items": [
+    {
+      "codigo": "1101",
+      "descricao_original": "JAQUETA AVULSA INF MASC MOLETOM",
+      "nome_curto": "JAQUETA AVULSA MOLETOM",
+      "quantidade": 2,
+      "preco": 29.96,
+      "tamanho": "04"
+    },
+    {
+      "codigo": "1101",
+      "descricao_original": "JAQUETA AVULSA INF MASC MOLETOM",
+      "nome_curto": "JAQUETA AVULSA MOLETOM",
+      "quantidade": 2,
+      "preco": 29.96,
+      "tamanho": "06"
+    },
+    {
+      "codigo": "1101",
+      "descricao_original": "JAQUETA AVULSA INF MASC MOLETOM",
+      "nome_curto": "JAQUETA AVULSA MOLETOM",
+      "quantidade": 2,
+      "preco": 29.96,
+      "tamanho": "08"
+    },
+    {
+      "codigo": "1102",
+      "descricao_original": "JAQUETA AVULSA JUV MASC MOLETOM",
+      "nome_curto": "JAQUETA AVULSA MOLETOM",
+      "quantidade": 2,
+      "preco": 34.96,
+      "tamanho": "10"
+    },
+    {
+      "codigo": "1102",
+      "descricao_original": "JAQUETA AVULSA JUV MASC MOLETOM",
+      "nome_curto": "JAQUETA AVULSA MOLETOM",
+      "quantidade": 2,
+      "preco": 34.96,
+      "tamanho": "12"
+    },
+    {
+      "codigo": "1102",
+      "descricao_original": "JAQUETA AVULSA JUV MASC MOLETOM",
+      "nome_curto": "JAQUETA AVULSA MOLETOM",
+      "quantidade": 2,
+      "preco": 34.96,
+      "tamanho": "14"
+    },
+    {
+      "codigo": "1103",
+      "descricao_original": "CALCA BB MASC MOLETOM BIO®",
+      "nome_curto": "CALCA MOLETOM",
+      "quantidade": 3,
+      "preco": 15.96,
+      "tamanho": "1"
+    },
+    {
+      "codigo": "1103",
+      "descricao_original": "CALCA BB MASC MOLETOM BIO®",
+      "nome_curto": "CALCA MOLETOM",
+      "quantidade": 3,
+      "preco": 15.96,
+      "tamanho": "2"
+    },
+    {
+      "codigo": "1103",
+      "descricao_original": "CALCA BB MASC MOLETOM BIO®",
+      "nome_curto": "CALCA MOLETOM",
+      "quantidade": 3,
+      "preco": 15.96,
+      "tamanho": "3"
+    },
+    {
+      "codigo": "1104",
+      "descricao_original": "CALCA AVULSA INF MASC MOLETOM",
+      "nome_curto": "CALCA AVULSA MOLETOM",
+      "quantidade": 5,
+      "preco": 20.96,
+      "tamanho": "04"
+    },
+    {
+      "codigo": "1104",
+      "descricao_original": "CALCA AVULSA INF MASC MOLETOM",
+      "nome_curto": "CALCA AVULSA MOLETOM",
+      "quantidade": 5,
+      "preco": 20.96,
+      "tamanho": "06"
+    },
+    {
+      "codigo": "1104",
+      "descricao_original": "CALCA AVULSA INF MASC MOLETOM",
+      "nome_curto": "CALCA AVULSA MOLETOM",
+      "quantidade": 5,
+      "preco": 20.96,
+      "tamanho": "08"
+    },
+    {
+      "codigo": "1105",
+      "descricao_original": "CALCA AVULSA JUV MASC MOLETOM",
+      "nome_curto": "CALCA AVULSA MOLETOM",
+      "quantidade": 5,
+      "preco": 26.96,
+      "tamanho": "10"
+    },
+    {
+      "codigo": "1105",
+      "descricao_original": "CALCA AVULSA JUV MASC MOLETOM",
+      "nome_curto": "CALCA AVULSA MOLETOM",
+      "quantidade": 5,
+      "preco": 26.96,
+      "tamanho": "12"
+    },
+    {
+      "codigo": "1105",
+      "descricao_original": "CALCA AVULSA JUV MASC MOLETOM",
+      "nome_curto": "CALCA AVULSA MOLETOM",
+      "quantidade": 5,
+      "preco": 26.96,
+      "tamanho": "14"
+    },
+    {
+      "codigo": "1106",
+      "descricao_original": "BLUSA AVULSA BB UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 12.60,
+      "tamanho": "1"
+    },
+    {
+      "codigo": "1106",
+      "descricao_original": "BLUSA AVULSA BB UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 12.60,
+      "tamanho": "2"
+    },
+    {
+      "codigo": "1106",
+      "descricao_original": "BLUSA AVULSA BB UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 12.60,
+      "tamanho": "3"
+    },
+    {
+      "codigo": "1107",
+      "descricao_original": "BLUSA AVULSA INF UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 15.60,
+      "tamanho": "04"
+    },
+    {
+      "codigo": "1107",
+      "descricao_original": "BLUSA AVULSA INF UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 15.60,
+      "tamanho": "06"
+    },
+    {
+      "codigo": "1107",
+      "descricao_original": "BLUSA AVULSA INF UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 15.60,
+      "tamanho": "08"
+    },
+    {
+      "codigo": "1108",
+      "descricao_original": "BLUSA AVULSA JUV UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 18.60,
+      "tamanho": "10"
+    },
+    {
+      "codigo": "1108",
+      "descricao_original": "BLUSA AVULSA JUV UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 18.60,
+      "tamanho": "12"
+    },
+    {
+      "codigo": "1108",
+      "descricao_original": "BLUSA AVULSA JUV UNISSEX MALHA TERMICA",
+      "nome_curto": "BLUSA AVULSA MALHA TERMICA",
+      "quantidade": 3,
+      "preco": 18.60,
+      "tamanho": "14"
+    },
+    {
+      "codigo": "1109",
+      "descricao_original": "CALCA AVULSA BB UNISSEX MALHA TERMICA",
+      "nome_curto": "CALCA AVULSA MALHA TERMICA",
+      "quantidade": 1,
+      "preco": 12.60,
+      "tamanho": "1"
+    },
+    {
+      "codigo": "1109",
+      "descricao_original": "CALCA AVULSA BB UNISSEX MALHA TERMICA",
+      "nome_curto": "CALCA AVULSA MALHA TERMICA",
+      "quantidade": 1,
+      "preco": 12.60,
+      "tamanho": "2"
+    },
+    {
+      "codigo": "1109",
+      "descricao_original": "CALCA AVULSA BB UNISSEX MALHA TERMICA",
+      "nome_curto": "CALCA AVULSA MALHA TERMICA",
+      "quantidade": 1,
+      "preco": 12.60,
+      "tamanho": "3"
+    },
+    {
+      "codigo": "1110",
+      "descricao_original": "CALCA AVULSA INF UNISSEX MALHA TERMICA",
+      "nome_curto": "CALCA AVULSA MALHA TERMICA",
+      "quantidade": 1,
+      "preco": 15.60,
+      "tamanho": "04"
+    },
+    {
+      "codigo": "1110",
+      "descricao_original": "CALCA AVULSA INF UNISSEX MALHA TERMICA",
+      "nome_curto": "CALCA AVULSA MALHA TERMICA",
+      "quantidade": 1,
+      "preco": 15.60,
+      "tamanho": "06"
+    },
+    {
+      "codigo": "1110",
+      "descricao_original": "CALCA AVULSA INF UNISSEX MALHA TERMICA",
+      "nome_curto": "CALCA AVULSA MALHA TERMICA",
+      "quantidade": 1,
+      "preco": 15.60,
+      "tamanho": "08"
+    }
+  ]
+}
+```

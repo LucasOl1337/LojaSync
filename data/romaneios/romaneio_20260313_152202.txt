@@ -1,0 +1,343 @@
+```json
+{
+  "items": [
+    {
+      "codigo": "1615330502427-01",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL 1615330502427-01",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "1615330502427-01 2",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL 1615330502427-01 2",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "1615330502427-01 3",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL 1615330502427-01 3",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "1615330502427-01 4",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL 1615330502427-01 4",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "1615330502427-01 5",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL 1615330502427-01 5",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "1615330502427-01 6",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL 1615330502427-01 6",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "1615330502427-01 7",
+      "descricao_original": "CALCA RETA JEANS FEM C/RECORTES 1615330502427-01 7",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 129.90
+    }
+  ]
+}
+```
+
+{
+  "items": [
+    {
+      "codigo": "CA.FEM.00439",
+      "descricao_original": "CALCA RETA JEANS FEM C-RECORTES 1615330502427-01",
+      "nome_curto": "CALCA RETA JEANS",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": null
+    },
+    {
+      "codigo": "CA.FEM.00439",
+      "descricao_original": "CALCA RETA JEANS FEM C-RECORTES 1615330502427-01",
+      "nome_curto": "CALCA RETA JEANS",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": null
+    },
+    {
+      "codigo": "CA.FEM.00439",
+      "descricao_original": "CALCA RETA LEG JEANS FEM C-RECORTES 1615330502427-01",
+      "nome_curto": "CALCA RETA LEG JEANS",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": null
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL 1615330502427-01",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": null
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL 1615330502427-01",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": null
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL 1615330502427-01",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": null
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original
+
+{
+  "items": [
+    {
+      "codigo": "CA.FEM.00367",
+      "descricao_original": "CALCA BAGGY JEANS FEM C.RICORTES 1615330502427-01 27",
+      "nome_curto": "CALCA BAGGY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "27"
+    },
+    {
+      "codigo": "CA.FEM.00367",
+      "descricao_original": "CALCA BAGGY JEANS FEM C.RICORTES 1615330502427-01 28",
+      "nome_curto": "CALCA BAGGY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "28"
+    },
+    {
+      "codigo": "CA.FEM.00367",
+      "descricao_original": "CALCA BAGGY JEANS FEM C.RICORTES 1615330502427-01 29",
+      "nome_curto": "CALCA BAGGY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "29"
+    },
+    {
+      "codigo": "0201271",
+      "descricao_original": "CALCA SKINNY FEM C-ELASTICO PERSONALIZADO 1615330502427-01 30",
+      "nome_curto": "CALCA SKINNY C-ELASTICO",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "30"
+    },
+    {
+      "codigo": "0201271",
+      "descricao_original": "CALCA SKINNY FEM C-ELASTICO PERSONALIZADO 1615330502427-01 31",
+      "nome_curto": "CALCA SKINNY C-ELASTICO",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "31"
+    },
+    {
+      "codigo": "0201271",
+      "descricao_original": "CALCA SKINNY FEM C-ELASTICO PERSONALIZADO 1615330502427-01 32",
+      "nome_curto": "CALCA SKINNY C-ELASTICO",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "32"
+    },
+    {
+      "codigo": "0201271",
+      "descricao_original": "CALCA SKINNY FEM C-ELASTICO PERSONALIZADO 1615330502427-01 33",
+      "nome_curto": "CALCA SKINNY C-ELASTICO",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "33"
+    },
+    {
+      "codigo": "CA.FEM.00436",
+      "descricao_original": "CALCA SKINNY JEANS FEM BARRA NORMAL 1615330502427-01 34",
+      "nome_curto": "CALCA SKINNY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "34"
+    },
+    {
+      "codigo": "CA.FEM.00436",
+      "descricao_original": "CALCA SKINNY JEANS FEM BARRA NORMAL 1615330502427-01 35",
+      "nome_curto": "CALCA SKINNY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "35"
+    },
+    {
+      "codigo": "CA.FEM.00436",
+      "descricao_original": "CALCA SKINNY JEANS FEM BARRA NORMAL 1615330502427-01 36",
+      "nome_curto": "CALCA SKINNY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "36"
+    },
+    {
+      "codigo": "CA.FEM.00436",
+      "descricao_original": "CALCA SKINNY JEANS FEM BARRA NORMAL 1615330502427-01 37",
+      "nome_curto": "CALCA SKINNY JEANS",
+      "quantidade": 1,
+      "preco": 119.90,
+      "tamanho": "37"
+    },
+    {
+      "codigo": "SH.FEM.00055",
+      "descricao_original": "SHORT FEM CINT ALTA JEANS C.PREGAS 1615330502427-01 38",
+      "nome_curto": "SHORT CINT ALTA JEANS",
+      "quantidade": 1,
+      "preco": 89.90,
+      "tamanho": "38"
+    },
+    {
+      "codigo": "SH.FEM.00055",
+      "descricao_original": "SHORT FEM CINT ALTA JEANS C.PREGAS 1615330502427-01 39",
+      "nome_curto": "SHORT CINT ALTA JEANS",
+      "quantidade": 1,
+      "preco": 89.90,
+      "tamanho": "39"
+    },
+    {
+      "codigo": "SH.FEM.00055",
+      "descricao_original": "SHORT FEM CINT ALTA JEANS C.PREGAS 1615330502427-01 40",
+      "nome_curto": "SHORT CINT ALTA JEANS",
+      "quantidade": 1,
+      "preco": 89.90,
+      "tamanho": "40"
+    },
+    {
+      "codigo": "SH.FEM.00055",
+      "descricao_original": "SHORT FEM CINT ALTA JEANS C.PREGAS 1615330502427-01 41",
+      "nome_curto": "SHORT CINT ALTA JEANS",
+      "quantidade": 1,
+      "preco": 89.90,
+      "tamanho": "41"
+    },
+    {
+      "codigo": "SH.FEM.00055",
+      "descricao_original": "SHORT FEM CINT ALTA JEANS C.PREGAS 1615330502427-01 42",
+      "nome_curto": "SHORT CINT ALTA JEANS",
+      "quantidade": 1,
+      "preco": 89.90,
+      "tamanho": "42"
+    },
+    {
+      "codigo": "CA.FEM.00223",
+      "descricao_original": "CALCA RETA JEANS FEM PLUS SIZE BARRA NORMAL 1615330502427-01 43",
+      "nome_curto": "CALCA RETA JEANS PLUS SIZE",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "43"
+    },
+    {
+      "codigo": "CA.FEM.00223",
+      "descricao_original": "CALCA RETA JEANS FEM PLUS SIZE BARRA NORMAL 1615330502427-01 44",
+      "nome_curto": "CALCA RETA JEANS PLUS SIZE",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "44"
+    },
+    {
+      "codigo": "CA.FEM.00223",
+      "descricao_original": "CALCA RETA JEANS FEM PLUS SIZE BARRA NORMAL 1615330502427-01 45",
+      "nome_curto": "CALCA RETA JEANS PLUS SIZE",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "45"
+    }
+  ]
+}
+
+{
+  "items": [
+    {
+      "codigo": "CA.FEM.00327",
+      "descricao_original": "CALCA ALFAIATARIA PANTALONA FEM C.PREGAS 1615330502427-01 46",
+      "nome_curto": "CALCA ALFAIATARIA PANTALONA",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "46"
+    },
+    {
+      "codigo": "CA.FEM.00327",
+      "descricao_original": "CALCA ALFAIATARIA PANTALONA FEM C.PREGAS 1615330502427-01 47",
+      "nome_curto": "CALCA ALFAIATARIA PANTALONA",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "47"
+    },
+    {
+      "codigo": "CA.FEM.00327",
+      "descricao_original": "CALCA ALFAIATARIA PANTALONA FEM C.PREGAS 1615330502427-01 48",
+      "nome_curto": "CALCA ALFAIATARIA PANTALONA",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "48"
+    },
+    {
+      "codigo": "CA.FEM.00346",
+      "descricao_original": "CALCA ALFAIATARIA WIDE LEG FEM BOLSO FACA 1615330502427-01 49",
+      "nome_curto": "CALCA ALFAIATARIA WIDE LEG",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "49"
+    },
+    {
+      "codigo": "CA.FEM.00346",
+      "descricao_original": "CALCA ALFAIATARIA WIDE LEG FEM BOLSO FACA 1615330502427-01 50",
+      "nome_curto": "CALCA ALFAIATARIA WIDE LEG",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "50"
+    },
+    {
+      "codigo": "CA.FEM.00346",
+      "descricao_original": "CALCA ALFAIATARIA WIDE LEG FEM BOLSO FACA 1615330502427-01 51",
+      "nome_curto": "CALCA ALFAIATARIA WIDE LEG",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "51"
+    },
+    {
+      "codigo": "CA.FEM.00432",
+      "descricao_original": "CALCA RETA JEANS FEM PLUS SIZE BARRA NORMAL 1615330502427-01 52",
+      "nome_curto": "CALCA RETA JEANS PLUS SIZE",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "52"
+    },
+    {
+      "codigo": "CA.FEM.00432",
+      "descricao_original": "CALCA RETA JEANS FEM PLUS SIZE BARRA NORMAL 1615330502427-01 53",
+      "nome_curto": "CALCA RETA JEANS PLUS SIZE",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "53"
+    },
+    {
+      "codigo": "CA.FEM.00432",
+      "descricao_original": "CALCA RETA JEANS FEM PLUS SIZE BARRA NORMAL 1615330502427-01 54",
+      "nome_curto": "CALCA RETA JEANS PLUS SIZE",
+      "quantidade": 1,
+      "preco": 129.90,
+      "tamanho": "54"
+    }
+  ]
+}

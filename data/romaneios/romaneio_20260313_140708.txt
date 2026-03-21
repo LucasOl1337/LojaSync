@@ -1,0 +1,154 @@
+```json
+{
+  "items": [
+    {
+      "codigo": "CA.FEM.00442",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00442",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00442",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00442",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00442",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00442",
+      "descricao_original": "CALCA WIDE LEG FEM BOLSO FACA BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG BOLSO FACA",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00439",
+      "descricao_original": "CALCA RETA JEANS FEM C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 129.90
+    },
+    {
+      "codigo": "CA.FEM.00439",
+      "descricao_original": "CALCA RETA JEANS FEM C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 129.90
+    },
+    {
+      "codigo": "CA.FEM.00439",
+      "descricao_original": "CALCA RETA JEANS FEM C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 129.90
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00305",
+      "descricao_original": "CALCA WIDE LEG JEANS FEM BARRA NORMAL",
+      "nome_curto": "CALCA WIDE LEG JEANS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00431",
+      "descricao_original": "CALCA RETA JEANS FEM BARRA NORMAL C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00431",
+      "descricao_original": "CALCA RETA JEANS FEM BARRA NORMAL C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00431",
+      "descricao_original": "CALCA RETA JEANS FEM BARRA NORMAL C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00431",
+      "descricao_original": "CALCA RETA JEANS FEM BARRA NORMAL C.RECORTES",
+      "nome_curto": "CALCA RETA JEANS RECORTES",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00434",
+      "descricao_original": "CALCA MOM JEANS FEM C.PREGAS FRENTE",
+      "nome_curto": "CALCA MOM JEANS PREGAS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00434",
+      "descricao_original": "CALCA MOM JEANS FEM C.PREGAS FRENTE",
+      "nome_curto": "CALCA MOM JEANS PREGAS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00434",
+      "descricao_original": "CALCA MOM JEANS FEM C.PREGAS FRENTE",
+      "nome_curto": "CALCA MOM JEANS PREGAS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00434",
+      "descricao_original": "CALCA MOM JEANS FEM C.PREGAS FRENTE",
+      "nome_curto": "CALCA MOM JEANS PREGAS",
+      "quantidade": 1,
+      "preco": 119.90
+    },
+    {
+      "codigo": "CA.FEM.00434",
+      "descricao_original": "CALCA MOM JEANS FEM C.PREGAS FRENTE",
+      "nome_curto": "CALCA MOM JEANS PREGAS",

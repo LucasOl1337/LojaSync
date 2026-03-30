@@ -25,3 +25,7 @@ class ProductRepository(ABC):
     @abstractmethod
     def append_history(self, products: list[Product]) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    def update(self, ordering_key: str, changes: dict[str, object]) -> Product | None:
+        raise NotImplementedError

@@ -1,0 +1,431 @@
+{
+  "items": [
+    {
+      "codigo": "2505906801",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2505906804",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2506600101",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506600102",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506600103",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506600104",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506601301",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506601302",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506601303",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506601304",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506606801",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506606803",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2506606804",
+      "descricao_original": "ALCA ESTAMPA",
+      "nome_curto": "ALCA ESTAMPA",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2515507301",
+      "descricao_original": "BLUSA DETALHE MANG BABADO",
+      "nome_curto": "BLUSA DETALHE MANG BABADO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2515507302",
+      "descricao_original": "BLUSA DETALHE MANG BABADO",
+      "nome_curto": "BLUSA DETALHE MANG BABADO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2515507303",
+      "descricao_original": "BLUSA DETALHE MANG BABADO",
+      "nome_curto": "BLUSA DETALHE MANG BABADO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2515507304",
+      "descricao_original": "BLUSA DETALHE MANG BABADO",
+      "nome_curto": "BLUSA DETALHE MANG BABADO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2517506801",
+      "descricao_original": "CALCA COM NERVURA NA FRENTE",
+      "nome_curto": "CALCA COM NERVURA NA FRENTE",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2517506802",
+      "descricao_original": "CALCA COM NERVURA NA FRENTE",
+      "nome_curto": "CALCA COM NERVURA NA FRENTE",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2517506803",
+      "descricao_original": "CALCA COM NERVURA NA FRENTE",
+      "nome_curto": "CALCA COM NERVURA NA FRENTE",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2517506804",
+      "descricao_original": "CALCA COM NERVURA NA FRENTE",
+      "nome_curto": "CALCA COM NERVURA NA FRENTE",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2520000301",
+      "descricao_original": "REGATA CURTA COM BOTOES",
+      "nome_curto": "REGATA CURTA COM BOTOES",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2520001104",
+      "descricao_original": "REGATA CURTA COM BOTOES",
+      "nome_curto": "REGATA CURTA COM BOTOES",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2520006602",
+      "descricao_original": "REGATA CURTA COM BOTOES",
+      "nome_curto": "REGATA CURTA COM BOTOES",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2520006603",
+      "descricao_original": "REGATA CURTA COM BOTOES",
+      "nome_curto": "REGATA CURTA COM BOTOES",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2526000104",
+      "descricao_original": "BLUSA DECORTE V RENDA NA MANGA",
+      "nome_curto": "BLUSA DECORTE V RENDA NA MANGA",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2526000602",
+      "descricao_original": "BLUSA DECORTE V RENDA NA MANGA",
+      "nome_curto": "BLUSA DECORTE V RENDA NA MANGA",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2526004103",
+      "descricao_original": "BLUSA DECORTE V RENDA NA MANGA",
+      "nome_curto": "BLUSA DECORTE V RENDA NA MANGA",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2526007804",
+      "descricao_original": "BLUSA DECORTE V RENDA NA MANGA",
+      "nome_curto": "BLUSA DECORTE V RENDA NA MANGA",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2529500103",
+      "descricao_original": "COLETE COM ALCA",
+      "nome_curto": "COLETE COM ALCA",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2529500402",
+      "descricao_original": "COLETE COM ALCA",
+      "nome_curto": "COLETE COM ALCA",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2529500404",
+      "descricao_original": "COLETE COM ALCA",
+      "nome_curto": "COLETE COM ALCA",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2529501104",
+      "descricao_original": "COLETE COM ALCA",
+      "nome_curto": "COLETE COM ALCA",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2532504002",
+      "descricao_original": "VESTIDO COM AVIAMENTO DECOTE",
+      "nome_curto": "VESTIDO COM AVIAMENTO DECOTE",
+      "quantidade": 1,
+      "preco": 64.50
+    },
+    {
+      "codigo": "2532507403",
+      "descricao_original": "VESTIDO COM AVIAMENTO DECOTE",
+      "nome_curto": "VESTIDO COM AVIAMENTO DECOTE",
+      "quantidade": 1,
+      "preco": 64.50
+    },
+    {
+      "codigo": "2532507701",
+      "descricao_original": "VESTIDO COM AVIAMENTO DECOTE",
+      "nome_curto": "VESTIDO COM AVIAMENTO DECOTE",
+      "quantidade": 1,
+      "preco": 64.50
+    },
+    {
+      "codigo": "2533201101",
+      "descricao_original": "BLUSA ESTAMPADO DECORTE V",
+      "nome_curto": "BLUSA ESTAMPADO DECORTE V",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2533201102",
+      "descricao_original": "BLUSA ESTAMPADO DECORTE V",
+      "nome_curto": "BLUSA ESTAMPADO DECORTE V",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2533201103",
+      "descricao_original": "BLUSA ESTAMPADO DECORTE V",
+      "nome_curto": "BLUSA ESTAMPADO DECORTE V",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2533201104",
+      "descricao_original": "BLUSA ESTAMPADO DECORTE V",
+      "nome_curto": "BLUSA ESTAMPADO DECORTE V",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2533201304",
+      "descricao_original": "BLUSA ESTAMPADO C/AVIAMENTO",
+      "nome_curto": "BLUSA ESTAMPADO C/AVIAMENTO",
+      "quantidade": 1,
+      "preco": 27.50
+    },
+    {
+      "codigo": "2533800802",
+      "descricao_original": "BUSA ESTAMPADO C/AVIAMENTO",
+      "nome_curto": "BLUSA ESTAMPADO C/AVIAMENTO",
+      "quantidade": 1,
+      "preco": 27.50
+    },
+    {
+      "codigo": "2533800803",
+      "descricao_original": "BUSA ESTAMPADO C/AVIAMENTO",
+      "nome_curto": "BLUSA ESTAMPADO C/AVIAMENTO",
+      "quantidade": 1,
+      "preco": 27.50
+    },
+    {
+      "codigo": "2533801304",
+      "descricao_original": "BUSA ESTAMPADO C/AVIAMENTO",
+      "nome_curto": "BLUSA ESTAMPADO C/AVIAMENTO",
+      "quantidade": 1,
+      "preco": 27.50
+    },
+    {
+      "codigo": "2533806801",
+      "descricao_original": "BLUSA COM PENCES",
+      "nome_curto": "BLUSA COM PENCES",
+      "quantidade": 1,
+      "preco": 23.50
+    },
+    {
+      "codigo": "2534101102",
+      "descricao_original": "BLUSA COM PENCES",
+      "nome_curto": "BLUSA COM PENCES",
+      "quantidade": 1,
+      "preco": 23.50
+    },
+    {
+      "codigo": "2534101104",
+      "descricao_original": "BLUSA COM PENCES",
+      "nome_curto": "BLUSA COM PENCES",
+      "quantidade": 1,
+      "preco": 23.50
+    },
+    {
+      "codigo": "2534102801",
+      "descricao_original": "BLUSA COM PENCES",
+      "nome_curto": "BLUSA COM PENCES",
+      "quantidade": 1,
+      "preco": 23.50
+    },
+    {
+      "codigo": "2534102803",
+      "descricao_original": "BLUSA ESTAMPADO",
+      "nome_curto": "BLUSA ESTAMPADO",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2534300403",
+      "descricao_original": "REGATA ESTAMPADO",
+      "nome_curto": "REGATA ESTAMPADO",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2534301101",
+      "descricao_original": "REGATA ESTAMPADO",
+      "nome_curto": "REGATA ESTAMPADO",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2534301102",
+      "descricao_original": "REGATA ESTAMPADO",
+      "nome_curto": "REGATA ESTAMPADO",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2534301103",
+      "descricao_original": "REGATA ESTAMPADO",
+      "nome_curto": "REGATA ESTAMPADO",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2534301104",
+      "descricao_original": "REGATA ESTAMPADO",
+      "nome_curto": "REGATA ESTAMPADO",
+      "quantidade": 1,
+      "preco": 25.00
+    },
+    {
+      "codigo": "2534303004",
+      "descricao_original": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "nome_curto": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2600800101",
+      "descricao_original": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "nome_curto": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2600800603",
+      "descricao_original": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "nome_curto": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2600802602",
+      "descricao_original": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "nome_curto": "REGATA ASSIMETRICA COM AVIAMENTO",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2600806901",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2601300101",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2601300102",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    }
+  ]
+}

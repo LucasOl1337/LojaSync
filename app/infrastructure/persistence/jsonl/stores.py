@@ -53,3 +53,18 @@ class JsonlProductRepository(ProductRepository):
         with path.open("w", encoding="utf-8") as handle:
             for product in products:
                 handle.write(json.dumps(product.to_dict(), ensure_ascii=False) + "\n")
+
+    def update(self, ordering_key: str, changes: dict[str, object]) -> Product | None:
+        products = self.list_active()
+        updated = None
+        for product in products:
+            if product.ordering_key() != ordering_key:
+                continue
+            for field_name, value in changes.items():
+                if hasattr(product, field_name):
+                    setattr(product, field_name, value)
+            updated = product
+            break
+        if updated is not None:
+            self.replace_active(products)
+        return updated

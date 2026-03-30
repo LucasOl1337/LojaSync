@@ -1,0 +1,361 @@
+{
+  "items": [
+    {
+      "codigo": "2601300103",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2601300503",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2601300602",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2601300801",
+      "descricao_original": "ALCA COM PASSANTE",
+      "nome_curto": "ALCA COM PASSANTE",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2601500103",
+      "descricao_original": "BLUSA COM LACO",
+      "nome_curto": "BLUSA COM LACO",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2601500104",
+      "descricao_original": "BLUSA COM LACO",
+      "nome_curto": "BLUSA COM LACO",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2601507404",
+      "descricao_original": "BLUSA COM LACO",
+      "nome_curto": "BLUSA COM LACO",
+      "quantidade": 1,
+      "preco": 22.50
+    },
+    {
+      "codigo": "2602000601",
+      "descricao_original": "SHORTS SAIA XADRES MANCHESTER",
+      "nome_curto": "SHORTS SAIA XADRES MANCHESTER",
+      "quantidade": 1,
+      "preco": 36.00
+    },
+    {
+      "codigo": "2602000602",
+      "descricao_original": "SHORTS SAIA XADRES MANCHESTER",
+      "nome_curto": "SHORTS SAIA XADRES MANCHESTER",
+      "quantidade": 2,
+      "preco": 36.00
+    },
+    {
+      "codigo": "2602000603",
+      "descricao_original": "SHORTS SAIA XADRES MANCHESTER",
+      "nome_curto": "SHORTS SAIA XADRES MANCHESTER",
+      "quantidade": 1,
+      "preco": 36.00
+    },
+    {
+      "codigo": "2602007501",
+      "descricao_original": "SHORTS SAIA XADRES MANCHESTER",
+      "nome_curto": "SHORTS SAIA XADRES MANCHESTER",
+      "quantidade": 1,
+      "preco": 36.00
+    },
+    {
+      "codigo": "2602007302",
+      "descricao_original": "SHORTS SAIA XADRES MANCHESTER",
+      "nome_curto": "SHORTS SAIA XADRES MANCHESTER",
+      "quantidade": 1,
+      "preco": 36.00
+    },
+    {
+      "codigo": "2602007303",
+      "descricao_original": "SHORTS SAIA XADRES MANCHESTER",
+      "nome_curto": "SHORTS SAIA XADRES MANCHESTER",
+      "quantidade": 1,
+      "preco": 36.00
+    },
+    {
+      "codigo": "2605200601",
+      "descricao_original": "BLUSA CREPE COM BOTOES",
+      "nome_curto": "BLUSA CREPE COM BOTOES",
+      "quantidade": 1,
+      "preco": 24.00
+    },
+    {
+      "codigo": "2605202903",
+      "descricao_original": "BLUSA CREPE COM BOTOES",
+      "nome_curto": "BLUSA CREPE COM BOTOES",
+      "quantidade": 1,
+      "preco": 24.00
+    },
+    {
+      "codigo": "2606500404",
+      "descricao_original": "VESTIDO COM MANGA E DETALHE",
+      "nome_curto": "VESTIDO COM MANGA E DETALHE",
+      "quantidade": 1,
+      "preco": 54.50
+    },
+    {
+      "codigo": "2608301101",
+      "descricao_original": "SAIA RETA XADREZ COM BOTAO",
+      "nome_curto": "SAIA RETA XADREZ COM BOTAO",
+      "quantidade": 1,
+      "preco": 42.50
+    },
+    {
+      "codigo": "2608301102",
+      "descricao_original": "SAIA RETA XADREZ COM BOTAO",
+      "nome_curto": "SAIA RETA XADREZ COM BOTAO",
+      "quantidade": 1,
+      "preco": 42.50
+    },
+    {
+      "codigo": "2608301103",
+      "descricao_original": "SAIA RETA XADREZ COM BOTAO",
+      "nome_curto": "SAIA RETA XADREZ COM BOTAO",
+      "quantidade": 1,
+      "preco": 42.50
+    },
+    {
+      "codigo": "2608306601",
+      "descricao_original": "SAIA RETA XADREZ COM BOTAO",
+      "nome_curto": "SAIA RETA XADREZ COM BOTAO",
+      "quantidade": 2,
+      "preco": 42.50
+    },
+    {
+      "codigo": "2608306602",
+      "descricao_original": "SAIA RETA XADREZ COM BOTAO",
+      "nome_curto": "SAIA RETA XADREZ COM BOTAO",
+      "quantidade": 1,
+      "preco": 42.50
+    },
+    {
+      "codigo": "2608306603",
+      "descricao_original": "SAIA RETA XADREZ COM BOTAO",
+      "nome_curto": "SAIA RETA XADREZ COM BOTAO",
+      "quantidade": 1,
+      "preco": 42.50
+    },
+    {
+      "codigo": "9528901302",
+      "descricao_original": "CONJUNTO BLUSA E SAIA",
+      "nome_curto": "CONJUNTO BLUSA E SAIA",
+      "quantidade": 1,
+      "preco": 65.00
+    },
+    {
+      "codigo": "9528901303",
+      "descricao_original": "CONJUNTO BLUSA E SAIA",
+      "nome_curto": "CONJUNTO BLUSA E SAIA",
+      "quantidade": 1,
+      "preco": 65.00
+    },
+    {
+      "codigo": "9528905901",
+      "descricao_original": "CONJUNTO BLUSA E SAIA",
+      "nome_curto": "CONJUNTO BLUSA E SAIA",
+      "quantidade": 1,
+      "preco": 65.00
+    },
+    {
+      "codigo": "9528905902",
+      "descricao_original": "CONJUNTO BLUSA E SAIA",
+      "nome_curto": "CONJUNTO BLUSA E SAIA",
+      "quantidade": 1,
+      "preco": 65.00
+    },
+    {
+      "codigo": "9528905903",
+      "descricao_original": "CONJUNTO BLUSA E SAIA",
+      "nome_curto": "CONJUNTO BLUSA E SAIA",
+      "quantidade": 1,
+      "preco": 65.00
+    },
+    {
+      "codigo": "9602900101",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900102",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900103",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900601",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900602",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900601",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900602",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9602900603",
+      "descricao_original": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "nome_curto": "CONJUNTO COLETE E CALCA CARGO LISTRADO",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9604200603",
+      "descricao_original": "CONJUNTO CALCA E BLUSA PASSANTE NA MANGA",
+      "nome_curto": "CONJUNTO CALCA E BLUSA PASSANTE NA MANGA",
+      "quantidade": 1,
+      "preco": 72.50
+    },
+    {
+      "codigo": "9604204904",
+      "descricao_original": "CONJUNTO CALCA E BLUSA PASSANTE NA MANGA",
+      "nome_curto": "CONJUNTO CALCA E BLUSA PASSANTE NA MANGA",
+      "quantidade": 1,
+      "preco": 72.50
+    },
+    {
+      "codigo": "9604700601",
+      "descricao_original": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "nome_curto": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "quantidade": 1,
+      "preco": 70.00
+    },
+    {
+      "codigo": "9604700603",
+      "descricao_original": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "nome_curto": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "quantidade": 1,
+      "preco": 70.00
+    },
+    {
+      "codigo": "9604701102",
+      "descricao_original": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "nome_curto": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "quantidade": 1,
+      "preco": 70.00
+    },
+    {
+      "codigo": "9604706603",
+      "descricao_original": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "nome_curto": "CONJUNTO BLUSA E SAIA COM BOTOES",
+      "quantidade": 1,
+      "preco": 70.00
+    },
+    {
+      "codigo": "9604900102",
+      "descricao_original": "CONJUNTO COLETE E CALCA XADREZ",
+      "nome_curto": "CONJUNTO COLETE E CALCA XADREZ",
+      "quantidade": 1,
+      "preco": 72.50
+    },
+    {
+      "codigo": "9604900103",
+      "descricao_original": "CONJUNTO COLETE E CALCA XADREZ",
+      "nome_curto": "CONJUNTO COLETE E CALCA XADREZ",
+      "quantidade": 1,
+      "preco": 72.50
+    },
+    {
+      "codigo": "9605601101",
+      "descricao_original": "CONJUNTO TOP COM DETALHE BOTOES E CALCA",
+      "nome_curto": "CONJUNTO TOP COM DETALHE BOTOES E CALCA",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9605606602",
+      "descricao_original": "CONJUNTO TOP COM DETALHE BOTOES E CALCA",
+      "nome_curto": "CONJUNTO TOP COM DETALHE BOTOES E CALCA",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9605606603",
+      "descricao_original": "CONJUNTO TOP COM DETALHE BOTOES E CALCA",
+      "nome_curto": "CONJUNTO TOP COM DETALHE BOTOES E CALCA",
+      "quantidade": 1,
+      "preco": 69.50
+    },
+    {
+      "codigo": "9605907301",
+      "descricao_original": "CONJUNTO REGATA E SAIA",
+      "nome_curto": "CONJUNTO REGATA E SAIA",
+      "quantidade": 1,
+      "preco": 62.50
+    },
+    {
+      "codigo": "9605907302",
+      "descricao_original": "CONJUNTO REGATA E SAIA",
+      "nome_curto": "CONJUNTO REGATA E SAIA",
+      "quantidade": 1,
+      "preco": 62.50
+    },
+    {
+      "codigo": "9606106102",
+      "descricao_original": "CONJUNTO COLETE E CALCA KLEIN",
+      "nome_curto": "CONJUNTO COLETE E CALCA KLEIN",
+      "quantidade": 1,
+      "preco": 67.50
+    },
+    {
+      "codigo": "9606106103",
+      "descricao_original": "CONJUNTO COLETE E CALCA KLEIN",
+      "nome_curto": "CONJUNTO COLETE E CALCA KLEIN",
+      "quantidade": 1,
+      "preco": 67.50
+    },
+    {
+      "codigo": "9606106601",
+      "descricao_original": "CONJUNTO COLETE E CALCA KLEIN",
+      "nome_curto": "CONJUNTO COLETE E CALCA KLEIN",
+      "quantidade": 1,
+      "preco": 67.50
+    }
+  ]
+}

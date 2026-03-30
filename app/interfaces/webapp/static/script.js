@@ -1141,9 +1141,13 @@ async function openInsertGradesDialog() {
       body: JSON.stringify({ grades }),
     });
     selected.grades = grades;
-    renderProductsList(selected.ordering_key);
-    await refreshProducts();
-    await fetchTotals();
+    // Update local data immediately for real-time UI
+    const productIndex = loadedProducts.findIndex(p => p.ordering_key === selected.ordering_key);
+    if (productIndex !== -1) {
+      loadedProducts[productIndex].grades = grades;
+      renderProducts();
+      await fetchTotals();
+    }
   }
 
   async function clearAllGrades() {
@@ -2699,8 +2703,10 @@ function beginInlineEdit(cell) {
 }
 
 function handleEditorKeydown(event) {
+  console.log('[DEBUG] handleEditorKeydown key:', event.key);
   if (event.key === "Enter") {
     event.preventDefault();
+    console.log('[DEBUG] Calling finalizeActiveEditor with submit=true');
     finalizeActiveEditor(false, true);
   } else if (event.key === "Escape") {
     event.preventDefault();
@@ -2709,30 +2715,39 @@ function handleEditorKeydown(event) {
 }
 
 function finalizeActiveEditor(cancel = false, submit = false) {
+  console.log('[DEBUG] finalizeActiveEditor called cancel=', cancel, 'submit=', submit, 'activeCellEditor=', activeCellEditor);
   if (!activeCellEditor) {
+    console.log('[DEBUG] No activeCellEditor, returning');
     return;
   }
   const { cell, input, originalValue, field, orderingKey } = activeCellEditor;
   const newValue = input.value;
+  console.log('[DEBUG] field=', field, 'orderingKey=', orderingKey, 'newValue=', newValue, 'originalValue=', originalValue);
   cell.classList.remove("editing");
   cell.textContent = cancel ? originalValue : newValue;
   activeCellEditor = null;
 
   if (submit && !cancel && field && orderingKey) {
     const trimmed = newValue.trim();
+    console.log('[DEBUG] trimmed=', trimmed, 'originalValue.trim()=', originalValue.trim());
     if (trimmed === originalValue.trim()) {
+      console.log('[DEBUG] Values are equal, returning');
       cell.textContent = originalValue;
       return;
     }
+    console.log('[DEBUG] Calling submitInlineUpdate');
     void submitInlineUpdate(orderingKey, field, trimmed).catch((err) => {
-      console.error("Erro ao atualizar produto:", err);
+      console.error("[DEBUG] Erro ao atualizar produto:", err);
       window.alert(`Falha ao atualizar produto: ${err.message || err}`);
       void refreshProducts();
     });
+  } else {
+    console.log('[DEBUG] Not calling submitInlineUpdate: submit=', submit, 'cancel=', cancel, 'field=', field, 'orderingKey=', orderingKey);
   }
 }
 
 async function submitInlineUpdate(orderingKey, field, value) {
+  console.log('[DEBUG] submitInlineUpdate called orderingKey=', orderingKey, 'field=', field, 'value=', value);
   let payload = null;
   if (field === "nome") {
     payload = { nome: String(value ?? "").trim() };
@@ -2767,12 +2782,20 @@ async function submitInlineUpdate(orderingKey, field, value) {
 
   pushUndoSnapshot();
 
-  await fetchJSON(`${API_BASE_URL}/products/${encodeURIComponent(orderingKey)}`, {
+  const response = await fetchJSON(`${API_BASE_URL}/products/${encodeURIComponent(orderingKey)}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
-  await refreshProducts();
-  await fetchTotals();
+  
+  // Update local product data immediately for real-time UI updates
+  if (response && response.item) {
+    const productIndex = loadedProducts.findIndex(p => p.ordering_key === orderingKey);
+    if (productIndex !== -1) {
+      loadedProducts[productIndex] = response.item;
+      // Update totals immediately without full re-render (keep cell editor closed)
+      await fetchTotals();
+    }
+  }
 }
 
 function setGlobalEditMode(enabled) {
@@ -3258,7 +3281,8 @@ function toggleImportButtons(disabled) {
     elements.importRomaneioSecondary.disabled = disabled;
   }
 }
-function toggleGradeButtons(disabled) {
+
+function toggleGradeButtons(disabled) {
   if (elements.insertGrade) {
     elements.insertGrade.disabled = disabled;
   }
@@ -4087,7 +4111,8 @@ const ROMANEIO_STAGE_PROGRESS = {
   parsing: 0.85,
   completed: 1,
   error: 1,
-};
+};
+
 
 let uiWs = null;
 let uiWsConnected = false;
@@ -4215,7 +4240,8 @@ function handleUiJobUpdated(payload) {
     const progress = ROMANEIO_STAGE_PROGRESS[String(stage)] ?? 0.1;
     modal.update(message || "Processando...", progress);
     return;
-  }
+  }
+
 }
 
 function handleUiWsMessage(raw) {
@@ -4306,4 +4332,5 @@ function startUIRealtime() {
     }
   });
 }
-
+
+

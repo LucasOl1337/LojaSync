@@ -1,0 +1,200 @@
+{
+  "items": [
+    {
+      "codigo": "2401902603",
+      "descricao_original": "REGATA PREGAS NOS OMBROS",
+      "nome_curto": "REGATA PREGAS NOS OMBROS",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2401902604",
+      "descricao_original": "REGATA PREGAS NOS OMBROS",
+      "nome_curto": "REGATA PREGAS NOS OMBROS",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2413300104",
+      "descricao_original": "CALCA PANTALONA C/NERVURAS",
+      "nome_curto": "CALCA PANTALONA C/NERVURAS",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2413306101",
+      "descricao_original": "CALCA PANTALONA C/NERVURAS",
+      "nome_curto": "CALCA PANTALONA C/NERVURAS",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2413306104",
+      "descricao_original": "CALCA PANTALONA C/NERVURAS",
+      "nome_curto": "CALCA PANTALONA C/NERVURAS",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2502000102",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2502000302",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2502000303",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2502000304",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2502006801",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2502006802",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2400200102",
+      "descricao_original": "CALCA TENCEL",
+      "nome_curto": "CALCA TENCEL",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2400200103",
+      "descricao_original": "CALCA TENCEL",
+      "nome_curto": "CALCA TENCEL",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2400207301",
+      "descricao_original": "CALCA TENCEL",
+      "nome_curto": "CALCA TENCEL",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2400207302",
+      "descricao_original": "CALCA TENCEL",
+      "nome_curto": "CALCA TENCEL",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2400207304",
+      "descricao_original": "CALCA TENCEL",
+      "nome_curto": "CALCA TENCEL",
+      "quantidade": 1,
+      "preco": 47.50
+    },
+    {
+      "codigo": "2401900101",
+      "descricao_original": "REGATA PREGAS NOS OMBROS",
+      "nome_curto": "REGATA PREGAS NOS OMBROS",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2401901104",
+      "descricao_original": "REGATA PREGAS NOS OMBROS",
+      "nome_curto": "REGATA PREGAS NOS OMBROS",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2401902602",
+      "descricao_original": "REGATA PREGAS NOS OMBROS",
+      "nome_curto": "REGATA PREGAS NOS OMBROS",
+      "quantidade": 1,
+      "preco": 19.00
+    },
+    {
+      "codigo": "2502006804",
+      "descricao_original": "REGATA BABADO",
+      "nome_curto": "REGATA BABADO",
+      "quantidade": 1,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2504001104",
+      "descricao_original": "REGATA C/BABADINHO NA GOLA",
+      "nome_curto": "REGATA C/BABADINHO NA GOLA",
+      "quantidade": 3,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2504003504",
+      "descricao_original": "REGATA C/BABADINHO NA GOLA",
+      "nome_curto": "REGATA C/BABADINHO NA GOLA",
+      "quantidade": 4,
+      "preco": 20.00
+    },
+    {
+      "codigo": "2505900101",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2505900102",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2505900103",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2505900104",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2505901102",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 1,
+      "preco": 21.00
+    },
+    {
+      "codigo": "2505906604",
+      "descricao_original": "REGATA COM GOLA VIRADA",
+      "nome_curto": "REGATA COM GOLA VIRADA",
+      "quantidade": 2,
+      "preco": 21.00
+    }
+  ]
+}

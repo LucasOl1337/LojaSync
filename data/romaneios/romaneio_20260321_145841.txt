@@ -1,0 +1,62 @@
+{"items":[{"codigo":"CA.FEM.00463","descricao_original":"CALCA RETA JEANS FEM C-RECORTE BOLSO EMBUTIDO 1618680502583-01","nome_curto":"CALCA RETA JEANS","quantidade":1,"preco":"129,90"},{"codigo":"CA.FEM.00463","descricao_original":"CALCA RETA JEANS FEM C-RECORTE BOLSO EMBUTIDO 1618680502583-01","nome_curto":"CALCA RETA JEANS","quantidade":1,"preco":"129,90"},{"codigo":"CA.FEM.00463","descricao_original":"CALCA RETA JEANS FEM C-RECORTE BOLSO EMBUTIDO 1618680502583-01","nome_curto":"CALCA RETA JEANS","quantidade":1,"preco":"129,90"},{"codigo":"CA.FEM.00467","descricao_original":"CALCA FLARE JEANS FEM CLAIR 1618680502583-01","nome_curto":"CALCA FLARE JEANS","quantidade":1,"preco":"129,90"},{"codigo":"CA.FEM.00467","descricao_original":"CALCA FLARE JEANS FEM CLAIR 1618680502583-01","nome_curto":"CALCA FLARE JEANS","quantidade":1,"preco":"129,90"},{"codigo":"CA.FEM.00467","descricao_original":"CALCA FLARE JEANS FEM CLAIR 1618680502583-01","nome_curto":"CALCA FLARE JEANS","quantidade":1,"preco":"129,90"},{"codigo":"CA.FEM.00467","descricao_original":"CALCA FLARE JEANS FEM CLAIR 1618680502583-01","nome_curto":"CALCA FLARE JEANS","quantidade":1,"preco":"129,90"},{"codigo":"131196.I26","descricao_original":"MOLETOM MASC DECOTE CARECA BORDADO 1618680502583-01","nome_curto":"MOLETOM DECOTE CARECA","quantidade":1,"preco":"99,90"}]}
+
+{
+  "items": [
+    {
+      "codigo": "131196.I26",
+      "descricao_original": "MOLETOM MASC DECOTE CARECA BORDADO 1618680502583-01 9",
+      "nome_curto": "MOLETOM DECOTE CARECA BORDADO",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "9"
+    },
+    {
+      "codigo": "131196.I26",
+      "descricao_original": "MOLETOM MASC DECOTE CARECA BORDADO 1618680502583-01 10",
+      "nome_curto": "MOLETOM DECOTE CARECA BORDADO",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "10"
+    },
+    {
+      "codigo": "131196.I26",
+      "descricao_original": "MOLETOM MASC DECOTE CARECA BORDADO 1618680502583-01 11",
+      "nome_curto": "MOLETOM DECOTE CARECA BORDADO",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "11"
+    },
+    {
+      "codigo": "131196.I26",
+      "descricao_original": "MOLETOM MASC DECOTE CARECA BORDADO 1618680502583-01 12",
+      "nome_curto": "MOLETOM DECOTE CARECA BORDADO",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "12"
+    },
+    {
+      "codigo": "CO.FEM.00023",
+      "descricao_original": "COLETE FEM JEANS COM RECORTE PRINCESA 1618680502583-01 13",
+      "nome_curto": "COLETE JEANS RECORTE PRINCESA",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "13"
+    },
+    {
+      "codigo": "CO.FEM.00023",
+      "descricao_original": "COLETE FEM JEANS COM RECORTE PRINCESA 1618680502583-01 14",
+      "nome_curto": "COLETE JEANS RECORTE PRINCESA",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "14"
+    },
+    {
+      "codigo": "CO.FEM.00023",
+      "descricao_original": "COLETE FEM JEANS COM RECORTE PRINCESA 1618680502583-01 15",
+      "nome_curto": "COLETE JEANS RECORTE PRINCESA",
+      "quantidade": 1,
+      "preco": 99.90,
+      "tamanho": "15"
+    }
+  ]
+}

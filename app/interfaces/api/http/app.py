@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from app.bootstrap.wiring.container import build_container
 from app.interfaces.api.http.routes import router
 from app.shared.logging.setup import configure_logging
+from app.shared.ui_events import UiEventBroker, configure_ui_event_broker
 
 
 def create_app() -> FastAPI:
@@ -21,6 +22,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.state.container = container
+    app.state.ui_event_broker = configure_ui_event_broker(UiEventBroker())
     app.include_router(router)
-    app.mount("/", StaticFiles(directory=str(container["paths"].web_static_dir), html=True), name="static")
+    if container.paths.web_ts_dist_dir.exists():
+        app.mount("/ts", StaticFiles(directory=str(container.paths.web_ts_dist_dir), html=True), name="static-ts")
+    app.mount("/", StaticFiles(directory=str(container.paths.web_static_dir), html=True), name="static")
     return app

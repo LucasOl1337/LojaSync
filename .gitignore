@@ -43,6 +43,7 @@ htmlcov/
 
 # Node / frontend
 node_modules/
+*.tsbuildinfo
 
 # OS files
 .DS_Store

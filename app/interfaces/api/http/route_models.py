@@ -43,6 +43,12 @@ class FormatCodesPayload(BaseModel):
     primeiros_digitos: int | None = Field(default=None, ge=1, le=50)
     remover_ultimos_numeros: int | None = Field(default=None, ge=1, le=50)
     remover_primeiros_numeros: int | None = Field(default=None, ge=1, le=50)
+    manter_primeiros_caracteres: int | None = Field(default=None, ge=1, le=100)
+    manter_ultimos_caracteres: int | None = Field(default=None, ge=1, le=100)
+    remover_primeiros_caracteres: int | None = Field(default=None, ge=1, le=100)
+    remover_ultimos_caracteres: int | None = Field(default=None, ge=1, le=100)
+    remover_letras: bool = False
+    remover_numeros: bool = False
 
 
 class FormatCodesResponse(BaseModel):
@@ -125,6 +131,7 @@ class TargetCaptureResponse(BaseModel):
 class ImproveDescriptionPayload(BaseModel):
     remover_numeros: bool = False
     remover_especiais: bool = False
+    remover_letras: bool = False
     remover_termos: list[str] = Field(default_factory=list)
 
 
@@ -168,6 +175,8 @@ class GradeConfigPayload(BaseModel):
     model_hotkey: str | None = None
     erp_size_order: list[str] | None = None
     ui_size_order: list[str] | None = None
+    ui_families: list[dict[str, Any]] | None = None
+    ui_family_version: int | None = None
 
 
 class GradeRunPayload(BaseModel):

@@ -164,6 +164,8 @@ class ProductService:
                 if not hasattr(item, field_name):
                     continue
                 setattr(item, field_name, value)
+            if "preco" in changes and "preco_final" not in changes:
+                item.preco_final = None
             item.normalize(margin=margin)
             updated = item
             if "marca" in changes:
@@ -435,6 +437,12 @@ class ProductService:
         first_digits = self._coerce_positive_int(options.get("primeiros_digitos"))
         remove_last_numbers = self._coerce_positive_int(options.get("remover_ultimos_numeros"))
         remove_first_numbers = self._coerce_positive_int(options.get("remover_primeiros_numeros"))
+        keep_first_chars = self._coerce_positive_int(options.get("manter_primeiros_caracteres"))
+        keep_last_chars = self._coerce_positive_int(options.get("manter_ultimos_caracteres"))
+        remove_first_chars = self._coerce_positive_int(options.get("remover_primeiros_caracteres"))
+        remove_last_chars = self._coerce_positive_int(options.get("remover_ultimos_caracteres"))
+        remove_letters = bool(options.get("remover_letras"))
+        remove_numbers = bool(options.get("remover_numeros"))
         prefix_used: str | None = None
 
         items = self.list_products()
@@ -464,10 +472,22 @@ class ProductService:
                 updated = updated[len(prefix_used) :] or updated
             if remove_left_zeros:
                 updated = updated.lstrip("0") or "0"
+            if remove_letters:
+                updated = re.sub(r"[A-Za-z]+", "", updated)
+            if remove_numbers:
+                updated = re.sub(r"\d+", "", updated)
+            if remove_first_chars:
+                updated = updated[remove_first_chars:]
+            if remove_last_chars:
+                updated = updated[:-remove_last_chars] if remove_last_chars < len(updated) else ""
             if remove_last_numbers:
                 updated = self._remove_digits_from_end(updated, remove_last_numbers)
             if remove_first_numbers:
                 updated = self._remove_digits_from_start(updated, remove_first_numbers)
+            if keep_first_chars:
+                updated = updated[:keep_first_chars]
+            if keep_last_chars:
+                updated = updated[-keep_last_chars:] if keep_last_chars < len(updated) else updated
             if first_digits:
                 digits_only = re.sub(r"\D+", "", updated)
                 updated = digits_only[:first_digits] if digits_only else updated[:first_digits]
@@ -520,6 +540,7 @@ class ProductService:
         self,
         remove_numbers: bool,
         remove_special: bool,
+        remove_letters: bool,
         terms: Iterable[str],
     ) -> dict[str, int]:
         normalized_terms = [term.strip() for term in terms if term and term.strip()]
@@ -538,6 +559,8 @@ class ProductService:
                 updated = current
                 if remove_numbers:
                     updated = re.sub(r"\d+", "", updated)
+                if remove_letters:
+                    updated = re.sub(r"[A-Za-zÀ-ÿ]+", "", updated, flags=re.UNICODE)
                 if remove_special:
                     updated = re.sub(r"[^\w\s]", "", updated, flags=re.UNICODE)
                 if normalized_terms:

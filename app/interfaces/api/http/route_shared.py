@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import Request
 
+from app.bootstrap.wiring.container import AppContainer
 from app.domain.products.entities import Product
 from app.interfaces.api.http.route_models import TargetPoint, TargetsResponse
 from app.interfaces.api.schemas.products import ProductResponse
@@ -49,12 +50,16 @@ CATALOG_SIZES = [
 ]
 
 
+def get_container(request: Request) -> AppContainer:
+    return request.app.state.container
+
+
 def get_product_service(request: Request):
-    return request.app.state.container["product_service"]
+    return get_container(request).product_service
 
 
 def get_automation_service(request: Request):
-    return request.app.state.container["automation_service"]
+    return get_container(request).automation_service
 
 
 def product_to_response(product: Product) -> ProductResponse:

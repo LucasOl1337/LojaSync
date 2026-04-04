@@ -145,6 +145,29 @@ def _normalize_string_list(value: Any) -> list[str]:
     return normalized
 
 
+def _normalize_ui_families(value: Any) -> list[dict[str, Any]]:
+    items = value if isinstance(value, list) else []
+    normalized: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        family_id = str(item.get("id") or f"family-{index + 1}").strip().lower()
+        if not family_id or family_id in seen_ids:
+            family_id = f"family-{index + 1}"
+        seen_ids.add(family_id)
+        label = str(item.get("label") or f"Familia {index + 1}").strip() or f"Familia {index + 1}"
+        sizes = _normalize_string_list(item.get("sizes"))
+        normalized.append(
+            {
+                "id": family_id,
+                "label": label,
+                "sizes": sizes,
+            }
+        )
+    return normalized
+
+
 def normalize_gradebot_config(payload: Any) -> dict[str, Any]:
     data = payload if isinstance(payload, dict) else {}
 
@@ -192,6 +215,11 @@ def normalize_gradebot_config(payload: Any) -> dict[str, Any]:
 
     erp_size_order = _normalize_string_list(data.get("erp_size_order")) or list(_DEFAULT_ERP_SIZE_ORDER)
     ui_size_order = _normalize_string_list(data.get("ui_size_order")) or list(erp_size_order)
+    ui_families = _normalize_ui_families(data.get("ui_families"))
+    try:
+        ui_family_version = int(data.get("ui_family_version") or 0)
+    except Exception:
+        ui_family_version = 0
 
     normalized: dict[str, Any] = {
         "buttons": buttons,
@@ -199,6 +227,8 @@ def normalize_gradebot_config(payload: Any) -> dict[str, Any]:
         "model": model,
         "erp_size_order": erp_size_order,
         "ui_size_order": ui_size_order,
+        "ui_families": ui_families,
+        "ui_family_version": max(ui_family_version, 0),
     }
     return normalized
 
@@ -210,7 +240,9 @@ def has_gradebot_configuration(payload: dict[str, Any] | None) -> bool:
     grid = payload.get("grid")
     erp_order = payload.get("erp_size_order")
     ui_order = payload.get("ui_size_order")
-    return bool(buttons) or bool(grid) or bool(erp_order) or bool(ui_order)
+    ui_families = payload.get("ui_families")
+    ui_family_version = payload.get("ui_family_version")
+    return bool(buttons) or bool(grid) or bool(erp_order) or bool(ui_order) or bool(ui_families) or bool(ui_family_version)
 
 
 def merge_gradebot_config(current: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
@@ -256,6 +288,13 @@ def merge_gradebot_config(current: dict[str, Any], updates: dict[str, Any]) -> d
     ui_size_order = current_normalized.get("ui_size_order") or list(erp_size_order)
     if isinstance(updates.get("ui_size_order"), list):
         ui_size_order = _normalize_string_list(updates.get("ui_size_order")) or list(erp_size_order)
+    ui_families = current_normalized.get("ui_families") or []
+    if isinstance(updates.get("ui_families"), list):
+        ui_families = _normalize_ui_families(updates.get("ui_families"))
+    try:
+        ui_family_version = int(updates.get("ui_family_version") or current_normalized.get("ui_family_version") or 0)
+    except Exception:
+        ui_family_version = 0
 
     return normalize_gradebot_config(
         {
@@ -264,5 +303,7 @@ def merge_gradebot_config(current: dict[str, Any], updates: dict[str, Any]) -> d
             "model": model,
             "erp_size_order": erp_size_order,
             "ui_size_order": ui_size_order,
+            "ui_families": ui_families,
+            "ui_family_version": ui_family_version,
         }
     )

@@ -215,17 +215,22 @@ class AutomationService:
 
     def agents(self) -> dict[str, list[dict[str, Any]]]:
         status = self.status()
+        capabilities = ["pyautogui"]
+        if self._native_byte_empresa_supported():
+            capabilities.append("pywinauto")
         return {
             "agents": [
                 {
                     "agent_id": "Executor Local",
                     "status": status.get("estado", "idle"),
-                    "capabilities": ["pyautogui"],
+                    "capabilities": capabilities,
                     "last_seen": 0,
                     "last_event": {"message": status.get("message", "Executor interno")},
                     "kind": "local",
                     "is_local": True,
                     "synchronized": status.get("estado") in {"idle", "running"},
+                    "native_byte_empresa_enabled": self._native_byte_empresa_enabled(),
+                    "native_byte_empresa_supported": self._native_byte_empresa_supported(),
                 }
             ]
         }
@@ -252,6 +257,14 @@ class AutomationService:
         self._save_desktop_profile(profile)
         self._sync_legacy_gradebot_config(config)
         return config
+
+    def byte_empresa_context(self) -> dict[str, Any]:
+        driver = self._create_native_byte_empresa_driver()
+        return driver.inspect_context()
+
+    def byte_empresa_prepare(self) -> dict[str, Any]:
+        driver = self._create_native_byte_empresa_driver()
+        return driver.prepare_catalog_window()
 
     def run_gradebot(
         self,
@@ -513,6 +526,42 @@ class AutomationService:
             }
 
     def _run_catalog_sequence(self, products: list[Product]) -> tuple[list[str], int, dict[str, int]]:
+        if self._should_use_native_byte_empresa():
+            try:
+                driver = self._create_native_byte_empresa_driver()
+                driver.prepare_catalog_window()
+            except Exception:
+                logger.exception("Falha ao preparar automacao nativa do ByteEmpresa; voltando ao fluxo legado")
+                self._set_active_state(
+                    "Automacao nativa experimental indisponivel; usando fluxo legado.",
+                    phase="catalog",
+                )
+            else:
+                completed_keys: list[str] = []
+                failures = 0
+                total = len(products)
+                for index, product in enumerate(products, start=1):
+                    self._check_cancel()
+                    self._set_active_state(f"Cadastrando produto {index}/{total}", phase="catalog")
+                    payload = self._product_to_payload(product)
+                    try:
+                        ok = driver.submit_product(payload, self._cancel_event)
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception as exc:
+                        logger.exception("Falha na automacao nativa do ByteEmpresa")
+                        self._set_active_state(str(exc), phase="catalog")
+                        ok = False
+                    if ok:
+                        completed_keys.append(product.ordering_key())
+                    else:
+                        failures += 1
+                metrics: dict[str, int] = {}
+                if completed_keys:
+                    records = self._products.get_by_ordering_keys(completed_keys)
+                    metrics = self._products.record_automation_success(records)
+                return completed_keys, failures, metrics
+
         if pyautogui is None:
             raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
 
@@ -588,6 +637,12 @@ class AutomationService:
             time.sleep(min(0.05, max(0.0, end_time - time.time())))
 
     def _ensure_bulk_ready(self) -> None:
+        if self._should_use_native_byte_empresa():
+            try:
+                self._create_native_byte_empresa_driver().prepare_catalog_window()
+                return
+            except Exception:
+                logger.exception("Falha ao preparar automacao nativa do ByteEmpresa; validando fluxo legado")
         if pyautogui is None:
             raise RuntimeError("PyAutoGUI nao esta disponivel neste ambiente.")
         targets = self.load_targets()
@@ -601,7 +656,14 @@ class AutomationService:
             )
 
     def _ensure_complete_ready(self) -> None:
-        self._ensure_bulk_ready()
+        if self._should_use_native_byte_empresa():
+            try:
+                self._create_native_byte_empresa_driver().prepare_catalog_window()
+            except Exception:
+                logger.exception("Falha ao preparar automacao nativa do ByteEmpresa; voltando ao fluxo legado")
+                self._ensure_bulk_ready()
+        else:
+            self._ensure_bulk_ready()
         products = self._products.list_products()
         if not products:
             raise RuntimeError("Nenhum produto disponivel para cadastrar.")
@@ -785,6 +847,19 @@ class AutomationService:
         except Exception:
             return False
 
+    @staticmethod
+    def _coerce_bool(value: Any, default: bool = False) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value in (None, ""):
+            return default
+        raw = str(value).strip().lower()
+        if raw in {"1", "true", "yes", "y", "on"}:
+            return True
+        if raw in {"0", "false", "no", "n", "off"}:
+            return False
+        return default
+
     def _ensure_gradebot_ready(self) -> None:
         config = self.get_gradebot_config()
         missing: list[str] = []
@@ -854,6 +929,42 @@ class AutomationService:
         if description:
             return description
         return f"{product.nome} {brand} {code}".strip()
+
+    @staticmethod
+    def _native_byte_empresa_supported() -> bool:
+        try:
+            from app.application.automation.byteempresa.catalog import native_byteempresa_available
+
+            return bool(native_byteempresa_available())
+        except Exception:
+            return False
+
+    def _native_byte_empresa_enabled(self) -> bool:
+        env_value = os.getenv("LOJASYNC_ENABLE_NATIVE_BYTEEMPRESA")
+        if env_value not in (None, ""):
+            return self._coerce_bool(env_value, False)
+
+        profile = self._load_desktop_profile()
+        native_settings = profile.get("native_byte_empresa")
+        if isinstance(native_settings, dict) and native_settings.get("enabled") not in (None, ""):
+            return self._coerce_bool(native_settings.get("enabled"), False)
+
+        profile_value = profile.get("native_byte_empresa_enabled")
+        if profile_value not in (None, ""):
+            return self._coerce_bool(profile_value, False)
+        return False
+
+    def _should_use_native_byte_empresa(self) -> bool:
+        return self._native_byte_empresa_enabled() and self._native_byte_empresa_supported()
+
+    @staticmethod
+    def _create_native_byte_empresa_driver():
+        try:
+            from app.application.automation.byteempresa.catalog import ByteEmpresaCatalogDriver
+
+            return ByteEmpresaCatalogDriver()
+        except Exception as exc:
+            raise RuntimeError(str(exc)) from exc
 
     def _candidate_project_roots(self) -> list[Path]:
         candidates: list[Path] = []

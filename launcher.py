@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import json
 import os
 import socket
 import sys
@@ -116,11 +117,34 @@ def _is_port_bindable(host: str, port: int) -> bool:
     return False
 
 
-def _make_http_server(host: str, port: int):
+def _make_http_server(host: str, port: int, backend_url: str):
     from http.server import ThreadingHTTPServer
 
     STATIC_DIR.mkdir(parents=True, exist_ok=True)
-    handler_cls = partial(SimpleHTTPRequestHandler, directory=str(STATIC_DIR))
+    index_path = STATIC_DIR / "index.html"
+
+    class FrontendHandler(SimpleHTTPRequestHandler):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
+
+        def _serve_index(self) -> None:
+            content = index_path.read_text(encoding="utf-8")
+            snippet = f"<script>window.__BACKEND_URL__ = {json.dumps(backend_url)};</script>"
+            content = content.replace("<!--BACKEND_URL_PLACEHOLDER-->", snippet)
+            encoded = content.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+
+        def do_GET(self) -> None:  # pragma: no cover - exercised via launcher smoke test
+            if self.path in {"/", "/index.html"} or self.path.startswith("/?"):
+                self._serve_index()
+                return
+            super().do_GET()
+
+    handler_cls = FrontendHandler
     return ThreadingHTTPServer((host, port), handler_cls)
 
 
@@ -222,9 +246,10 @@ class Launcher:
         server = None
         last_exc: Optional[Exception] = None
         start_port = self.frontend_port
+        backend_url = f"http://{_connect_host(self.host)}:{self.backend_port}"
         for candidate in [start_port] + list(range(start_port + 1, start_port + 20)):
             try:
-                server = _make_http_server(self.host, candidate)
+                server = _make_http_server(self.host, candidate, backend_url)
                 self.frontend_port = candidate
                 break
             except OSError as exc:

@@ -1,6 +1,6 @@
 const API_BASE_URL =
   window.__BACKEND_URL__ ||
-  `${window.location.protocol}//${window.location.hostname}:8800`;
+  window.location.origin;
 
 const elements = {
   form: document.getElementById("product-form"),

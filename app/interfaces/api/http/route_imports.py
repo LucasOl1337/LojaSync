@@ -45,7 +45,7 @@ async def start_grade_parser(
         contents=contents,
         filename=file.filename or "nota_fiscal",
         content_type=file.content_type,
-        service=request.app.state.container["product_service"],
+        service=request.app.state.container.product_service,
     )
     return GradeExtractionStartResponse(job_id=job.job_id)
 
@@ -97,8 +97,8 @@ async def import_romaneio(
         contents=contents,
         filename=file.filename or "romaneio",
         content_type=file.content_type,
-        service=container["product_service"],
-        data_dir=container["paths"].data_dir,
+        service=container.product_service,
+        data_dir=container.paths.data_dir,
     )
     return ImportRomaneioStartResponse(job_id=job.job_id)
 

@@ -10,6 +10,7 @@ class RuntimePaths:
     app_dir: Path
     data_dir: Path
     web_static_dir: Path
+    web_ts_dist_dir: Path
 
     @property
     def products_active_file(self) -> Path:
@@ -37,6 +38,7 @@ def build_runtime_paths() -> RuntimePaths:
     app_dir = root_dir / "app"
     data_dir = root_dir / "data"
     web_static_dir = app_dir / "interfaces" / "webapp" / "static"
+    web_ts_dist_dir = root_dir / "frontend-ts" / "dist"
     data_dir.mkdir(parents=True, exist_ok=True)
     web_static_dir.mkdir(parents=True, exist_ok=True)
     return RuntimePaths(
@@ -44,4 +46,5 @@ def build_runtime_paths() -> RuntimePaths:
         app_dir=app_dir,
         data_dir=data_dir,
         web_static_dir=web_static_dir,
+        web_ts_dist_dir=web_ts_dist_dir,
     )

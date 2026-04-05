@@ -45,6 +45,10 @@ htmlcov/
 node_modules/
 *.tsbuildinfo
 
+# Local runtime artifacts
+EnterviewArtifacts/
+data/romaneios/*.txt
+
 # OS files
 .DS_Store
 Thumbs.db

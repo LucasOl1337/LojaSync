@@ -64,6 +64,7 @@ python launcher.py
 
 - Frontend: `http://127.0.0.1:5173`
 - Backend: `http://127.0.0.1:8800`
+- Frontend TypeScript (opcional): `http://127.0.0.1:8800/ts/`
 - Swagger: `http://127.0.0.1:8800/docs`
 - LLM Monitor: `http://127.0.0.1:5174`
 
@@ -86,3 +87,4 @@ O script valida se a pasta e um repositorio Git, checa se ha alteracoes locais e
 - O projeto deve refletir o estado validado localmente.
 - Dados operacionais ficam em `data/`.
 - A automacao desktop depende de Windows e PyAutoGUI.
+- O frontend legado segue ativo em `/`; o frontend novo em TypeScript pode ser testado em `/ts/`.

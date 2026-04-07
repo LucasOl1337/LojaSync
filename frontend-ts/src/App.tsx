@@ -774,12 +774,12 @@ export default function App() {
     const timer = window.setTimeout(() => {
       const input = inlineEditInputRef.current;
       input?.focus();
-      if (input instanceof HTMLInputElement) {
-        input.select();
+      if (input instanceof HTMLInputElement && document.activeElement === input) {
+        input.setSelectionRange(0, input.value.length);
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [editingCell]);
+  }, [editingCell?.orderingKey, editingCell?.field]);
 
   useEffect(() => {
     if (!globalEditMode) {

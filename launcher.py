@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import argparse
 import importlib
-import json
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
 import webbrowser
 from contextlib import suppress
-from functools import partial
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -23,7 +23,9 @@ from app.interfaces.api.http.app import create_app
 ROOT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT_DIR
 ENGINE_DIR = PROJECT_ROOT / "Legacy" / "engine"
-STATIC_DIR = ROOT_DIR / "app" / "interfaces" / "webapp" / "static"
+FRONTEND_TS_DIR = ROOT_DIR / "frontend-ts"
+FRONTEND_TS_DIST_DIR = FRONTEND_TS_DIR / "dist"
+NODEJS_DIR = Path(r"C:\Program Files\nodejs")
 
 for candidate in (ROOT_DIR, ENGINE_DIR):
     candidate_str = str(candidate)
@@ -120,29 +122,16 @@ def _is_port_bindable(host: str, port: int) -> bool:
 def _make_http_server(host: str, port: int, backend_url: str):
     from http.server import ThreadingHTTPServer
 
-    STATIC_DIR.mkdir(parents=True, exist_ok=True)
-    index_path = STATIC_DIR / "index.html"
-
     class FrontendHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
-            super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
-
-        def _serve_index(self) -> None:
-            content = index_path.read_text(encoding="utf-8")
-            snippet = f"<script>window.__BACKEND_URL__ = {json.dumps(backend_url)};</script>"
-            content = content.replace("<!--BACKEND_URL_PLACEHOLDER-->", snippet)
-            encoded = content.encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(encoded)))
-            self.end_headers()
-            self.wfile.write(encoded)
+            super().__init__(*args, **kwargs)
 
         def do_GET(self) -> None:  # pragma: no cover - exercised via launcher smoke test
-            if self.path in {"/", "/index.html"} or self.path.startswith("/?"):
-                self._serve_index()
-                return
-            super().do_GET()
+            target_url = backend_url + self.path
+            self.send_response(307)
+            self.send_header("Location", target_url)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
 
     handler_cls = FrontendHandler
     return ThreadingHTTPServer((host, port), handler_cls)
@@ -182,6 +171,116 @@ PERFORMANCE_DEFAULTS = {
     "LLM_ROMANEIO_RETRY_VISION_ZOOM": "1.5",
 }
 
+TS_BUILD_INPUTS = (
+    FRONTEND_TS_DIR / "index.html",
+    FRONTEND_TS_DIR / "package.json",
+    FRONTEND_TS_DIR / "package-lock.json",
+    FRONTEND_TS_DIR / "tsconfig.json",
+    FRONTEND_TS_DIR / "tsconfig.app.json",
+    FRONTEND_TS_DIR / "vite.config.ts",
+    FRONTEND_TS_DIR / "src",
+)
+
+
+def _iter_files(paths: tuple[Path, ...]) -> list[Path]:
+    files: list[Path] = []
+    for path in paths:
+        if not path.exists():
+            continue
+        if path.is_file():
+            files.append(path)
+            continue
+        files.extend(candidate for candidate in path.rglob("*") if candidate.is_file())
+    return files
+
+
+def _latest_mtime(paths: tuple[Path, ...]) -> float:
+    mtimes = [candidate.stat().st_mtime for candidate in _iter_files(paths)]
+    return max(mtimes, default=0.0)
+
+
+def _typescript_frontend_needs_build() -> bool:
+    if not FRONTEND_TS_DIR.exists():
+        return False
+    if not FRONTEND_TS_DIST_DIR.exists():
+        return True
+    dist_mtime = _latest_mtime((FRONTEND_TS_DIST_DIR,))
+    source_mtime = _latest_mtime(TS_BUILD_INPUTS)
+    return source_mtime > dist_mtime
+
+
+def _typescript_frontend_is_available() -> bool:
+    return (FRONTEND_TS_DIST_DIR / "index.html").exists()
+
+
+def _run_command(command: list[str], cwd: Path, step_name: str) -> None:
+    print(f"[launcher] {step_name}: {' '.join(command)}")
+    try:
+        subprocess.run(command, cwd=str(cwd), check=True)
+    except FileNotFoundError as exc:
+        missing = command[0]
+        raise RuntimeError(f"{missing} nao encontrado no PATH; nao foi possivel preparar o frontend TypeScript.") from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"falha ao executar {step_name} (codigo {exc.returncode}).") from exc
+
+
+def _locate_npm_command() -> Optional[str]:
+    npm_cmd = shutil.which("npm")
+    if npm_cmd:
+        return npm_cmd
+
+    for candidate in (NODEJS_DIR / "npm.cmd", NODEJS_DIR / "npm"):
+        if candidate.exists():
+            return str(candidate)
+
+    return None
+
+
+def _npm_environment(npm_cmd: str) -> dict[str, str]:
+    env = os.environ.copy()
+    node_dir = str(Path(npm_cmd).resolve().parent)
+    current_path = env.get("PATH", "")
+    env["PATH"] = node_dir if not current_path else f"{node_dir}{os.pathsep}{current_path}"
+    return env
+
+
+def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: bool = False) -> None:
+    if skip_build or not FRONTEND_TS_DIR.exists():
+        return
+
+    npm_cmd = _locate_npm_command()
+    if not npm_cmd:
+        if force_build:
+            raise RuntimeError("npm nao encontrado no PATH; nao foi possivel preparar o frontend TypeScript.")
+        print(
+            "[launcher] npm nao encontrado no PATH; pulando preparacao do frontend-ts. "
+            "O frontend principal continua disponivel, mas /ts pode ficar indisponivel ou desatualizado."
+        )
+        return
+
+    package_lock = FRONTEND_TS_DIR / "package-lock.json"
+    package_json = FRONTEND_TS_DIR / "package.json"
+    node_modules = FRONTEND_TS_DIR / "node_modules"
+
+    needs_install = not node_modules.exists()
+    if not needs_install and package_lock.exists():
+        lock_mtime = package_lock.stat().st_mtime
+        installed_mtime = _latest_mtime((node_modules,))
+        needs_install = installed_mtime < lock_mtime
+    elif not needs_install and package_json.exists():
+        package_mtime = package_json.stat().st_mtime
+        installed_mtime = _latest_mtime((node_modules,))
+        needs_install = installed_mtime < package_mtime
+
+    if needs_install:
+        install_cmd = [npm_cmd, "ci"] if package_lock.exists() else [npm_cmd, "install"]
+        subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
+
+    if force_build or _typescript_frontend_needs_build():
+        subprocess.run([npm_cmd, "run", "build"], cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
+    else:
+        print("[launcher] frontend-ts/dist ja esta atualizado; pulando build.")
+
 
 class Launcher:
     def __init__(
@@ -195,6 +294,8 @@ class Launcher:
         llm_monitor_enabled: bool = DEFAULT_LLM_MONITOR_ENABLED,
         llm_host: str = DEFAULT_LLM_HOST,
         llm_bind_host: str = DEFAULT_LLM_BIND,
+        prepare_ts_frontend: bool = True,
+        force_ts_build: bool = False,
     ) -> None:
         for key, value in PERFORMANCE_DEFAULTS.items():
             os.environ.setdefault(key, value)
@@ -207,6 +308,8 @@ class Launcher:
         self.llm_monitor_enabled = llm_monitor_enabled
         self.llm_host = llm_host
         self.llm_bind_host = llm_bind_host
+        self.prepare_ts_frontend = prepare_ts_frontend
+        self.force_ts_build = force_ts_build
 
         self._frontend_server: Optional[Any] = None
         self._frontend_thread: Optional[threading.Thread] = None
@@ -219,7 +322,7 @@ class Launcher:
         host = self.host
         if host in {"0.0.0.0", "::"}:
             host = DEFAULT_BROWSER_HOST or "127.0.0.1"
-        return f"http://{host}:{self.frontend_port}/"
+        return f"http://{host}:{self.backend_port}/"
 
     def _open_browser_delayed(self, url: str, delay: float = 1.2) -> None:
         time.sleep(delay)
@@ -259,7 +362,11 @@ class Launcher:
         self._frontend_server = server
 
         url = self._browser_url()
-        print(f"[launcher] frontend em {url}")
+        print(f"[launcher] frontend legado redireciona para {url}")
+        if _typescript_frontend_is_available():
+            print(f"[launcher] frontend-ts principal em {url}")
+        else:
+            print("[launcher] frontend-ts indisponivel; o frontend legado segue acessivel em /legacy.")
         if self.open_browser:
             threading.Thread(
                 target=self._open_browser_delayed,
@@ -337,6 +444,11 @@ class Launcher:
                 thread.join(timeout=2)
 
     def run(self) -> None:
+        _ensure_typescript_frontend_ready(
+            force_build=self.force_ts_build,
+            skip_build=not self.prepare_ts_frontend,
+        )
+
         llm_already_running = _is_tcp_listening(self.llm_host, self.llm_port)
         if llm_already_running:
             print(f"[launcher] LLM ja ativo em {self.llm_host}:{self.llm_port}; reutilizando.")
@@ -383,6 +495,16 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--llm-port", type=int, default=DEFAULT_LLM_PORT, help="Porta do servico LLM")
     parser.add_argument("--no-browser", action="store_true", help="Nao abrir navegador automaticamente")
     parser.add_argument("--disable-llm-monitor", action="store_true", help="Desabilitar monitor LLM")
+    parser.add_argument(
+        "--skip-ts-build",
+        action="store_true",
+        help="Nao instalar nem gerar o frontend TypeScript antes de iniciar",
+    )
+    parser.add_argument(
+        "--force-ts-build",
+        action="store_true",
+        help="Forcar npm run build no frontend TypeScript antes de iniciar",
+    )
     return parser.parse_args(argv)
 
 
@@ -395,9 +517,23 @@ def main(argv: Optional[list[str]] = None) -> None:
         llm_port=args.llm_port,
         open_browser=not args.no_browser,
         llm_monitor_enabled=not args.disable_llm_monitor,
+        prepare_ts_frontend=not args.skip_ts_build,
+        force_ts_build=args.force_ts_build,
     )
-    launcher.run()
+    try:
+        launcher.run()
+    except RuntimeError as exc:
+        print(f"[launcher] erro: {exc}")
+        if args.force_ts_build and "npm nao encontrado no PATH" in str(exc):
+            print(
+                "[launcher] instale Node.js/npm e rode novamente com --force-ts-build, "
+                "ou remova essa flag para usar o frontend principal."
+            )
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt:
+        print("\n[launcher] encerrado pelo usuario.")

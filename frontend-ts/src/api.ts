@@ -18,6 +18,14 @@ import type {
 
 const API_BASE_URL = (window as Window & { __BACKEND_URL__?: string }).__BACKEND_URL__ || window.location.origin;
 
+function buildRequestUrl(path: string, method: string) {
+  const url = new URL(`${API_BASE_URL}${path}`);
+  if (method.toUpperCase() === "GET") {
+    url.searchParams.set("_", String(Date.now()));
+  }
+  return url.toString();
+}
+
 async function parseError(response: Response) {
   const text = await response.text();
   try {
@@ -29,8 +37,10 @@ async function parseError(response: Response) {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const method = init?.method || "GET";
+  const response = await fetch(buildRequestUrl(path, method), {
     ...init,
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers || {}),
@@ -322,6 +332,7 @@ export async function importRomaneio(file: File) {
   const response = await fetch(`${API_BASE_URL}/actions/import-romaneio`, {
     method: "POST",
     body: formData,
+    cache: "no-store",
   });
   if (!response.ok) {
     throw new Error(await parseError(response));

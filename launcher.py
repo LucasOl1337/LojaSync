@@ -208,11 +208,8 @@ def _typescript_frontend_needs_build() -> bool:
     source_mtime = _latest_mtime(TS_BUILD_INPUTS)
     return source_mtime > dist_mtime
 
-
 def _typescript_frontend_is_available() -> bool:
     return (FRONTEND_TS_DIST_DIR / "index.html").exists()
-
-
 def _run_command(command: list[str], cwd: Path, step_name: str) -> None:
     print(f"[launcher] {step_name}: {' '.join(command)}")
     try:
@@ -222,7 +219,6 @@ def _run_command(command: list[str], cwd: Path, step_name: str) -> None:
         raise RuntimeError(f"{missing} nao encontrado no PATH; nao foi possivel preparar o frontend TypeScript.") from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"falha ao executar {step_name} (codigo {exc.returncode}).") from exc
-
 
 def _locate_npm_command() -> Optional[str]:
     npm_cmd = shutil.which("npm")
@@ -242,8 +238,6 @@ def _npm_environment(npm_cmd: str) -> dict[str, str]:
     current_path = env.get("PATH", "")
     env["PATH"] = node_dir if not current_path else f"{node_dir}{os.pathsep}{current_path}"
     return env
-
-
 def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: bool = False) -> None:
     if skip_build or not FRONTEND_TS_DIR.exists():
         return
@@ -274,6 +268,10 @@ def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: boo
 
     if needs_install:
         install_cmd = [npm_cmd, "ci"] if package_lock.exists() else [npm_cmd, "install"]
+        subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
+
+    if force_build or _typescript_frontend_needs_build():
+        subprocess.run([npm_cmd, "run", "build"], cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
         subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
 
     if force_build or _typescript_frontend_needs_build():

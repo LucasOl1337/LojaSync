@@ -83,3 +83,16 @@ class LauncherMainTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+def test_latest_mtime_returns_zero_for_missing_paths(tmp_path: Path) -> None:
+    assert launcher._latest_mtime((tmp_path / "missing",)) == 0.0
+
+
+def test_iter_files_collects_nested_files(tmp_path: Path) -> None:
+    nested = tmp_path / "src" / "nested"
+    nested.mkdir(parents=True)
+    target = nested / "file.ts"
+    target.write_text("export {};\n", encoding="utf-8")
+
+    files = launcher._iter_files((tmp_path / "src",))
+
+    assert files == [target]

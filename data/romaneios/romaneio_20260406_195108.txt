@@ -1,0 +1,284 @@
+{
+  "items": [
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2136 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 1,
+      "preco": 112.99,
+      "tamanho": "2136"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2138 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 1,
+      "preco": 112.99,
+      "tamanho": "2138"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2140 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 2,
+      "preco": 112.99,
+      "tamanho": "2140"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2142 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 2,
+      "preco": 112.99,
+      "tamanho": "2142"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2144 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 1,
+      "preco": 112.99,
+      "tamanho": "2144"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2146 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 2,
+      "preco": 112.99,
+      "tamanho": "2146"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2148 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 1,
+      "preco": 112.99,
+      "tamanho": "2148"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2150 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 1,
+      "preco": 112.99,
+      "tamanho": "2150"
+    },
+    {
+      "codigo": "00256101900",
+      "descricao_original": "CALCA BOLSO FACA SLIM 2144 ESSENCIA",
+      "nome_curto": "CALCA BOLSO FACA SLIM",
+      "quantidade": 1,
+      "preco": 112.99,
+      "tamanho": "2144"
+    },
+    {
+      "codigo": "07249907900",
+      "descricao_original": "CALCA RETA C/ ELASTICO 051P ESSENCI",
+      "nome_curto": "CALCA RETA C/ ELASTICO",
+      "quantidade": 2,
+      "preco": 94.99,
+      "tamanho": "051P"
+    },
+    {
+      "codigo": "07249907900",
+      "descricao_original": "CALCA RETA C/ ELASTICO 052M ESSENCI",
+      "nome_curto": "CALCA RETA C/ ELASTICO",
+      "quantidade": 3,
+      "preco": 94.99,
+      "tamanho": "052M"
+    },
+    {
+      "codigo": "07249907900",
+      "descricao_original": "CALCA RETA C/ ELASTICO 053G ESSENCI",
+      "nome_curto": "CALCA RETA C/ ELASTICO",
+      "quantidade": 2,
+      "preco": 94.99,
+      "tamanho": "053G"
+    },
+    {
+      "codigo": "07249907900",
+      "descricao_original": "CALCA RETA C/ ELASTICO 054E ESSENCI",
+      "nome_curto": "CALCA RETA C/ ELASTICO",
+      "quantidade": 3,
+      "preco": 94.99,
+      "tamanho": "054E"
+    },
+    {
+      "codigo": "07249907900",
+      "descricao_original": "CALCA RETA C/ ELASTICO 053G ESSENCI",
+      "nome_curto": "CALCA RETA C/ ELASTICO",
+      "quantidade": 1,
+      "preco": 94.99,
+      "tamanho": "053G"
+    },
+    {
+      "codigo": "00455300497",
+      "descricao_original": "BERMUDA BOXER CURTA 902M BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER CURTA",
+      "quantidade": 2,
+      "preco": 41.99,
+      "tamanho": "902M"
+    },
+    {
+      "codigo": "00455300497",
+      "descricao_original": "BERMUDA BOXER CURTA 903G BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER CURTA",
+      "quantidade": 2,
+      "preco": 41.99,
+      "tamanho": "903G"
+    },
+    {
+      "codigo": "00455300497",
+      "descricao_original": "BERMUDA BOXER CURTA 904E BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER CURTA",
+      "quantidade": 1,
+      "preco": 41.99,
+      "tamanho": "904E"
+    },
+    {
+      "codigo": "00455300497",
+      "descricao_original": "BERMUDA BOXER CURTA 905E BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER CURTA",
+      "quantidade": 1,
+      "preco": 41.99,
+      "tamanho": "905E"
+    },
+    {
+      "codigo": "00455300297",
+      "descricao_original": "BERMUDA BOXER LONGA 742M BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER LONGA",
+      "quantidade": 2,
+      "preco": 41.99,
+      "tamanho": "742M"
+    },
+    {
+      "codigo": "00455300297",
+      "descricao_original": "BERMUDA BOXER LONGA 743G BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER LONGA",
+      "quantidade": 2,
+      "preco": 41.99,
+      "tamanho": "743G"
+    },
+    {
+      "codigo": "00455300297",
+      "descricao_original": "BERMUDA BOXER LONGA 744E BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER LONGA",
+      "quantidade": 2,
+      "preco": 41.99,
+      "tamanho": "744E"
+    },
+    {
+      "codigo": "00455300297",
+      "descricao_original": "BERMUDA BOXER LONGA 745E BOLSO FACA",
+      "nome_curto": "BERMUDA BOXER LONGA",
+      "quantidade": 1,
+      "preco": 41.99,
+      "tamanho": "745E"
+    },
+    {
+      "codigo": "00454410101",
+      "descricao_original": "BERMUDA RESORT CASUAL 701P COLOR DI",
+      "nome_curto": "BERMUDA RESORT CASUAL",
+      "quantidade": 2,
+      "preco": 44.99,
+      "tamanho": "701P"
+    },
+    {
+      "codigo": "00454410101",
+      "descricao_original": "BERMUDA RESORT CASUAL 702M COLOR DI",
+      "nome_curto": "BERMUDA RESORT CASUAL",
+      "quantidade": 2,
+      "preco": 44.99,
+      "tamanho": "702M"
+    },
+    {
+      "codigo": "00454410101",
+      "descricao_original": "BERMUDA RESORT CASUAL 703G COLOR DI",
+      "nome_curto": "BERMUDA RESORT CASUAL",
+      "quantidade": 3,
+      "preco": 44.99,
+      "tamanho": "703G"
+    },
+    {
+      "codigo": "00454410101",
+      "descricao_original": "BERMUDA RESORT CASUAL 704E COLOR DI",
+      "nome_curto": "BERMUDA RESORT CASUAL",
+      "quantidade": 3,
+      "preco": 44.99,
+      "tamanho": "704E"
+    },
+    {
+      "codigo": "00454410101",
+      "descricao_original": "BERMUDA RESORT CASUAL 705E COLOR DI",
+      "nome_curto": "BERMUDA RESORT CASUAL",
+      "quantidade": 2,
+      "preco": 44.99,
+      "tamanho": "705E"
+    },
+    {
+      "codigo": "00353937501",
+      "descricao_original": "BERMUDA BOLSO FACA TRAD 7938 CASUAL",
+      "nome_curto": "BERMUDA BOLSO FACA TRAD",
+      "quantidade": 1,
+      "preco": 89.99,
+      "tamanho": "7938"
+    },
+    {
+      "codigo": "00353937501",
+      "descricao_original": "BERMUDA BOLSO FACA TRAD 7940 CASUAL",
+      "nome_curto": "BERMUDA BOLSO FACA TRAD",
+      "quantidade": 2,
+      "preco": 89.99,
+      "tamanho": "7940"
+    },
+    {
+      "codigo": "00353937501",
+      "descricao_original": "BERMUDA BOLSO FACA TRAD 7942 CASUAL",
+      "nome_curto": "BERMUDA BOLSO FACA TRAD",
+      "quantidade": 2,
+      "preco": 89.99,
+      "tamanho": "7942"
+    },
+    {
+      "codigo": "00353937501",
+      "descricao_original": "BERMUDA BOLSO FACA TRAD 7944 CASUAL",
+      "nome_curto": "BERMUDA BOLSO FACA TRAD",
+      "quantidade": 2,
+      "preco": 89.99,
+      "tamanho": "7944"
+    },
+    {
+      "codigo": "00353937501",
+      "descricao_original": "BERMUDA BOLSO FACA TRAD 7948 CASUAL",
+      "nome_curto": "BERMUDA BOLSO FACA TRAD",
+      "quantidade": 1,
+      "preco": 89.99,
+      "tamanho": "7948"
+    },
+    {
+      "codigo": "00355313170",
+      "descricao_original": "BERMUDA 4 POCKETS TRAD 0242 CONCEPT",
+      "nome_curto": "BERMUDA 4 POCKETS TRAD",
+      "quantidade": 2,
+      "preco": 76.99,
+      "tamanho": "0242"
+    },
+    {
+      "codigo": "00355313170",
+      "descricao_original": "BERMUDA 4 POCKETS TRAD 0244 CONCEPT",
+      "nome_curto": "BERMUDA 4 POCKETS TRAD",
+      "quantidade": 1,
+      "preco": 76.99,
+      "tamanho": "0244"
+    },
+    {
+      "codigo": "00355313170",
+      "descricao_original": "BERMUDA 4 POCKETS TRAD 0246 CONCEPT",
+      "nome_curto": "BERMUDA 4 POCKETS TRAD",
+      "quantidade": 3,
+      "preco": 76.99,
+      "tamanho": "0246"
+    }
+  ]
+}

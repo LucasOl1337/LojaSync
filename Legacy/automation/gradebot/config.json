@@ -106,15 +106,15 @@
     "08"
   ],
   "ui_size_order": [
+    "PP",
     "P",
     "M",
     "G",
     "GG",
+    "XG",
     "U",
-    "PP",
     "P/M",
     "M/G",
-    "XG",
     "XXG",
     "XGG",
     "G1",
@@ -165,12 +165,13 @@
       "id": "common",
       "label": "Mais usadas",
       "sizes": [
+        "PP",
         "P",
         "M",
         "G",
         "GG",
+        "XG",
         "U",
-        "PP",
         "P/M",
         "M/G"
       ]
@@ -179,7 +180,6 @@
       "id": "letters",
       "label": "Familia letras",
       "sizes": [
-        "XG",
         "XXG",
         "XGG",
         "G1",
@@ -243,6 +243,11 @@
         "08",
         "F"
       ]
+    },
+    {
+      "id": "special",
+      "label": "Especiais",
+      "sizes": []
     }
   ],
   "ui_family_version": 2

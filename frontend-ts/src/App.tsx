@@ -331,6 +331,24 @@ function sumGradeDraftValues(draft: Record<string, string>) {
   return Object.values(draft).reduce((sum, item) => sum + (Number.parseInt(item, 10) || 0), 0);
 }
 
+function sumSavedGradeValues(product: Product) {
+  return (product.grades || []).reduce((sum, item) => sum + (Number(item.quantidade || 0) || 0), 0);
+}
+
+function getIncompleteGradeProducts(products: Product[]) {
+  return products
+    .map((product) => {
+      const total = sumSavedGradeValues(product);
+      const expected = Number(product.quantidade || 0);
+      const hasSavedGrade = (product.grades || []).length > 0 || total > 0;
+      if (!hasSavedGrade || total === expected) {
+        return null;
+      }
+      return { product, total, expected };
+    })
+    .filter((item): item is { product: Product; total: number; expected: number } => Boolean(item));
+}
+
 function buildVisualSizeOrder(config: GradeConfig | null, catalogSizes: string[], products: Product[]) {
   const merged = new Set<string>();
   for (const size of config?.ui_size_order || []) merged.add(size);
@@ -451,12 +469,8 @@ export default function App() {
   const [showDescriptionPanel, setShowDescriptionPanel] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCellState | null>(null);
   const [formatCodesOptions, setFormatCodesOptions] = useState({
-    manter_primeiros_caracteres: "",
-    manter_ultimos_caracteres: "",
-    remover_primeiros_caracteres: "",
-    remover_ultimos_caracteres: "",
-    remover_letras: false,
-    remover_numeros: false,
+    remover_primeiros_numeros: "",
+    remover_ultimos_numeros: "",
   });
   const [descriptionOptions, setDescriptionOptions] = useState({
     remover_numeros: false,
@@ -497,6 +511,7 @@ export default function App() {
   const gradeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingGradeInputFocus = useRef(false);
   const gradeConfigSaveSeq = useRef(0);
+  const previousAutomationStateRef = useRef<string | null>(null);
   const inlineEditInputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const codeInputRef = useRef<HTMLInputElement | null>(null);
@@ -516,6 +531,7 @@ export default function App() {
   const sortedBrands = useMemo(() => [...state.brands].sort((a, b) => a.localeCompare(b, "pt-BR")), [state.brands]);
   const productsByKey = useMemo(() => new Map(state.products.map((product) => [product.ordering_key, product])), [state.products]);
   const originalOrderingKeys = useMemo(() => state.products.map((product) => product.ordering_key), [state.products]);
+  const incompleteGradeProducts = useMemo(() => getIncompleteGradeProducts(state.products), [state.products]);
   const displayedProducts = useMemo(() => {
     if (!orderingMode) {
       return state.products;
@@ -829,6 +845,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (state.automation.estado !== "running") {
+      return;
+    }
+    const timer = window.setInterval(async () => {
+      try {
+        const payload = await fetchAutomationStatus();
+        startTransition(() => {
+          setState((current) => ({ ...current, automation: payload }));
+        });
+      } catch {
+        // keep the latest visible status until the next successful poll
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [state.automation.estado]);
+
+  useEffect(() => {
+    const currentState = state.automation.estado || "idle";
+    if (previousAutomationStateRef.current === "running" && currentState !== "running") {
+      queueRefresh(["products", "totals", "brands", "automation"]);
+    }
+    previousAutomationStateRef.current = currentState;
+  }, [state.automation.estado]);
+
+  useEffect(() => {
     const shouldIgnoreUndoEvent = (target: EventTarget | null) => {
       const node = target as HTMLElement | null;
       if (!node) return false;
@@ -1074,14 +1115,15 @@ export default function App() {
     }
   };
 
-  const submitImport = async () => {
-    if (!selectedFile) return;
+  const submitImport = async (file: File) => {
     setImporting(true);
     setImportError(null);
     setImportResult(null);
+    setImportJob(null);
+    setSelectedFile(file);
     try {
       pushUndoSnapshot();
-      const started = await importRomaneio(selectedFile);
+      const started = await importRomaneio(file);
       const status = await fetchImportStatus(started.job_id);
       setImportJob(status);
     } catch (error) {
@@ -1090,12 +1132,16 @@ export default function App() {
     }
   };
 
-  const handleImportPrimaryClick = async () => {
-    if (!selectedFile) {
-      importInputRef.current?.click();
-      return;
-    }
-    await submitImport();
+  const handleImportPrimaryClick = () => {
+    if (importing) return;
+    importInputRef.current?.click();
+  };
+
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    void submitImport(file);
   };
 
   const submitBrand = async () => {
@@ -1130,8 +1176,29 @@ export default function App() {
       }
       queueRefresh(["automation"]);
     } catch (error) {
-      setAutomationError(error instanceof Error ? error.message : "Falha na automacao.");
+      const message = error instanceof Error ? error.message : "Falha na automacao.";
+      setAutomationError(message);
     }
+  };
+
+  const buildIncompleteGradesAlert = () => {
+    const sample = incompleteGradeProducts
+      .slice(0, 3)
+      .map(({ product, total, expected }) => `${product.nome} (${total}/${expected})`)
+      .join("\n");
+    const remaining = incompleteGradeProducts.length - Math.min(incompleteGradeProducts.length, 3);
+    const more = remaining > 0 ? `\nE mais ${remaining} item(ns).` : "";
+    return `Ainda existem grades pendentes.\n\nCorrija antes de usar o Cadastro Completo:\n${sample}${more}`;
+  };
+
+  const handleStartComplete = async () => {
+    if (incompleteGradeProducts.length) {
+      const firstPendingKey = incompleteGradeProducts[0]?.product.ordering_key || null;
+      window.alert(`${buildIncompleteGradesAlert()}\n\nVou abrir o Inserir Grade no primeiro item pendente.`);
+      await openGradeModal(firstPendingKey);
+      return;
+    }
+    await handleAutomationAction("complete");
   };
 
   const handleClearProducts = async () => {
@@ -1201,14 +1268,14 @@ export default function App() {
     const payload = {
       remover_prefixo5: false,
       remover_zeros_a_esquerda: false,
-      manter_primeiros_caracteres: parsePromptInteger(formatCodesOptions.manter_primeiros_caracteres),
-      manter_ultimos_caracteres: parsePromptInteger(formatCodesOptions.manter_ultimos_caracteres),
-      remover_primeiros_caracteres: parsePromptInteger(formatCodesOptions.remover_primeiros_caracteres),
-      remover_ultimos_caracteres: parsePromptInteger(formatCodesOptions.remover_ultimos_caracteres),
-      remover_letras: formatCodesOptions.remover_letras,
-      remover_numeros: formatCodesOptions.remover_numeros,
-      remover_ultimos_numeros: null,
-      remover_primeiros_numeros: null,
+      manter_primeiros_caracteres: null,
+      manter_ultimos_caracteres: null,
+      remover_primeiros_caracteres: null,
+      remover_ultimos_caracteres: null,
+      remover_letras: false,
+      remover_numeros: false,
+      remover_ultimos_numeros: parsePromptInteger(formatCodesOptions.remover_ultimos_numeros),
+      remover_primeiros_numeros: parsePromptInteger(formatCodesOptions.remover_primeiros_numeros),
       ultimos_digitos: null,
       primeiros_digitos: null,
     };
@@ -1223,7 +1290,7 @@ export default function App() {
       return false;
     });
     if (!hasAnyOption) {
-      window.alert("Selecione ao menos uma regra de formatacao.");
+      window.alert("Escolha pelo menos uma opcao para cortar numeros do codigo.");
       return;
     }
     pushUndoSnapshot();
@@ -1261,7 +1328,7 @@ export default function App() {
     queueRefresh(["automation"]);
   };
 
-  const openGradeModal = async () => {
+  const openGradeModal = async (preferredOrderingKey?: string | null) => {
     if (!state.products.length) {
       window.alert("Nao ha itens na lista para inserir grades.");
       return;
@@ -1278,7 +1345,15 @@ export default function App() {
     setGradeOrderDraft(flattenedOrder);
     setGradeFamiliesDraft(familiesDraft);
     setNewGradeSize("");
-    setGradeSelectedKey((current) => (current && productsByKey.has(current) ? current : state.products[0]?.ordering_key ?? null));
+    setGradeSelectedKey((current) => {
+      if (preferredOrderingKey && productsByKey.has(preferredOrderingKey)) {
+        return preferredOrderingKey;
+      }
+      if (current && productsByKey.has(current)) {
+        return current;
+      }
+      return state.products[0]?.ordering_key ?? null;
+    });
     setGradeModalOpen(true);
     if (shouldMigratePreset) {
       void saveGradeConfig({
@@ -1446,7 +1521,7 @@ export default function App() {
     if (total !== expected) {
       return {
         ok: false,
-        message: `Grade inconsistente: total da grade ${total} e quantidade do produto ${expected}. Ajuste antes de salvar.`,
+        message: `A grade ainda nao fecha com a quantidade do item. Grade: ${total}. Quantidade do produto: ${expected}.`,
       };
     }
     return { ok: true, message: null };
@@ -1941,6 +2016,16 @@ export default function App() {
     );
   };
 
+  const automationIsRunning = state.automation.estado === "running";
+  const automationCurrentOrderingKey = state.automation.ordering_key_atual || null;
+  const automationCurrentName = state.automation.produto_atual || null;
+  const automationTypedDescription = state.automation.descricao_digitada || null;
+  const automationProgressWidth = automationIsRunning
+    ? state.automation.item_atual && state.automation.total_itens && state.automation.total_itens > 0
+      ? `${Math.max(8, Math.min(100, Math.round((state.automation.item_atual / state.automation.total_itens) * 100)))}%`
+      : "68%"
+    : "22%";
+
   return (
     <div className="shell">
       <main className="appShellTs">
@@ -1965,7 +2050,7 @@ export default function App() {
                   ref={importInputRef}
                   type="file"
                   accept=".pdf,.txt,.jpg,.jpeg,.png"
-                  onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                  onChange={handleImportFileChange}
                 />
               </label>
               {importing ? <div className="message subtle">Importacao em andamento...</div> : null}
@@ -2054,7 +2139,7 @@ export default function App() {
             <div className="batchPrimaryTs">
               <span className="sectionTag">Centro de execucao</span>
               <div className="batchPrimaryActionsTs">
-                <button className="actionButtonTs highlight large" type="button" onClick={() => void runBusyAction("cadastro-completo", async () => handleAutomationAction("complete"))}>
+                <button className="actionButtonTs highlight large" type="button" onClick={() => void runBusyAction("cadastro-completo", handleStartComplete)}>
                   Cadastro Completo
                 </button>
                 <button className="actionButtonTs highlight" type="button" onClick={() => void runBusyAction("executar-grades", handleExecuteGrades)}>
@@ -2077,10 +2162,24 @@ export default function App() {
               <div className="progressSummaryTs">
                 <span className="sectionTag">Status da automacao</span>
                 <strong>Estado: {state.automation.estado || "idle"}</strong>
+                {state.automation.message ? <span className="automationStatusText">{state.automation.message}</span> : null}
                 <div className="progressBarTs">
-                  <div className="progressFillTs" style={{ width: state.automation.estado === "running" ? "68%" : "22%" }} />
+                  <div className="progressFillTs" style={{ width: automationProgressWidth }} />
                 </div>
+                {automationIsRunning && automationCurrentName ? (
+                  <div className="automationCurrentCard">
+                    <span className="automationCurrentLabel">Item em execucao</span>
+                    <strong>{automationCurrentName}</strong>
+                    {state.automation.item_atual && state.automation.total_itens ? (
+                      <small>{`Item ${state.automation.item_atual} de ${state.automation.total_itens}`}</small>
+                    ) : null}
+                    {automationTypedDescription ? <small>{`Texto enviado: ${automationTypedDescription}`}</small> : null}
+                  </div>
+                ) : null}
                 {automationError ? <div className="miniError">{automationError}</div> : null}
+                {incompleteGradeProducts.length ? (
+                  <div className="miniWarning">{`Cadastro Completo bloqueado: ${incompleteGradeProducts.length} item(ns) com grade pendente.`}</div>
+                ) : null}
               </div>
             </div>
           </section>
@@ -2133,38 +2232,26 @@ export default function App() {
 
                 {showFormatCodesPanel ? (
                   <div className="toolConfigPanel">
+                    <div className="toolConfigIntro">
+                      <strong>Limpar codigos com menos risco</strong>
+                      <p>Use apenas estas opcoes para cortar numeros do comeco ou do fim do codigo. Se precisar voltar atras, use Restaurar Originais.</p>
+                    </div>
                     <div className="toolConfigGrid">
-                      <label className="toolCheck">
+                      <label className="toolField">
+                        <span>Quantos numeros apagar do comeco</span>
                         <input
-                          type="checkbox"
-                          checked={formatCodesOptions.remover_letras}
-                          onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_letras: event.target.checked }))}
+                          value={formatCodesOptions.remover_primeiros_numeros}
+                          onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_primeiros_numeros: event.target.value.replace(/[^\d]/g, "") }))}
+                          placeholder="Ex.: 2"
                         />
-                        <span>Remover letras</span>
                       </label>
-                      <label className="toolCheck">
+                      <label className="toolField">
+                        <span>Quantos numeros apagar do final</span>
                         <input
-                          type="checkbox"
-                          checked={formatCodesOptions.remover_numeros}
-                          onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_numeros: event.target.checked }))}
+                          value={formatCodesOptions.remover_ultimos_numeros}
+                          onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_ultimos_numeros: event.target.value.replace(/[^\d]/g, "") }))}
+                          placeholder="Ex.: 2"
                         />
-                        <span>Remover numeros</span>
-                      </label>
-                      <label className="toolField">
-                        <span>Manter primeiros X caracteres</span>
-                        <input value={formatCodesOptions.manter_primeiros_caracteres} onChange={(event) => setFormatCodesOptions((current) => ({ ...current, manter_primeiros_caracteres: event.target.value.replace(/[^\d]/g, "") }))} />
-                      </label>
-                      <label className="toolField">
-                        <span>Manter ultimos X caracteres</span>
-                        <input value={formatCodesOptions.manter_ultimos_caracteres} onChange={(event) => setFormatCodesOptions((current) => ({ ...current, manter_ultimos_caracteres: event.target.value.replace(/[^\d]/g, "") }))} />
-                      </label>
-                      <label className="toolField">
-                        <span>Remover primeiros X caracteres</span>
-                        <input value={formatCodesOptions.remover_primeiros_caracteres} onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_primeiros_caracteres: event.target.value.replace(/[^\d]/g, "") }))} />
-                      </label>
-                      <label className="toolField">
-                        <span>Remover ultimos X caracteres</span>
-                        <input value={formatCodesOptions.remover_ultimos_caracteres} onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_ultimos_caracteres: event.target.value.replace(/[^\d]/g, "") }))} />
                       </label>
                     </div>
                     <div className="toolConfigActions">
@@ -2312,12 +2399,14 @@ export default function App() {
                   ) : displayedProducts.length ? (
                     displayedProducts.map((product, index) => {
                       const selectionPosition = orderingSelectionIndex.get(product.ordering_key);
+                      const isAutomationCurrentRow = automationIsRunning && automationCurrentOrderingKey === product.ordering_key;
                       return (
                       <tr
                         key={product.ordering_key}
                         className={[
                           createSetKeys.includes(product.ordering_key) ? "selectedRow" : "",
                           orderingMode && selectionPosition ? "orderedRow" : "",
+                          isAutomationCurrentRow ? "automationCurrentRow" : "",
                         ].filter(Boolean).join(" ")}
                           onClick={(event) => {
                             if (orderingMode) {
@@ -2330,7 +2419,14 @@ export default function App() {
                           }}
                       >
                         <td>{orderingMode && selectionPosition ? selectionPosition : index + 1}</td>
-                        <td>{renderCellContent(product, "nome", product.nome)}</td>
+                        <td>
+                          <div className="nameCellStack">
+                            {renderCellContent(product, "nome", product.nome)}
+                            {isAutomationCurrentRow && automationTypedDescription && automationTypedDescription.trim() !== product.nome.trim() ? (
+                              <small className="automationPreviewText">{`Texto enviado: ${automationTypedDescription}`}</small>
+                            ) : null}
+                          </div>
+                        </td>
                         <td>{renderCellContent(product, "marca", product.marca || "-")}</td>
                         <td>{renderCellContent(product, "codigo", product.codigo || "-")}</td>
                         <td>{renderCellContent(product, "quantidade", product.quantidade)}</td>
@@ -2344,6 +2440,7 @@ export default function App() {
                                 {selectionPosition ? `Posicao ${selectionPosition}` : "Clique para ordenar"}
                               </span>
                             ) : null}
+                            {isAutomationCurrentRow ? <span className="automationCurrentBadge">Em execucao</span> : null}
                             {orderingMode ? (
                               <>
                                 <button className="rowMiniButton" type="button" onClick={(event) => { event.stopPropagation(); moveOrderingItem(product.ordering_key, -1); }}>

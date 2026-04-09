@@ -142,6 +142,12 @@ export type AutomationStatus = {
   phase?: string | null;
   job_kind?: string | null;
   cancel_requested?: string | null;
+  ordering_key_atual?: string | null;
+  produto_atual?: string | null;
+  codigo_atual?: string | null;
+  descricao_digitada?: string | null;
+  item_atual?: number | null;
+  total_itens?: number | null;
 };
 
 export type UiConnectedEvent = {

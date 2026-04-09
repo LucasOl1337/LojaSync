@@ -514,7 +514,7 @@ button {
 }
 
 .progressSummaryTs {
-  width: min(204px, 100%);
+  width: min(280px, 100%);
   padding: 8px 10px;
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.12);
@@ -526,6 +526,12 @@ button {
 
 .progressSummaryTs strong {
   font-size: 0.9rem;
+}
+
+.automationStatusText {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .progressBarTs {
@@ -546,6 +552,39 @@ button {
 .miniError {
   color: #ff8f8f;
   font-size: 0.8rem;
+}
+
+.miniWarning {
+  color: #ffd37d;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.automationCurrentCard {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  background: rgba(17, 28, 47, 0.62);
+}
+
+.automationCurrentCard strong {
+  font-size: 0.84rem;
+}
+
+.automationCurrentCard small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.automationCurrentLabel {
+  color: rgba(147, 197, 253, 0.96);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .listControlsTs {
@@ -603,6 +642,18 @@ button {
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(9, 16, 29, 0.78);
+}
+
+.toolConfigIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.toolConfigIntro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .toolConfigGrid {
@@ -870,6 +921,14 @@ tbody tr:hover {
   background: rgba(99, 102, 241, 0.12) !important;
 }
 
+.automationCurrentRow {
+  background: rgba(37, 99, 235, 0.14) !important;
+}
+
+.automationCurrentRow td {
+  border-bottom-color: rgba(96, 165, 250, 0.2);
+}
+
 .orderedRow {
   background: rgba(92, 57, 191, 0.12) !important;
   box-shadow: inset 0 3px 0 rgba(128, 84, 255, 0.9);
@@ -903,6 +962,17 @@ tbody tr:hover {
 
 .nameCellButton strong {
   color: inherit;
+}
+
+.nameCellStack {
+  display: grid;
+  gap: 4px;
+}
+
+.automationPreviewText {
+  color: rgba(147, 197, 253, 0.92);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .cellEditInput {
@@ -972,6 +1042,21 @@ tbody tr:hover {
 .selectionHint {
   color: var(--muted);
   font-size: 0.74rem;
+}
+
+.automationCurrentBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  background: rgba(30, 64, 175, 0.34);
+  color: rgba(224, 242, 254, 0.98);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .settingsModalBackdrop {

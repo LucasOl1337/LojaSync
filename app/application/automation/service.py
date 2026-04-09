@@ -61,6 +61,12 @@ class AutomationService:
         self._active_job_kind: str | None = None
         self._active_job_phase: str | None = None
         self._active_job_message: str | None = None
+        self._active_product_ordering_key: str | None = None
+        self._active_product_name: str | None = None
+        self._active_product_code: str | None = None
+        self._active_product_description: str | None = None
+        self._active_product_index: int | None = None
+        self._active_product_total: int | None = None
         self._gradebot_module: Any | None = None
         self._failsafe_stop_event: threading.Event | None = None
         self._failsafe_thread: threading.Thread | None = None
@@ -195,10 +201,10 @@ class AutomationService:
                 message = "Parada do GradeBot solicitada"
             return {"status": "stopping", "message": message}
 
-    def status(self) -> dict[str, str | None]:
+    def status(self) -> dict[str, Any]:
         with self._lock:
             state = "running" if self._running else "idle"
-            payload: dict[str, str | None] = {
+            payload: dict[str, Any] = {
                 "estado": state,
                 "cancel_requested": "True" if self._cancel_event.is_set() and self._running else "False",
             }
@@ -209,6 +215,18 @@ class AutomationService:
                     payload["phase"] = self._active_job_phase
                 if self._active_job_message:
                     payload["message"] = self._active_job_message
+                if self._active_product_ordering_key:
+                    payload["ordering_key_atual"] = self._active_product_ordering_key
+                if self._active_product_name:
+                    payload["produto_atual"] = self._active_product_name
+                if self._active_product_code:
+                    payload["codigo_atual"] = self._active_product_code
+                if self._active_product_description:
+                    payload["descricao_digitada"] = self._active_product_description
+                if self._active_product_index is not None:
+                    payload["item_atual"] = self._active_product_index
+                if self._active_product_total is not None:
+                    payload["total_itens"] = self._active_product_total
             elif self._last_result:
                 payload.update(self._last_result)
             return payload
@@ -397,6 +415,10 @@ class AutomationService:
             if not products:
                 raise RuntimeError("Nenhum produto disponivel para cadastrar.")
 
+            incomplete_grades = self._find_incomplete_grade_products(products)
+            if incomplete_grades:
+                raise RuntimeError(self._build_incomplete_grades_message(incomplete_grades))
+
             completed_keys, failures, metrics = self._run_catalog_sequence(products)
             successful_products = self._products.get_by_ordering_keys(completed_keys)
             grade_tasks = self._prepare_grade_tasks(successful_products)
@@ -419,6 +441,7 @@ class AutomationService:
                 result["message"] = "Cadastro em massa concluido; nenhum item com grade para inserir"
                 return result
 
+            self._set_active_product(None)
             self._set_active_state(
                 "Executando transicao entre cadastro e grades...",
                 phase="transition",
@@ -542,8 +565,9 @@ class AutomationService:
                 total = len(products)
                 for index, product in enumerate(products, start=1):
                     self._check_cancel()
-                    self._set_active_state(f"Cadastrando produto {index}/{total}", phase="catalog")
                     payload = self._product_to_payload(product)
+                    self._set_active_product(product, payload=payload, index=index, total=total)
+                    self._set_active_state(f"Cadastrando produto {index}/{total}", phase="catalog")
                     try:
                         ok = driver.submit_product(payload, self._cancel_event)
                     except KeyboardInterrupt:
@@ -581,8 +605,9 @@ class AutomationService:
         total = len(products)
         for index, product in enumerate(products, start=1):
             self._check_cancel()
-            self._set_active_state(f"Cadastrando produto {index}/{total}", phase="catalog")
             payload = self._product_to_payload(product)
+            self._set_active_product(product, payload=payload, index=index, total=total)
+            self._set_active_state(f"Cadastrando produto {index}/{total}", phase="catalog")
             ok1 = byte_empresa.executar_tela1_mecanico(payload, targets, self._cancel_event)
             if not ok1:
                 failures += 1
@@ -667,6 +692,9 @@ class AutomationService:
         products = self._products.list_products()
         if not products:
             raise RuntimeError("Nenhum produto disponivel para cadastrar.")
+        incomplete_grades = self._find_incomplete_grade_products(products)
+        if incomplete_grades:
+            raise RuntimeError(self._build_incomplete_grades_message(incomplete_grades))
         if not self._prepare_grade_tasks(products):
             return
         self._ensure_gradebot_ready()
@@ -704,6 +732,12 @@ class AutomationService:
             self._active_job_kind = kind
             self._active_job_phase = started_phase
             self._active_job_message = started_message
+            self._active_product_ordering_key = None
+            self._active_product_name = None
+            self._active_product_code = None
+            self._active_product_description = None
+            self._active_product_index = None
+            self._active_product_total = None
             self._start_mouse_failsafe_monitor_locked()
 
             def _runner() -> None:
@@ -726,6 +760,12 @@ class AutomationService:
                         self._active_job_kind = None
                         self._active_job_phase = None
                         self._active_job_message = None
+                        self._active_product_ordering_key = None
+                        self._active_product_name = None
+                        self._active_product_code = None
+                        self._active_product_description = None
+                        self._active_product_index = None
+                        self._active_product_total = None
                         self._cancel_event.clear()
                         self._cancel_reason = None
 
@@ -739,6 +779,65 @@ class AutomationService:
                 self._active_job_message = message
                 if phase is not None:
                     self._active_job_phase = phase
+
+    def _set_active_product(
+        self,
+        product: Product | None,
+        *,
+        payload: dict[str, Any] | None = None,
+        index: int | None = None,
+        total: int | None = None,
+    ) -> None:
+        with self._lock:
+            if not self._running or product is None:
+                self._active_product_ordering_key = None
+                self._active_product_name = None
+                self._active_product_code = None
+                self._active_product_description = None
+                self._active_product_index = None
+                self._active_product_total = None
+                return
+            self._active_product_ordering_key = product.ordering_key()
+            self._active_product_name = str(product.nome or "").strip() or None
+            self._active_product_code = str(product.codigo or "").strip() or None
+            self._active_product_description = str(
+                (payload or {}).get("descricao_completa") or product.descricao_completa or product.nome or ""
+            ).strip() or None
+            self._active_product_index = index
+            self._active_product_total = total
+
+    @staticmethod
+    def _find_incomplete_grade_products(products: list[Product]) -> list[dict[str, Any]]:
+        pending: list[dict[str, Any]] = []
+        for product in products:
+            if not product.grades:
+                continue
+            total_grades = sum(max(int(item.quantidade or 0), 0) for item in product.grades)
+            expected = max(int(product.quantidade or 0), 0)
+            if total_grades == expected:
+                continue
+            pending.append(
+                {
+                    "nome": str(product.nome or "").strip() or str(product.codigo or "").strip() or "Item sem nome",
+                    "total_grades": total_grades,
+                    "quantidade": expected,
+                }
+            )
+        return pending
+
+    @staticmethod
+    def _build_incomplete_grades_message(pending: list[dict[str, Any]]) -> str:
+        if not pending:
+            return "Existem grades pendentes."
+        sample = ", ".join(
+            f"{item['nome']} ({item['total_grades']}/{item['quantidade']})" for item in pending[:3]
+        )
+        remaining = len(pending) - min(len(pending), 3)
+        suffix = f" e mais {remaining} item(ns)" if remaining > 0 else ""
+        return (
+            "Nao e possivel executar o Cadastro Completo porque existem grades pendentes: "
+            f"{sample}{suffix}. Abra 'Inserir Grade' e finalize esses itens antes de continuar."
+        )
 
     def _request_emergency_stop_locked(self, message: str = EMERGENCY_STOP_MESSAGE) -> None:
         if not self._running or self._cancel_event.is_set():

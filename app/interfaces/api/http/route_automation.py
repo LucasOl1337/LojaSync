@@ -45,7 +45,7 @@ async def capture_target(payload: TargetCapturePayload, request: Request) -> Tar
 
 
 @router.get("/automation/status")
-async def automation_status(request: Request) -> dict[str, str | None]:
+async def automation_status(request: Request) -> dict[str, Any]:
     return get_automation_service(request).status()
 
 

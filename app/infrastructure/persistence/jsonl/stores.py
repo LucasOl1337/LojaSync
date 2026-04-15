@@ -68,3 +68,22 @@ class JsonlProductRepository(ProductRepository):
         if updated is not None:
             self.replace_active(products)
         return updated
+
+    def reorder_active(self, ordering_keys: list[str]) -> int:
+        products = self.list_active()
+        if not products:
+            return 0
+        mapping = {item.ordering_key(): item for item in products}
+        ordered: list[Product] = []
+        seen: set[str] = set()
+        for key in ordering_keys:
+            item = mapping.get(key)
+            if item is None or key in seen:
+                continue
+            ordered.append(item)
+            seen.add(key)
+        for key, item in mapping.items():
+            if key not in seen:
+                ordered.append(item)
+        self.replace_active(ordered)
+        return len(ordered)

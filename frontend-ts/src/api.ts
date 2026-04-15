@@ -170,6 +170,7 @@ export function restoreSnapshot(items: Product[]) {
       items: items.map((item) => ({
         nome: item.nome,
         codigo: item.codigo,
+        ordering_key: item.ordering_key,
         codigo_original: item.codigo_original,
         quantidade: item.quantidade,
         preco: item.preco,

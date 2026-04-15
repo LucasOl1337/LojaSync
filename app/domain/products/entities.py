@@ -83,6 +83,7 @@ class Product:
     preco_final: str | None = None
     descricao_completa: str | None = None
     codigo_original: str | None = None
+    ordering_key_value: str | None = None
     grades: list[GradeItem] | None = None
     cores: list[CorItem] | None = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -107,11 +108,16 @@ class Product:
         return self
 
     def ordering_key(self) -> str:
+        stored = str(self.ordering_key_value or "").strip()
+        if stored:
+            return stored
         return f"{self.codigo.strip()}::{self.timestamp.isoformat()}"
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
+        payload.pop("ordering_key_value", None)
         payload["timestamp"] = self.timestamp.isoformat()
+        payload["ordering_key"] = self.ordering_key()
         return payload
 
     @classmethod
@@ -132,6 +138,7 @@ class Product:
             preco_final=payload.get("preco_final"),
             descricao_completa=payload.get("descricao_completa"),
             codigo_original=payload.get("codigo_original") or payload.get("codigo"),
+            ordering_key_value=payload.get("ordering_key") or payload.get("ordering_key_value"),
             grades=_parse_grades(payload.get("grades")),
             cores=_parse_cores(payload.get("cores")),
             timestamp=timestamp,

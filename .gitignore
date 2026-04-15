@@ -48,6 +48,9 @@ node_modules/
 # Local runtime artifacts
 EnterviewArtifacts/
 data/romaneios/*.txt
+data/lojasync.db
+.claire/
+.claude/
 
 # OS files
 .DS_Store

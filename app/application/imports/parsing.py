@@ -5,6 +5,7 @@ import io
 import json
 import re
 import string
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -110,11 +111,34 @@ def _normalize_price(raw: Any) -> str:
     if raw is None:
         return ""
     if isinstance(raw, (int, float)):
-        return f"{float(raw):.2f}".replace(".", ",")
+        return _normalize_decimal_price(raw)
     text = str(raw).strip()
     if len(text) > 40:
         text = text[:40]
     return text
+
+
+def _parse_decimal_value(raw: Any) -> Decimal | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    else:
+        text = text.replace(",", ".")
+    try:
+        return Decimal(text)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _normalize_decimal_price(raw: Any, *, digits: int = 2) -> str:
+    value = _parse_decimal_value(raw)
+    if value is None:
+        return _normalize_price(raw)
+    quantizer = Decimal("1").scaleb(-digits)
+    normalized = value.quantize(quantizer, rounding=ROUND_HALF_UP)
+    return format(normalized, "f").replace(".", ",")
 
 
 def _normalize_product_grades(raw: Any) -> list[dict[str, Any]] | None:
@@ -170,6 +194,51 @@ def _extract_embedded_size(value: Any) -> str:
     if match:
         return _coerce_size_hint(match.group(1))
     return ""
+
+
+_INVOICE_QTY_PATTERN = r"\d+(?:\.\d{3})*,\d{3}"
+_INVOICE_UNIT_PATTERN = r"\d+(?:\.\d{3})*,\d{4}"
+_INVOICE_MONEY_PATTERN = r"\d+(?:\.\d{3})*,\d{2}"
+_INVOICE_LINE_REGEX = re.compile(
+    rf"^\s*(?P<codigo>\d{{5,}})\s+"
+    rf"(?P<descricao>.+?)\s+"
+    rf"(?P<ncm>\d{{4}}\.\d{{2}}\.\d{{2}})\s+"
+    rf"(?P<cst>\d{{3}})\s+"
+    rf"(?P<cfop>\d{{4}})\s+"
+    rf"(?P<un>[A-Z]{{2,5}})\s+"
+    rf"(?P<quantidade>{_INVOICE_QTY_PATTERN})\s+"
+    rf"(?P<unitario>{_INVOICE_UNIT_PATTERN})\s+"
+    rf"(?P<valor_total>{_INVOICE_MONEY_PATTERN})\s+"
+    rf"(?P<bc_icms>{_INVOICE_MONEY_PATTERN})\s+"
+    rf"(?P<valor_icms>{_INVOICE_MONEY_PATTERN})\s+"
+    rf"(?P<valor_ipi>{_INVOICE_MONEY_PATTERN})\s+"
+    rf"(?P<aliq_icms>{_INVOICE_MONEY_PATTERN})\s+"
+    rf"(?P<aliq_ipi>{_INVOICE_MONEY_PATTERN})\s*$"
+)
+
+
+def _extract_invoice_size(description: str) -> str:
+    match = re.search(
+        r"(?i)\btam(?:anho)?\.?\s*[:\-]?\s*([0-9]{1,3}|PP|P|M|G|GG|XG|XXG|G[1-4])\b",
+        str(description or "").strip(),
+    )
+    if not match:
+        return ""
+    return _coerce_size_hint(match.group(1))
+
+
+def _normalize_invoice_name(description: str) -> str:
+    normalized = str(description or "").strip()
+    if not normalized:
+        return ""
+    normalized = re.sub(r"(?i)\bcor\s+[0-9A-Z]+\b", "", normalized)
+    normalized = re.sub(
+        r"(?i)\btam(?:anho)?\.?\s*[:\-]?\s*(?:[0-9]{1,3}|PP|P|M|G|GG|XG|XXG|G[1-4])\b",
+        "",
+        normalized,
+    )
+    normalized = re.sub(r"\s+", " ", normalized).strip(" -_/")
+    return normalized
 
 
 def _split_code_and_size(code: Any) -> tuple[str, str]:
@@ -691,6 +760,39 @@ def _parse_space_aligned_table(text: str) -> list[Product]:
     return records
 
 
+def _parse_structured_invoice_lines(text: str) -> list[Product]:
+    records: list[Product] = []
+    for raw_line in (text or "").splitlines():
+        line = str(raw_line or "").strip()
+        if not line:
+            continue
+        match = _INVOICE_LINE_REGEX.match(line)
+        if not match:
+            continue
+
+        codigo = str(match.group("codigo") or "").strip()
+        descricao_original = str(match.group("descricao") or "").strip()
+        nome = _normalize_invoice_name(descricao_original) or descricao_original
+        quantidade = _parse_qty(match.group("quantidade"))
+        preco = _normalize_decimal_price(match.group("unitario"))
+        tamanho = _extract_invoice_size(descricao_original)
+        grades = [{"tamanho": tamanho, "quantidade": quantidade}] if tamanho else None
+
+        if not codigo or not _has_digits(codigo) or not nome:
+            continue
+        records.append(
+            _build_product(
+                codigo,
+                nome,
+                quantidade,
+                preco,
+                descricao_completa=descricao_original or nome,
+                grades=grades,
+            )
+        )
+    return records
+
+
 def _parse_markdown_table(text: str) -> list[Product]:
     lines = (text or "").splitlines()
     rows: list[list[str]] = []
@@ -934,6 +1036,9 @@ def parse_candidate_content(text: str) -> list[Product]:
         return []
     if looks_like_binary_blob(text):
         return []
+    structured = _parse_structured_invoice_lines(text)
+    if structured:
+        return filter_suspect_records(structured)
     candidates = _parse_llm_romaneio(text)
     if candidates:
         return filter_suspect_records(candidates)

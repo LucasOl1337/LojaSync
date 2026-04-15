@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 from app.application.automation.service import AutomationService
 from app.application.products.service import ProductService
-from app.infrastructure.persistence.files.settings_files import (
-    JsonBrandRepository,
-    MarginSettingsStore,
-    MetricsStore,
+from app.infrastructure.persistence.sqlite import (
+    SQLiteBrandRepository,
+    SQLiteMarginSettingsStore,
+    SQLiteMetricsStore,
+    SQLiteProductRepository,
 )
-from app.infrastructure.persistence.jsonl.stores import JsonlProductRepository
 from app.shared.config.settings import AppSettings
 from app.shared.paths.runtime_paths import build_runtime_paths
 
@@ -28,10 +28,10 @@ class AppContainer:
 def build_container() -> AppContainer:
     settings = AppSettings()
     paths = build_runtime_paths()
-    products = JsonlProductRepository(paths.products_active_file, paths.products_history_file)
-    brands = JsonBrandRepository(paths.brands_file, settings.default_brands)
-    margin_store = MarginSettingsStore(paths.margin_file, settings.default_margin)
-    metrics_store = MetricsStore(paths.metrics_file)
+    products = SQLiteProductRepository(paths.database_file, paths.products_active_file, paths.products_history_file)
+    brands = SQLiteBrandRepository(paths.database_file, paths.brands_file, settings.default_brands)
+    margin_store = SQLiteMarginSettingsStore(paths.database_file, paths.margin_file, settings.default_margin)
+    metrics_store = SQLiteMetricsStore(paths.database_file, paths.metrics_file)
     product_service = ProductService(products, brands, margin_store, metrics_store)
     automation_service = AutomationService(product_service, paths.data_dir)
     return AppContainer(

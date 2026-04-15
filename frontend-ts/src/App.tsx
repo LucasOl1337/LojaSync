@@ -462,7 +462,7 @@ export default function App() {
   const [simpleModeEnabled, setSimpleModeEnabled] = useState(false);
   const [globalEditMode, setGlobalEditMode] = useState(false);
   const [orderingMode, setOrderingMode] = useState(false);
-  const [orderingSelectedKeys, setOrderingSelectedKeys] = useState<string[]>([]);
+  const [orderingDraftKeys, setOrderingDraftKeys] = useState<string[]>([]);
   const [createSetMode, setCreateSetMode] = useState(false);
   const [createSetKeys, setCreateSetKeys] = useState<string[]>([]);
   const [showFormatCodesPanel, setShowFormatCodesPanel] = useState(false);
@@ -536,12 +536,13 @@ export default function App() {
     if (!orderingMode) {
       return state.products;
     }
-    const remainingKeys = originalOrderingKeys.filter((key) => !orderingSelectedKeys.includes(key));
-    return [...orderingSelectedKeys, ...remainingKeys].map((key) => productsByKey.get(key)).filter((product): product is Product => Boolean(product));
-  }, [orderingMode, orderingSelectedKeys, originalOrderingKeys, productsByKey, state.products]);
+    const selectedKeys = orderingDraftKeys.filter((key) => productsByKey.has(key));
+    const remainingKeys = originalOrderingKeys.filter((key) => !selectedKeys.includes(key));
+    return [...selectedKeys, ...remainingKeys].map((key) => productsByKey.get(key)).filter((product): product is Product => Boolean(product));
+  }, [orderingDraftKeys, orderingMode, originalOrderingKeys, productsByKey, state.products]);
   const orderingSelectionIndex = useMemo(
-    () => new Map(orderingSelectedKeys.map((key, index) => [key, index + 1])),
-    [orderingSelectedKeys],
+    () => new Map(orderingDraftKeys.filter((key) => productsByKey.has(key)).map((key, index) => [key, index + 1])),
+    [orderingDraftKeys, productsByKey],
   );
   const selectedGradeProduct = useMemo(
     () => (gradeSelectedKey ? state.products.find((product) => product.ordering_key === gradeSelectedKey) ?? null : null),
@@ -757,10 +758,10 @@ export default function App() {
 
   useEffect(() => {
     if (!orderingMode) {
-      setOrderingSelectedKeys([]);
+      setOrderingDraftKeys([]);
       return;
     }
-    setOrderingSelectedKeys((current) => current.filter((key) => originalOrderingKeys.includes(key)));
+    setOrderingDraftKeys((current) => current.filter((key) => originalOrderingKeys.includes(key)));
   }, [orderingMode, originalOrderingKeys]);
 
   useEffect(() => {
@@ -1648,35 +1649,51 @@ export default function App() {
   const handleToggleOrdering = async () => {
     if (!orderingMode) {
       resetListModes({ ordering: true });
-      setOrderingSelectedKeys([]);
+      setOrderingDraftKeys([]);
       setOrderingMode(true);
       return;
     }
-    const finalOrder = [...orderingSelectedKeys, ...originalOrderingKeys.filter((key) => !orderingSelectedKeys.includes(key))];
+    const selectedOrder = orderingDraftKeys.filter((key) => originalOrderingKeys.includes(key));
+    const remainingOrder = originalOrderingKeys.filter((key) => !selectedOrder.includes(key));
+    const finalOrder = [...selectedOrder, ...remainingOrder];
     if (finalOrder.length) {
       pushUndoSnapshot();
       await reorderProducts(finalOrder);
       queueRefresh(["products"]);
     }
     setOrderingMode(false);
-    setOrderingSelectedKeys([]);
+    setOrderingDraftKeys([]);
   };
 
   const handleOrderingSelection = (orderingKey: string, options?: { allowRemove?: boolean }) => {
     if (!orderingMode) return;
-    setOrderingSelectedKeys((current) => {
+    setOrderingDraftKeys((current) => {
       if (current.includes(orderingKey)) {
         if (!options?.allowRemove) {
           return current;
         }
-        return current.filter((item) => item !== orderingKey);
+        return current.filter((key) => key !== orderingKey);
       }
       return [...current, orderingKey];
     });
   };
 
-  const moveOrderingItem = (orderingKey: string, _direction: -1 | 1) => {
-    handleOrderingSelection(orderingKey);
+  const moveOrderingItem = (orderingKey: string, direction: -1 | 1) => {
+    if (!orderingMode) return;
+    setOrderingDraftKeys((current) => {
+      const index = current.indexOf(orderingKey);
+      if (index < 0) {
+        return current;
+      }
+      const nextIndex = Math.max(0, Math.min(current.length - 1, index + direction));
+      if (nextIndex === index) {
+        return current;
+      }
+      const next = [...current];
+      const [item] = next.splice(index, 1);
+      next.splice(nextIndex, 0, item);
+      return next;
+    });
   };
 
   const handleToggleCreateSets = () => {
@@ -2218,7 +2235,7 @@ export default function App() {
                       Melhorar Descricao
                     </button>
                     <button className={`toolButtonTs accent ${orderingMode ? "activeToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", handleToggleOrdering)}>
-                      {orderingMode ? `Salvar Ordem (${orderingSelectedKeys.length})` : "Ordenar Lista"}
+                      {orderingMode ? "Salvar Ordem" : "Ordenar Lista"}
                     </button>
                     <button className={`toolButtonTs accent ${createSetMode ? "activeToolButton" : ""}`} type="button" onClick={handleToggleCreateSets}>
                       {createSetMode ? `Selecionar ${Math.max(0, 2 - createSetKeys.length)} item(ns)` : "Criar Conjuntos"}
@@ -2437,7 +2454,7 @@ export default function App() {
                           <div className="rowActionStack">
                             {orderingMode ? (
                               <span className={`orderingSelectionBadge ${selectionPosition ? "activeOrderingSelectionBadge" : ""}`}>
-                                {selectionPosition ? `Posicao ${selectionPosition}` : "Clique para ordenar"}
+                                {selectionPosition ? `Posicao ${selectionPosition}` : "Use as setas para ordenar"}
                               </span>
                             ) : null}
                             {isAutomationCurrentRow ? <span className="automationCurrentBadge">Em execucao</span> : null}

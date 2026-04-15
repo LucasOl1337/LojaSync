@@ -16,6 +16,7 @@ class ReorderPayload(BaseModel):
 class SnapshotProductPayload(BaseModel):
     nome: str = ""
     codigo: str = ""
+    ordering_key: str | None = None
     codigo_original: str | None = None
     quantidade: int = Field(0, ge=0)
     preco: str = ""

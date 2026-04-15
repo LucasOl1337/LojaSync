@@ -21,6 +21,10 @@ class RuntimePaths:
         return self.data_dir / "products_history.jsonl"
 
     @property
+    def database_file(self) -> Path:
+        return self.data_dir / "lojasync.db"
+
+    @property
     def brands_file(self) -> Path:
         return self.data_dir / "brands.json"
 

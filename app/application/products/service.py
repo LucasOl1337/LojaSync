@@ -4,6 +4,7 @@ import re
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Iterable
 
 from app.domain.brands.repository import BrandRepository
@@ -71,6 +72,7 @@ AVERAGE_INVOICE_ITEMS = 50
 MANUAL_MINUTES_PER_INVOICE = 90
 AUTOMATED_MINUTES_PER_INVOICE = 20
 SECONDS_SAVED_PER_INVOICE = (MANUAL_MINUTES_PER_INVOICE - AUTOMATED_MINUTES_PER_INVOICE) * 60
+IMPORT_PRICE_MERGE_TOLERANCE = Decimal("0.01")
 NAME_NOISE_TOKENS = {
     "bb",
     "bebe",
@@ -117,28 +119,47 @@ class ProductService:
         self._metrics_store = metrics_store
 
     def list_products(self) -> list[Product]:
-        margin = self.get_default_margin()
-        return [item.normalize(margin=margin) for item in self._products.list_active()]
+        return [Product.from_dict(item.to_dict()) for item in self._products.list_active()]
 
     def create_product(self, product: Product) -> Product:
+        occupied_keys = {item.ordering_key() for item in self._products.list_active()}
+        return self._create_product_with_occupied_keys(product, occupied_keys)
+
+    def _create_product_with_occupied_keys(self, product: Product, occupied_keys: set[str]) -> Product:
         margin = self.get_default_margin()
         normalized = product.normalize(margin=margin)
+        self._ensure_unique_ordering_key(normalized, occupied_keys)
         self._products.append_active(normalized)
+        occupied_keys.add(normalized.ordering_key())
         self._sync_brand(normalized.marca)
         return normalized
 
     def create_many(self, products: list[Product]) -> list[Product]:
+        occupied_keys = {item.ordering_key() for item in self._products.list_active()}
         created: list[Product] = []
         for product in products:
-            created.append(self.create_product(product))
+            created.append(self._create_product_with_occupied_keys(product, occupied_keys))
         return created
 
     def restore_snapshot(self, products: list[Product]) -> int:
-        margin = self.get_default_margin()
-        normalized = [item.normalize(margin=margin) for item in products]
-        self._products.replace_active(normalized)
-        self._merge_brands_from_items(normalized)
-        return len(normalized)
+        current_items = self._products.list_active()
+        timestamp_lookup: dict[str, str] = {}
+        for item in current_items:
+            timestamp = item.timestamp.isoformat()
+            if timestamp and timestamp not in timestamp_lookup:
+                timestamp_lookup[timestamp] = item.ordering_key()
+
+        restored: list[Product] = []
+        for item in products:
+            cloned = Product.from_dict(item.to_dict())
+            if not cloned.ordering_key_value:
+                preserved_key = timestamp_lookup.get(cloned.timestamp.isoformat())
+                if preserved_key:
+                    cloned.ordering_key_value = preserved_key
+            restored.append(cloned)
+        self._products.replace_active(restored)
+        self._merge_brands_from_items(restored)
+        return len(restored)
 
     def delete_product(self, ordering_key: str) -> bool:
         items = self.list_products()
@@ -262,7 +283,7 @@ class ProductService:
         return updated
 
     def get_summary(self) -> ProductsSummary:
-        active = self.list_products()
+        active = [Product.from_dict(item.to_dict()) for item in self._products.list_active()]
         history = self._products.list_history()
         metrics = self._metrics_store.load_metrics()
         history_totals = self._compute_totals(history)
@@ -518,23 +539,7 @@ class ProductService:
         return {"total": len(items), "restaurados": restored}
 
     def reorder_by_keys(self, keys: list[str]) -> int:
-        items = self.list_products()
-        if not items:
-            return 0
-        mapping = {item.ordering_key(): item for item in items}
-        ordered: list[Product] = []
-        seen: set[str] = set()
-        for key in keys:
-            item = mapping.get(key)
-            if item is None or key in seen:
-                continue
-            ordered.append(item)
-            seen.add(key)
-        for key, item in mapping.items():
-            if key not in seen:
-                ordered.append(item)
-        self._products.replace_active(ordered)
-        return len(ordered)
+        return self._products.reorder_active(keys)
 
     def improve_descriptions(
         self,
@@ -632,6 +637,73 @@ class ProductService:
             self._brands.save_brands(brands)
 
     @staticmethod
+    def _ensure_unique_ordering_key(product: Product, occupied_keys: set[str]) -> None:
+        base_key = product.ordering_key()
+        if base_key not in occupied_keys:
+            product.ordering_key_value = base_key
+            return
+
+        price_suffix = re.sub(r"[^0-9A-Za-z]+", "_", str(product.preco or "").strip()).strip("_")
+        if price_suffix:
+            candidate = f"{base_key}::{price_suffix}"
+            if candidate not in occupied_keys:
+                product.ordering_key_value = candidate
+                return
+
+        quantity = int(product.quantidade or 0)
+        if quantity > 0:
+            candidate = f"{base_key}::q{quantity}"
+            if candidate not in occupied_keys:
+                product.ordering_key_value = candidate
+                return
+
+        suffix = 2
+        while True:
+            candidate = f"{base_key}::{suffix}"
+            if candidate not in occupied_keys:
+                product.ordering_key_value = candidate
+                return
+            suffix += 1
+
+    @staticmethod
+    def _parse_price_decimal(value: str | None) -> Decimal | None:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        normalized = text.replace("R$", "").replace(" ", "").replace("\u00a0", "")
+        if "." in normalized and "," in normalized:
+            normalized = normalized.replace(".", "").replace(",", ".")
+        else:
+            normalized = normalized.replace(",", ".")
+        try:
+            return Decimal(normalized)
+        except (InvalidOperation, ValueError):
+            return None
+
+    def _resolve_import_price_bucket(
+        self,
+        codigo: str,
+        canonical_name: str,
+        raw_price: str | None,
+        buckets: dict[tuple[str, str], list[tuple[str, Decimal | None]]],
+    ) -> str:
+        normalized_price = str(raw_price or "").strip()
+        if not normalized_price:
+            return normalized_price
+        identity = (codigo.strip().lower(), canonical_name.strip().lower())
+        candidates = buckets.setdefault(identity, [])
+        parsed_price = self._parse_price_decimal(normalized_price)
+        for existing_label, existing_value in candidates:
+            if normalized_price == existing_label:
+                return existing_label
+            if parsed_price is None or existing_value is None:
+                continue
+            if abs(parsed_price - existing_value) <= IMPORT_PRICE_MERGE_TOLERANCE:
+                return existing_label
+        candidates.append((normalized_price, parsed_price))
+        return normalized_price
+
+    @staticmethod
     def _calculate_metrics(records: Iterable[Product]) -> tuple[int, int]:
         items = list(records)
         total_quantidade = sum(max(int(item.quantidade or 0), 0) for item in items)
@@ -700,6 +772,7 @@ class ProductService:
             return [], {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0}
 
         margin = self.get_default_margin()
+        price_buckets: dict[tuple[str, str], list[tuple[str, Decimal | None]]] = {}
         code_size_families: dict[tuple[str, str, str], set[str]] = {}
         code_family_codes: dict[tuple[str, str, str], set[str]] = {}
         for item in products:
@@ -710,16 +783,17 @@ class ProductService:
             if not family_candidate or not canonical_name:
                 continue
             base_code, size = family_candidate
+            price_bucket = self._resolve_import_price_bucket(base_code, canonical_name, current.preco, price_buckets)
             family_key = (
                 base_code.strip().lower(),
                 canonical_name.strip().lower(),
-                (current.preco or "").strip(),
+                price_bucket,
             )
             code_size_families.setdefault(family_key, set()).add(size)
             code_family_codes.setdefault(family_key, set()).add((current.codigo or "").strip().lower())
 
-        groups: dict[str, dict[str, object]] = {}
-        ordered_codes: list[str] = []
+        groups: dict[tuple[str, str], dict[str, object]] = {}
+        ordered_group_keys: list[tuple[str, str]] = []
         passthrough: list[Product] = []
 
         for item in products:
@@ -729,12 +803,14 @@ class ProductService:
             family_candidate = self._extract_code_size_candidate(current.codigo or "")
             family_size: str | None = None
             codigo = (current.codigo or "").strip()
+            price_bucket = self._resolve_import_price_bucket(codigo, canonical_name, current.preco, price_buckets)
             if family_candidate and canonical_name:
                 base_code, size = family_candidate
+                price_bucket = self._resolve_import_price_bucket(base_code, canonical_name, current.preco, price_buckets)
                 family_key = (
                     base_code.strip().lower(),
                     canonical_name.strip().lower(),
-                    (current.preco or "").strip(),
+                    price_bucket,
                 )
                 family_sizes = code_size_families.get(family_key) or set()
                 family_codes = code_family_codes.get(family_key) or set()
@@ -747,8 +823,9 @@ class ProductService:
                 passthrough.append(current)
                 continue
 
+            group_key = (codigo, price_bucket)
             entry = groups.setdefault(
-                codigo,
+                group_key,
                 {
                     "items": [],
                     "base": Product.from_dict(current.to_dict()),
@@ -759,8 +836,8 @@ class ProductService:
                     "has_grade_signal": False,
                 },
             )
-            if codigo not in ordered_codes:
-                ordered_codes.append(codigo)
+            if group_key not in ordered_group_keys:
+                ordered_group_keys.append(group_key)
 
             group_items = entry["items"]
             assert isinstance(group_items, list)
@@ -792,8 +869,8 @@ class ProductService:
 
         results: list[Product] = []
         updated_grades = 0
-        for codigo in ordered_codes:
-            data = groups[codigo]
+        for group_key in ordered_group_keys:
+            data = groups[group_key]
             group_items = data["items"]
             assert isinstance(group_items, list)
             should_merge = bool(data.get("has_grade_signal")) and (

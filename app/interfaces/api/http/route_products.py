@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from app.domain.products.entities import Product
 from app.interfaces.api.http.route_models import (
@@ -252,6 +254,11 @@ async def improve_descriptions(payload: ImproveDescriptionPayload, request: Requ
 
 
 @router.get("/actions/export-json")
-async def export_json(request: Request) -> FileResponse:
-    paths = request.app.state.container.paths
-    return FileResponse(paths.products_active_file, media_type="application/json", filename="products_active.jsonl")
+async def export_json(request: Request) -> Response:
+    items = get_product_service(request).list_products()
+    content = "\n".join(json.dumps(item.to_dict(), ensure_ascii=False) for item in items)
+    return Response(
+        content=content,
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": 'attachment; filename="products_active.jsonl"'},
+    )

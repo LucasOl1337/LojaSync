@@ -29,3 +29,7 @@ class ProductRepository(ABC):
     @abstractmethod
     def update(self, ordering_key: str, changes: dict[str, object]) -> Product | None:
         raise NotImplementedError
+
+    @abstractmethod
+    def reorder_active(self, ordering_keys: list[str]) -> int:
+        raise NotImplementedError

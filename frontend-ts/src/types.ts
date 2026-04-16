@@ -26,6 +26,10 @@ export type Product = {
   descricao_completa: string | null;
   grades?: GradeItem[] | null;
   cores?: CorItem[] | null;
+  source_type?: string | null;
+  import_batch_id?: string | null;
+  import_source_name?: string | null;
+  pending_grade_import?: boolean;
   ordering_key: string;
   timestamp: string;
 };
@@ -133,6 +137,65 @@ export type ImportResult = {
   content: string | null;
   warnings: string[];
   total_itens: number;
+  grades_disponiveis: boolean;
+  total_grades_disponiveis: number;
+  imported_keys: string[];
+  metrics: Record<string, unknown>;
+};
+
+export type LocalImportExperimentGrade = {
+  tamanho: string;
+  quantidade: number;
+};
+
+export type LocalImportExperimentItem = {
+  codigo: string;
+  nome: string;
+  descricao_completa: string;
+  cor: string | null;
+  preco: string;
+  quantidade: number;
+  unidade: string;
+  grades: LocalImportExperimentGrade[];
+  linhas_originais: number;
+};
+
+export type LocalImportExperimentResult = {
+  status: string;
+  filename: string;
+  warnings: string[];
+  total_rows: number;
+  total_itens: number;
+  total_quantity: number;
+  remessa_quantity: number | null;
+  quantity_matches_remessa: boolean;
+  items: LocalImportExperimentItem[];
+  metrics: Record<string, unknown>;
+};
+
+export type PostProcessStartResponse = {
+  job_id: string;
+};
+
+export type PostProcessStatus = {
+  job_id: string;
+  stage: string;
+  message: string;
+  started_at: number;
+  updated_at: number;
+  completed_at: number | null;
+  error: string | null;
+  metrics: Record<string, unknown>;
+};
+
+export type PostProcessResult = {
+  status: string;
+  total_itens: number;
+  total_modificados: number;
+  dry_run: boolean;
+  saved_file: string | null;
+  raw_response: string | null;
+  warnings: string[];
   metrics: Record<string, unknown>;
 };
 
@@ -148,6 +211,16 @@ export type AutomationStatus = {
   descricao_digitada?: string | null;
   item_atual?: number | null;
   total_itens?: number | null;
+};
+
+export type AuthSessionResponse = {
+  auth_enabled: boolean;
+  authenticated: boolean;
+  bootstrap_required: boolean;
+  password_configured: boolean;
+  session_ttl_minutes: number;
+  user: string | null;
+  expires_at: number | null;
 };
 
 export type UiConnectedEvent = {

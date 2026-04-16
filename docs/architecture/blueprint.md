@@ -51,6 +51,7 @@ Implementa adaptadores:
 - automacao local
 - agentes remotos
 - monitoramento
+- conectores entre runtimes
 
 ### Interfaces
 
@@ -59,6 +60,14 @@ Expone o sistema para fora:
 - API HTTP
 - WebSocket
 - frontend web
+- auth API dedicada em runtime separado
+
+## Separacao de Runtime
+
+- o runtime principal nao implementa autenticacao localmente
+- autenticacao roda em processo separado
+- a comunicacao entre runtimes acontece por conectores HTTP
+- cookies e sessao continuam compartilhados no host, mas a validacao pertence ao runtime de auth
 
 ## Fronteiras
 

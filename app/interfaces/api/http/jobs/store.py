@@ -7,6 +7,8 @@ from app.interfaces.api.http.route_models import (
     GradeExtractionStatusResponse,
     ImportRomaneioResultResponse,
     ImportRomaneioStatusResponse,
+    PostProcessProductsResultResponse,
+    PostProcessProductsStatusResponse,
 )
 from app.shared.jobs.in_memory import InMemoryJobStore
 from app.shared.ui_events import publish_job_updated, publish_state_changed
@@ -28,6 +30,15 @@ GRADE_JOB_STAGES = {
     "completed": "Processo de grades concluido",
     "error": "Processamento de grades interrompido",
 }
+
+POST_PROCESS_JOB_STAGES = {
+    "pending": "Aguardando inicio",
+    "processing": "Preparando itens para pos-processamento",
+    "reviewing": "Consultando servico LLM para refinamento",
+    "completed": "Pos-processamento concluido",
+    "error": "Pos-processamento interrompido",
+}
+
 _import_jobs = InMemoryJobStore[ImportRomaneioStatusResponse, ImportRomaneioResultResponse](
     stage_messages=IMPORT_JOB_STAGES,
     status_factory=ImportRomaneioStatusResponse,
@@ -36,6 +47,11 @@ _import_jobs = InMemoryJobStore[ImportRomaneioStatusResponse, ImportRomaneioResu
 _grade_jobs = InMemoryJobStore[GradeExtractionStatusResponse, GradeExtractionResponse](
     stage_messages=GRADE_JOB_STAGES,
     status_factory=GradeExtractionStatusResponse,
+)
+
+_post_process_jobs = InMemoryJobStore[PostProcessProductsStatusResponse, PostProcessProductsResultResponse](
+    stage_messages=POST_PROCESS_JOB_STAGES,
+    status_factory=PostProcessProductsStatusResponse,
 )
 
 
@@ -85,6 +101,60 @@ def get_import_result(job_id: str) -> ImportRomaneioResultResponse | None:
 
 def remove_import_job(job_id: str) -> bool:
     return _import_jobs.remove(job_id)
+
+
+def create_post_process_job() -> PostProcessProductsStatusResponse:
+    job = _post_process_jobs.create()
+    publish_job_updated(
+        job="post_process_products",
+        job_id=job.job_id,
+        stage=job.stage,
+        message=job.message,
+        error=job.error,
+    )
+    return job
+
+
+def update_post_process_job(
+    job_id: str,
+    stage: str,
+    *,
+    message: str | None = None,
+    error: str | None = None,
+    result: PostProcessProductsResultResponse | None = None,
+    metrics: dict[str, Any] | None = None,
+) -> None:
+    _post_process_jobs.update(
+        job_id,
+        stage,
+        message=message,
+        error=error,
+        result=result,
+        metrics=metrics,
+    )
+    job = _post_process_jobs.get_job(job_id)
+    if job is not None:
+        publish_job_updated(
+            job="post_process_products",
+            job_id=job.job_id,
+            stage=job.stage,
+            message=job.message,
+            error=job.error,
+        )
+    if stage == "completed":
+        publish_state_changed(["products", "totals"])
+
+
+def get_post_process_job(job_id: str) -> PostProcessProductsStatusResponse | None:
+    return _post_process_jobs.get_job(job_id)
+
+
+def get_post_process_result(job_id: str) -> PostProcessProductsResultResponse | None:
+    return _post_process_jobs.get_result(job_id)
+
+
+def remove_post_process_job(job_id: str) -> bool:
+    return _post_process_jobs.remove(job_id)
 
 
 def create_grade_job() -> GradeExtractionStatusResponse:

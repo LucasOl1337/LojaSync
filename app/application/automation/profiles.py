@@ -23,12 +23,12 @@ _DEFAULT_ERP_SIZE_ORDER = (
     "G",
     "GG",
     "XG",
-    "01",
-    "02",
-    "03",
-    "04",
-    "06",
-    "08",
+    "1",
+    "2",
+    "3",
+    "4",
+    "6",
+    "8",
     "10",
     "12",
     "14",
@@ -62,6 +62,20 @@ _DEFAULT_ERP_SIZE_ORDER = (
     "XGG",
     "P/M",
 )
+
+
+def _canonicalize_size_label(value: Any) -> str:
+    text = str(value or "").strip().upper()
+    text = re.sub(r"[^A-Z0-9]+", "", text)
+    if not text:
+        return ""
+    if text.isdigit():
+        try:
+            number = int(text)
+        except Exception:
+            return ""
+        return str(number) if number > 0 else ""
+    return text
 
 
 def _clean_json_text(text: str) -> str:
@@ -134,7 +148,7 @@ def _normalize_string_list(value: Any) -> list[str]:
     normalized: list[str] = []
     seen: set[str] = set()
     for item in items:
-        text = str(item or "").strip()
+        text = _canonicalize_size_label(item)
         if not text:
             continue
         key = text.upper()

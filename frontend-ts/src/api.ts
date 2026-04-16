@@ -1,6 +1,7 @@
 import type {
   AutomationStatus,
   AutomationTargets,
+  AuthSessionResponse,
   BrandsResponse,
   CatalogSizesResponse,
   GradeConfig,
@@ -9,6 +10,9 @@ import type {
   ImportStartResponse,
   ImportStatus,
   MarginSettingsResponse,
+  PostProcessResult,
+  PostProcessStartResponse,
+  PostProcessStatus,
   Product,
   ProductListResponse,
   ProductPayload,
@@ -40,6 +44,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const method = init?.method || "GET";
   const response = await fetch(buildRequestUrl(path, method), {
     ...init,
+    credentials: "include",
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
@@ -59,6 +64,40 @@ export function buildWsUrl(path: string) {
   url.search = "";
   url.hash = "";
   return url.toString();
+}
+
+export function fetchAuthSession() {
+  return requestJson<AuthSessionResponse>("/auth/session");
+}
+
+export function bootstrapAuth(password: string) {
+  return requestJson<AuthSessionResponse>("/auth/bootstrap", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function login(password: string) {
+  return requestJson<AuthSessionResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function logout() {
+  return requestJson<{ status: string }>("/auth/logout", {
+    method: "POST",
+  });
+}
+
+export function changePassword(currentPassword: string, newPassword: string) {
+  return requestJson<{ status: string }>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
 }
 
 export function fetchProducts() {
@@ -180,6 +219,10 @@ export function restoreSnapshot(items: Product[]) {
         descricao_completa: item.descricao_completa,
         grades: item.grades || null,
         cores: item.cores || null,
+        source_type: item.source_type,
+        import_batch_id: item.import_batch_id,
+        import_source_name: item.import_source_name,
+        pending_grade_import: item.pending_grade_import,
         timestamp: item.timestamp,
       })),
     }),
@@ -226,9 +269,10 @@ export function reorderProducts(keys: string[]) {
   });
 }
 
-export function joinGrades() {
-  return requestJson<{ originais: number; resultantes: number; removidos: number; atualizados_grades: number }>("/actions/join-grades", {
+export function joinGrades(keys?: string[]) {
+  return requestJson<{ originais: number; resultantes: number; removidos: number; atualizados_grades: number; lotes_processados: number }>("/actions/join-grades", {
     method: "POST",
+    body: JSON.stringify({ keys: keys || [] }),
   });
 }
 
@@ -333,6 +377,7 @@ export async function importRomaneio(file: File) {
   const response = await fetch(`${API_BASE_URL}/actions/import-romaneio`, {
     method: "POST",
     body: formData,
+    credentials: "include",
     cache: "no-store",
   });
   if (!response.ok) {
@@ -347,6 +392,47 @@ export function fetchImportStatus(jobId: string) {
 
 export function fetchImportResult(jobId: string) {
   return requestJson<ImportResult>(`/actions/import-romaneio/result/${jobId}`);
+}
+
+export async function importRomaneioLocalExperiment(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(`${API_BASE_URL}/actions/import-romaneio-local-experiment`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  return (await response.json()) as ImportResult;
+}
+
+export function cleanupImportJob(jobId: string) {
+  return requestJson<{ status: string; job_id: string }>(`/actions/import-romaneio/status/${jobId}`, {
+    method: "DELETE",
+  });
+}
+
+export function startPostProcessProducts() {
+  return requestJson<PostProcessStartResponse>("/actions/post-process-products", {
+    method: "POST",
+  });
+}
+
+export function fetchPostProcessStatus(jobId: string) {
+  return requestJson<PostProcessStatus>(`/actions/post-process-products/status/${jobId}`);
+}
+
+export function fetchPostProcessResult(jobId: string) {
+  return requestJson<PostProcessResult>(`/actions/post-process-products/result/${jobId}`);
+}
+
+export function cleanupPostProcessJob(jobId: string) {
+  return requestJson<{ status: string; job_id: string }>(`/actions/post-process-products/status/${jobId}`, {
+    method: "DELETE",
+  });
 }
 
 export { API_BASE_URL };

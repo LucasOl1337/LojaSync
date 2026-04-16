@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
+from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -13,6 +14,17 @@ from app.shared.ui_events import UiEventBroker, configure_ui_event_broker
 
 API_CACHELESS_PREFIXES = (
     "/health",
+    "/auth",
+    "/products",
+    "/totals",
+    "/brands",
+    "/settings",
+    "/automation",
+    "/actions",
+    "/catalog",
+)
+
+PROTECTED_API_PREFIXES = (
     "/products",
     "/totals",
     "/brands",
@@ -37,6 +49,29 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def disable_api_cache(request: Request, call_next):
+        if request.url.path.startswith(PROTECTED_API_PREFIXES):
+            auth_connector = request.app.state.container.auth_connector
+            auth_status = await auth_connector.get_status()
+            if not auth_status.enabled:
+                response = await call_next(request)
+                if request.url.path.startswith(API_CACHELESS_PREFIXES):
+                    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                    response.headers["Pragma"] = "no-cache"
+                    response.headers["Expires"] = "0"
+                return response
+            token = request.cookies.get(auth_connector.cookie_name)
+            identity = await auth_connector.validate_session_token(token)
+            if auth_status.bootstrap_required:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Configure a senha inicial antes de usar o sistema.", "code": "setup_required"},
+                )
+            if not identity.authenticated:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Sessao invalida ou expirada.", "code": "auth_required"},
+                )
+            request.state.auth_identity = identity
         response = await call_next(request)
         if request.url.path.startswith(API_CACHELESS_PREFIXES):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"

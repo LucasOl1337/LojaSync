@@ -80,6 +80,27 @@ class LauncherMainTests(unittest.TestCase):
         self.assertIn("[launcher] erro: npm nao encontrado no PATH", rendered)
         self.assertIn("instale Node.js/npm e rode novamente com --force-ts-build", rendered)
 
+    def test_launcher_does_not_start_auth_without_explicit_flag(self) -> None:
+        started = []
+
+        def record_auth_start() -> None:
+            started.append("auth")
+
+        instance = launcher.Launcher(open_browser=False, prepare_ts_frontend=False, auth_enabled=False)
+
+        with (
+            patch.object(launcher, "_is_tcp_listening", return_value=False),
+            patch.object(launcher, "_is_port_bindable", return_value=True),
+            patch.object(instance, "start_auth_async", side_effect=record_auth_start),
+            patch.object(instance, "start_backend_async", side_effect=KeyboardInterrupt),
+            patch.object(instance, "start_frontend_async"),
+            patch.object(instance, "shutdown"),
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                instance.run()
+
+        self.assertEqual(started, [])
+
 
 if __name__ == "__main__":
     unittest.main()

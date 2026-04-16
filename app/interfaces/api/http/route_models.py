@@ -26,6 +26,10 @@ class SnapshotProductPayload(BaseModel):
     descricao_completa: str | None = None
     grades: list[dict[str, Any]] | None = None
     cores: list[dict[str, Any]] | None = None
+    source_type: str | None = None
+    import_batch_id: str | None = None
+    import_source_name: str | None = None
+    pending_grade_import: bool = False
     timestamp: str | None = None
 
 
@@ -68,6 +72,11 @@ class JoinGradesResponse(BaseModel):
     resultantes: int
     removidos: int
     atualizados_grades: int
+    lotes_processados: int = 0
+
+
+class JoinGradesPayload(BaseModel):
+    keys: list[str] = Field(default_factory=list)
 
 
 class CreateSetPayload(BaseModel):
@@ -141,6 +150,32 @@ class ImproveDescriptionResponse(BaseModel):
     modificados: int
 
 
+class PostProcessProductsStartResponse(BaseModel):
+    job_id: str
+
+
+class PostProcessProductsStatusResponse(BaseModel):
+    job_id: str
+    stage: str
+    message: str
+    started_at: float
+    updated_at: float
+    completed_at: float | None = None
+    error: str | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class PostProcessProductsResultResponse(BaseModel):
+    status: str
+    total_itens: int = 0
+    total_modificados: int = 0
+    dry_run: bool = True
+    saved_file: str | None = None
+    raw_response: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
 class ImportRomaneioStartResponse(BaseModel):
     job_id: str
 
@@ -163,6 +198,40 @@ class ImportRomaneioResultResponse(BaseModel):
     content: str | None = None
     warnings: list[str] = Field(default_factory=list)
     total_itens: int = 0
+    grades_disponiveis: bool = False
+    total_grades_disponiveis: int = 0
+    imported_keys: list[str] = Field(default_factory=list)
+    import_batch_id: str | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class LocalImportExperimentGradeResponse(BaseModel):
+    tamanho: str
+    quantidade: int
+
+
+class LocalImportExperimentItemResponse(BaseModel):
+    codigo: str
+    nome: str
+    descricao_completa: str
+    cor: str | None = None
+    preco: str
+    quantidade: int
+    unidade: str
+    grades: list[LocalImportExperimentGradeResponse] = Field(default_factory=list)
+    linhas_originais: int = 0
+
+
+class LocalImportExperimentResponse(BaseModel):
+    status: str
+    filename: str
+    warnings: list[str] = Field(default_factory=list)
+    total_rows: int = 0
+    total_itens: int = 0
+    total_quantity: int = 0
+    remessa_quantity: int | None = None
+    quantity_matches_remessa: bool = False
+    items: list[LocalImportExperimentItemResponse] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -8,6 +8,8 @@ import {
   buildWsUrl,
   captureAutomationTarget,
   clearProducts,
+  cleanupImportJob,
+  cleanupPostProcessJob,
   createProduct,
   createSet,
   deleteProduct,
@@ -20,7 +22,10 @@ import {
   fetchGradeConfig,
   fetchImportResult,
   fetchImportStatus,
+  importRomaneioLocalExperiment,
   fetchMargin,
+  fetchPostProcessResult,
+  fetchPostProcessStatus,
   fetchProducts,
   fetchTotals,
   formatCodes,
@@ -35,13 +40,28 @@ import {
   saveAutomationTargets,
   saveGradeConfig,
   saveMargin,
+  startPostProcessProducts,
   startAutomationCatalog,
   startAutomationComplete,
   prepareByteEmpresa,
   stopAutomation,
   stopGradesExecution,
 } from "./api";
-import type { AutomationStatus, AutomationTargets, GradeConfig, GradeItem, ImportResult, ImportStatus, Product, ProductPayload, TargetPoint, UiEvent, UiGradeFamily } from "./types";
+import type {
+  AutomationStatus,
+  AutomationTargets,
+  GradeConfig,
+  GradeItem,
+  ImportResult,
+  ImportStatus,
+  PostProcessResult,
+  PostProcessStatus,
+  Product,
+  ProductPayload,
+  TargetPoint,
+  UiEvent,
+  UiGradeFamily,
+} from "./types";
 
 const CATEGORIES = ["Masculino", "Feminino", "Infantil", "Acessorios"];
 const MAX_UNDO_HISTORY = 10;
@@ -72,6 +92,12 @@ type ProductFormField = "nome" | "codigo" | "quantidade" | "preco";
 type EditingCellState = { orderingKey: string; field: EditableField; value: string };
 type AutomationTargetKey = typeof AUTOMATION_TARGET_FIELDS[number]["key"];
 type GradeCaptureKey = typeof GRADE_CAPTURE_FIELDS[number]["key"];
+type ImportProcessEntry = {
+  index: number;
+  source: string;
+  level: string;
+  message: string;
+};
 
 type LoadState = {
   products: Product[];
@@ -161,6 +187,27 @@ function normalizeTargetPoint(value: unknown): TargetPoint | null {
 }
 
 function normalizeGradeConfigState(value?: GradeConfig | null): GradeConfig {
+  const normalizeSizeList = (items: string[] | null | undefined) => {
+    const seen = new Set<string>();
+    const normalized: string[] = [];
+    for (const item of items || []) {
+      const label = normalizeGradeSizeLabel(item);
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      normalized.push(label);
+    }
+    return normalized;
+  };
+  const normalizeFamilies = (families: UiGradeFamily[] | null | undefined) =>
+    Array.isArray(families)
+      ? families
+          .map((family, index) => ({
+            id: String(family?.id || `family-${index + 1}`).trim().toLowerCase() || `family-${index + 1}`,
+            label: String(family?.label || `Familia ${index + 1}`).trim() || `Familia ${index + 1}`,
+            sizes: normalizeSizeList(family?.sizes || []),
+          }))
+          .filter((family) => family.sizes.length || family.label.trim())
+      : [];
   const buttonsEntries = Object.entries(value?.buttons || {})
     .map(([key, point]) => {
       const normalized = normalizeTargetPoint(point);
@@ -175,9 +222,9 @@ function normalizeGradeConfigState(value?: GradeConfig | null): GradeConfig {
     row_height: Number(value?.row_height || 0) || null,
     model_index: Number(value?.model_index || 0) || null,
     model_hotkey: value?.model_hotkey || "",
-    erp_size_order: Array.isArray(value?.erp_size_order) ? value?.erp_size_order.map((item) => String(item).trim()).filter(Boolean) : [],
-    ui_size_order: Array.isArray(value?.ui_size_order) ? value?.ui_size_order.map((item) => String(item).trim()).filter(Boolean) : [],
-    ui_families: Array.isArray(value?.ui_families) ? value.ui_families : [],
+    erp_size_order: normalizeSizeList(value?.erp_size_order || []),
+    ui_size_order: normalizeSizeList(value?.ui_size_order || []),
+    ui_families: normalizeFamilies(value?.ui_families || []),
     ui_family_version: Number(value?.ui_family_version || 0) || null,
   };
 }
@@ -186,10 +233,32 @@ function formatJsonBlock(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function coerceImportProcessLog(metrics: Record<string, unknown> | null | undefined): ImportProcessEntry[] {
+  const raw = metrics?.["process_log"];
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item) => item && typeof item === "object")
+    .map((item, index) => {
+      const entry = item as Record<string, unknown>;
+      return {
+        index: Number(entry.index || index + 1) || index + 1,
+        source: String(entry.source || "system").trim() || "system",
+        level: String(entry.level || "info").trim() || "info",
+        message: String(entry.message || "").trim(),
+      };
+    })
+    .filter((entry) => entry.message);
+}
+
+function coerceStringList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || "").trim()).filter(Boolean);
+}
+
 function parseSizeOrderText(value: string) {
   return value
     .split(/[\n,;]+/g)
-    .map((item) => item.trim().toUpperCase())
+    .map((item) => normalizeGradeSizeLabel(item))
     .filter(Boolean);
 }
 
@@ -284,12 +353,6 @@ const GRADE_SIZE_PRIORITY = [
   "54",
   "56",
   "58",
-  "01",
-  "02",
-  "03",
-  "04",
-  "06",
-  "08",
   "UN",
 ];
 
@@ -305,7 +368,13 @@ const GRADE_FAMILY_PRESET = [
 const GRADE_SIZE_PRIORITY_INDEX = new Map(GRADE_SIZE_PRIORITY.map((size, index) => [size, index]));
 
 function normalizeGradeSizeLabel(value: string) {
-  return String(value || "").trim().toUpperCase();
+  const label = String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "");
+  if (!label) return "";
+  if (/^\d+$/.test(label)) {
+    const number = Number.parseInt(label, 10);
+    return Number.isFinite(number) && number > 0 ? String(number) : "";
+  }
+  return label;
 }
 
 function compareGradeSizeLabels(left: string, right: string) {
@@ -322,7 +391,9 @@ function compareGradeSizeLabels(left: string, right: string) {
 function gradeItemsToMap(items: GradeItem[] | null | undefined) {
   const map: Record<string, string> = {};
   for (const item of items || []) {
-    map[item.tamanho] = String(item.quantidade ?? 0);
+    const label = normalizeGradeSizeLabel(item.tamanho);
+    if (!label) continue;
+    map[label] = String(item.quantidade ?? 0);
   }
   return map;
 }
@@ -351,12 +422,22 @@ function getIncompleteGradeProducts(products: Product[]) {
 
 function buildVisualSizeOrder(config: GradeConfig | null, catalogSizes: string[], products: Product[]) {
   const merged = new Set<string>();
-  for (const size of config?.ui_size_order || []) merged.add(size);
-  for (const size of config?.erp_size_order || []) merged.add(size);
-  for (const size of catalogSizes) merged.add(size);
+  for (const size of config?.ui_size_order || []) {
+    const label = normalizeGradeSizeLabel(size);
+    if (label) merged.add(label);
+  }
+  for (const size of config?.erp_size_order || []) {
+    const label = normalizeGradeSizeLabel(size);
+    if (label) merged.add(label);
+  }
+  for (const size of catalogSizes) {
+    const label = normalizeGradeSizeLabel(size);
+    if (label) merged.add(label);
+  }
   for (const product of products) {
     for (const item of product.grades || []) {
-      merged.add(item.tamanho);
+      const label = normalizeGradeSizeLabel(item.tamanho);
+      if (label) merged.add(label);
     }
   }
   return Array.from(merged).sort(compareGradeSizeLabels);
@@ -483,6 +564,10 @@ export default function App() {
   const [importJob, setImportJob] = useState<ImportStatus | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [localExperimentLoading, setLocalExperimentLoading] = useState(false);
+  const [postProcessJob, setPostProcessJob] = useState<PostProcessStatus | null>(null);
+  const [postProcessResult, setPostProcessResult] = useState<PostProcessResult | null>(null);
+  const [postProcessError, setPostProcessError] = useState<string | null>(null);
   const [automationError, setAutomationError] = useState<string | null>(null);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [gradeModalError, setGradeModalError] = useState<string | null>(null);
@@ -497,14 +582,17 @@ export default function App() {
   const [newGradeSize, setNewGradeSize] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [postProcessing, setPostProcessing] = useState(false);
   const pendingScopes = useRef<Set<Scope>>(new Set());
   const flushTimer = useRef<number | null>(null);
   const importPollTimer = useRef<number | null>(null);
+  const postProcessPollTimer = useRef<number | null>(null);
   const undoStackRef = useRef<Product[][]>([]);
   const redoStackRef = useRef<Product[][]>([]);
   const currentProductsSnapshotRef = useRef<Product[]>([]);
   const isRestoringSnapshotRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const importModeRef = useRef<"llm" | "local">("llm");
   const bulkCategoryMenuRef = useRef<HTMLDivElement | null>(null);
   const bulkBrandMenuRef = useRef<HTMLDivElement | null>(null);
   const visitedProductFields = useRef<Set<ProductFormField>>(new Set());
@@ -650,6 +738,29 @@ export default function App() {
       pendingScopes.current.clear();
       void applySnapshot(currentScopes.length ? currentScopes : ["products", "totals", "brands", "margin", "automation"]);
     }, 120);
+  };
+
+  const refreshAfterLocalImport = async (result: ImportResult) => {
+    const importedKeys = new Set((result.imported_keys || []).filter(Boolean));
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const productsPayload = await fetchProducts();
+      const loadedKeys = new Set(productsPayload.items.map((item) => item.ordering_key));
+      const importedVisible = importedKeys.size === 0 || Array.from(importedKeys).every((key) => loadedKeys.has(key));
+
+      startTransition(() => {
+        setState((current) => ({
+          ...current,
+          products: productsPayload.items,
+        }));
+      });
+
+      if (importedVisible || attempt === 4) {
+        await applySnapshot(["totals", "brands"]);
+        return;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 180 * (attempt + 1)));
+    }
   };
 
   const applyProductsPreview = (products: Product[]) => {
@@ -920,9 +1031,22 @@ export default function App() {
         const job = await fetchImportStatus(importJob.job_id);
         setImportJob(job);
         if (job.stage === "completed") {
-          const result = await fetchImportResult(job.job_id);
-          setImportResult(result);
-          setImporting(false);
+          try {
+            const result = await fetchImportResult(job.job_id);
+            setImportResult(result);
+            setImporting(false);
+            if (result.grades_disponiveis) {
+              window.alert(
+                `Grades automaticas disponiveis.\n\nClique em Importar Grades para aplicar.${result.total_grades_disponiveis > 0 ? `\nGrupos detectados: ${result.total_grades_disponiveis}` : ""}`,
+              );
+            }
+          } finally {
+            try {
+              await cleanupImportJob(job.job_id);
+            } catch {
+              // Keep the import UX working even if cleanup fails.
+            }
+          }
           queueRefresh(["products", "totals", "brands"]);
         }
         if (job.stage === "completed" || job.stage === "error") {
@@ -947,6 +1071,71 @@ export default function App() {
       }
     };
   }, [importJob?.job_id]);
+
+  useEffect(() => {
+    if (!postProcessJob?.job_id) {
+      if (postProcessPollTimer.current !== null) {
+        window.clearInterval(postProcessPollTimer.current);
+        postProcessPollTimer.current = null;
+      }
+      return;
+    }
+
+    if (postProcessPollTimer.current !== null) {
+      window.clearInterval(postProcessPollTimer.current);
+    }
+
+    postProcessPollTimer.current = window.setInterval(async () => {
+      try {
+        const job = await fetchPostProcessStatus(postProcessJob.job_id);
+        setPostProcessJob(job);
+        if (job.stage === "completed") {
+          try {
+            const result = await fetchPostProcessResult(job.job_id);
+            setPostProcessResult(result);
+            setPostProcessing(false);
+            const summaryLines = [
+              `Itens revisados: ${result.total_itens}`,
+              `Alteracoes aplicadas nesta fase: ${result.total_modificados}`,
+            ];
+            if (result.dry_run) {
+              summaryLines.push("Modo inicial ativo: a IA revisou os itens, mas ainda nao aplicamos as sugestoes automaticamente.");
+            }
+            if (result.warnings?.length) {
+              summaryLines.push(`Avisos: ${result.warnings.join(" | ")}`);
+            }
+            window.alert(summaryLines.join("\n"));
+          } finally {
+            try {
+              await cleanupPostProcessJob(job.job_id);
+            } catch {
+              // Keep the review flow resilient even if cleanup fails.
+            }
+          }
+          queueRefresh(["products", "totals"]);
+        }
+        if (job.stage === "completed" || job.stage === "error") {
+          if (postProcessPollTimer.current !== null) {
+            window.clearInterval(postProcessPollTimer.current);
+            postProcessPollTimer.current = null;
+          }
+          if (job.error) {
+            setPostProcessError(job.error);
+            setPostProcessing(false);
+          }
+        }
+      } catch (error) {
+        setPostProcessError(error instanceof Error ? error.message : "Falha ao consultar a revisao com IA.");
+      }
+    }, 1000);
+
+    return () => {
+      if (postProcessPollTimer.current !== null) {
+        window.clearInterval(postProcessPollTimer.current);
+        postProcessPollTimer.current = null;
+      }
+    };
+  }, [postProcessJob?.job_id]);
 
   useEffect(() => {
     if (!gradeModalOpen) return;
@@ -1133,8 +1322,49 @@ export default function App() {
     }
   };
 
+  const submitLocalExperiment = async (file: File) => {
+    setLocalExperimentLoading(true);
+    setImportError(null);
+    setImportResult(null);
+    setImportJob(null);
+    setSelectedFile(file);
+    try {
+      pushUndoSnapshot();
+      const result = await importRomaneioLocalExperiment(file);
+      setImportResult(result);
+      await refreshAfterLocalImport(result);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Failed to import with local parsing.");
+    } finally {
+      setLocalExperimentLoading(false);
+    }
+  };
+
+  const handleStartPostProcess = async () => {
+    setPostProcessing(true);
+    setPostProcessError(null);
+    setPostProcessResult(null);
+    setPostProcessJob(null);
+    try {
+      pushUndoSnapshot();
+      const started = await startPostProcessProducts();
+      const status = await fetchPostProcessStatus(started.job_id);
+      setPostProcessJob(status);
+    } catch (error) {
+      setPostProcessing(false);
+      setPostProcessError(error instanceof Error ? error.message : "Falha ao iniciar a revisao com IA.");
+    }
+  };
+
   const handleImportPrimaryClick = () => {
-    if (importing) return;
+    if (importing || localExperimentLoading) return;
+    importModeRef.current = "llm";
+    importInputRef.current?.click();
+  };
+
+  const handleLocalExperimentClick = () => {
+    if (importing || localExperimentLoading) return;
+    importModeRef.current = "local";
     importInputRef.current?.click();
   };
 
@@ -1142,6 +1372,10 @@ export default function App() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (importModeRef.current === "local") {
+      void submitLocalExperiment(file);
+      return;
+    }
     void submitImport(file);
   };
 
@@ -1247,7 +1481,11 @@ export default function App() {
     pushUndoSnapshot();
     const result = await joinGrades();
     queueRefresh(["products", "totals"]);
-    window.alert(`Produtos finais: ${result.resultantes}\nGrades atualizadas: ${result.atualizados_grades}\nLinhas unificadas: ${result.removidos}`);
+    if (!result.lotes_processados) {
+      window.alert("Nao ha lotes com grades pendentes para importar.");
+      return;
+    }
+    window.alert(`Lotes processados: ${result.lotes_processados}\nProdutos finais: ${result.resultantes}\nGrades importadas: ${result.atualizados_grades}\nLinhas unificadas: ${result.removidos}`);
   };
 
   const handleMargin = async () => {
@@ -2042,6 +2280,15 @@ export default function App() {
       ? `${Math.max(8, Math.min(100, Math.round((state.automation.item_atual / state.automation.total_itens) * 100)))}%`
       : "68%"
     : "22%";
+  const importMetrics =
+    importJob?.metrics && Object.keys(importJob.metrics).length
+      ? importJob.metrics
+      : importResult?.metrics && Object.keys(importResult.metrics).length
+        ? importResult.metrics
+        : {};
+  const importProcessLog = coerceImportProcessLog(importMetrics);
+  const importWarnings = importResult?.warnings?.length ? importResult.warnings : [];
+  const importValidationStatus = String(importMetrics["final_validation_status"] || importMetrics["local_validation_status"] || "").trim();
 
   return (
     <div className="shell">
@@ -2058,8 +2305,11 @@ export default function App() {
             </div>
 
             <div className="importStageTs">
-              <button className="primaryButton fullButton importButtonTs" disabled={importing} onClick={() => void handleImportPrimaryClick()}>
+              <button className="primaryButton fullButton importButtonTs" disabled={importing || localExperimentLoading} onClick={() => void handleImportPrimaryClick()}>
                 {importing ? "Importando..." : "Importar Romaneio"}
+              </button>
+              <button className="ghostButton fullButton importSecondaryButtonTs" disabled={importing || localExperimentLoading} onClick={() => void handleLocalExperimentClick()}>
+                {localExperimentLoading ? "Running Local Parsing..." : "Import With Local Parsing"}
               </button>
               <label className="fileInput compactFileInput">
                 <span>{selectedFile ? selectedFile.name : "Selecionar arquivo do romaneio"}</span>
@@ -2071,9 +2321,38 @@ export default function App() {
                 />
               </label>
               {importing ? <div className="message subtle">Importacao em andamento...</div> : null}
+              {localExperimentLoading ? <div className="message subtle">Importing with local parsing...</div> : null}
               {!importing && importJob?.message ? <div className="message subtle">{importJob.message}</div> : null}
               {importError ? <div className="message error">{importError}</div> : null}
               {importResult ? <div className="message success">{importResult.total_itens} itens importados as {formatTimestamp(importJob?.updated_at)}.</div> : null}
+              {importValidationStatus || importProcessLog.length || importWarnings.length ? (
+                <div className="importDiagnosticsTs">
+                  {importValidationStatus ? (
+                    <div className={`importValidationBadge validation-${importValidationStatus}`}>
+                      Validation: {importValidationStatus}
+                    </div>
+                  ) : null}
+                  {importProcessLog.length ? (
+                    <div className="importLogListTs">
+                      {importProcessLog.map((entry) => (
+                        <div key={`${entry.index}-${entry.source}-${entry.message}`} className={`importLogEntryTs log-${entry.level}`}>
+                          <span className="importLogSourceTs">{entry.source}</span>
+                          <span>{entry.message}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {importWarnings.length ? (
+                    <div className="importWarningsTs">
+                      {importWarnings.map((warning, index) => (
+                        <div key={`${index}-${warning}`} className="importWarningEntryTs">
+                          {warning}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -2173,7 +2452,7 @@ export default function App() {
 
             <div className="batchRightRail">
               <div className="batchUtilityActionsTs">
-                <button className="toolButtonTs accent" type="button" onClick={() => void runBusyAction("juntar-grades", handleJoinGrades)}>Juntar Grades</button>
+                <button className="toolButtonTs accent" type="button" onClick={() => void runBusyAction("importar-grades", handleJoinGrades)}>Importar Grades</button>
                 <button className="toolButtonTs accent" type="button" onClick={() => void runBusyAction("inserir-grade", openGradeModal)}>Inserir Grade</button>
               </div>
               <div className="progressSummaryTs">
@@ -2233,6 +2512,13 @@ export default function App() {
                       }}
                     >
                       Melhorar Descricao
+                    </button>
+                    <button
+                      className="toolButtonTs aiReviewButton"
+                      type="button"
+                      onClick={() => void runBusyAction("revisar-itens-ia", handleStartPostProcess)}
+                    >
+                      {postProcessing ? "Revisando com IA..." : "Revisar Itens com IA"}
                     </button>
                     <button className={`toolButtonTs accent ${orderingMode ? "activeToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", handleToggleOrdering)}>
                       {orderingMode ? "Salvar Ordem" : "Ordenar Lista"}
@@ -2331,6 +2617,16 @@ export default function App() {
                         Aplicar
                       </button>
                     </div>
+                  </div>
+                ) : null}
+
+                {postProcessing ? <div className="message subtle">Revisao com IA em andamento. {postProcessJob?.message || "Preparando itens da lista..."}</div> : null}
+                {!postProcessing && postProcessJob?.message ? <div className="message subtle">{postProcessJob.message}</div> : null}
+                {postProcessError ? <div className="message error">{postProcessError}</div> : null}
+                {postProcessResult ? (
+                  <div className="message success">
+                    {postProcessResult.total_itens} itens revisados as {formatTimestamp(postProcessJob?.updated_at)}.
+                    {postProcessResult.dry_run ? " Modo inicial: sugestoes capturadas sem aplicar automaticamente." : ""}
                   </div>
                 ) : null}
               </div>

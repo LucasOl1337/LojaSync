@@ -8,6 +8,11 @@ Plataforma para cadastro e automacao de produtos em ERP, com foco em fluxo de ro
 
 O LojaSync e um sistema desktop-web projetado para lojistas que precisam cadastrar grandes volumes de produtos no Byte Empresa. Ele combina painel web, processamento de documentos e automacao desktop para reduzir trabalho manual.
 
+O sistema agora roda com dois runtimes separados:
+
+- runtime principal de vendas, produtos e automacao
+- runtime de autenticacao, acessado por conector HTTP
+
 ### O que o sistema faz
 
 - Importacao automatica de romaneios
@@ -64,6 +69,7 @@ python launcher.py
 
 - Frontend principal: `http://127.0.0.1:8800`
 - Backend: `http://127.0.0.1:8800`
+- Auth runtime: `http://127.0.0.1:8810`
 - Frontend legado: `http://127.0.0.1:8800/legacy/`
 - Swagger: `http://127.0.0.1:8800/docs`
 - LLM Monitor: `http://127.0.0.1:5174`
@@ -86,5 +92,6 @@ O script valida se a pasta e um repositorio Git, checa se ha alteracoes locais e
 
 - O projeto deve refletir o estado validado localmente.
 - Dados operacionais ficam em `data/`.
+- `data/auth.json` e historicos gerados em runtime sao locais da maquina e nao devem ser versionados; ao iniciar em um novo PC, eles sao recriados automaticamente.
 - A automacao desktop depende de Windows e PyAutoGUI.
 - O frontend novo em TypeScript e o principal da aplicacao. O legado permanece disponivel em `/legacy/`.

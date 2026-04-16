@@ -32,6 +32,15 @@ ROMANEIO_CROPPED_IMAGE_MESSAGE = (
     "Do not guess rows cut by the crop boundary; ignore partial rows."
 )
 
+_REMESSA_REGEX = re.compile(r"(?i)qtd\s+de\s+.*?remessa\s*:\s*(?P<qty>\d+)")
+_TOTAL_PRODUCTS_REGEX = re.compile(
+    r"(?i)valor\s+total\s+dos\s+produtos(?:\s*[:\-]|\s+)(?P<value>\d+(?:\.\d{3})*,\d{2})"
+)
+_TOTAL_NOTE_REGEX = re.compile(
+    r"(?i)valor\s+total\s+da\s+nota(?:\s*[:\-]|\s+)(?P<value>\d+(?:\.\d{3})*,\d{2})"
+)
+_CONSISTENCY_TOLERANCE = Decimal("0.05")
+
 
 def _extract_text_from_pdf(contents: bytes) -> tuple[str, list[str]]:
     warnings: list[str] = []
@@ -147,7 +156,8 @@ def _normalize_product_grades(raw: Any) -> list[dict[str, Any]] | None:
     items: list[dict[str, Any]] = []
     if isinstance(raw, dict):
         for tamanho, quantidade in raw.items():
-            size = str(tamanho or "").strip()
+            raw_size = str(tamanho or "").strip()
+            size = _coerce_size_hint(raw_size) or re.sub(r"[^A-Za-z0-9]+", "", raw_size).upper()
             qty = _parse_qty(quantidade)
             if not size or qty <= 0:
                 continue
@@ -156,11 +166,12 @@ def _normalize_product_grades(raw: Any) -> list[dict[str, Any]] | None:
     if isinstance(raw, list):
         for entry in raw:
             if isinstance(entry, dict):
-                size = str(entry.get("tamanho") or entry.get("size") or "").strip()
+                raw_size = str(entry.get("tamanho") or entry.get("size") or "").strip()
                 qty = _parse_qty(entry.get("quantidade"))
             else:
-                size = str(getattr(entry, "tamanho", "") or getattr(entry, "size", "") or "").strip()
+                raw_size = str(getattr(entry, "tamanho", "") or getattr(entry, "size", "") or "").strip()
                 qty = _parse_qty(getattr(entry, "quantidade", None))
+            size = _coerce_size_hint(raw_size) or re.sub(r"[^A-Za-z0-9]+", "", raw_size).upper()
             if not size or qty <= 0:
                 continue
             items.append({"tamanho": size, "quantidade": qty})
@@ -177,10 +188,93 @@ def _coerce_size_hint(raw: Any) -> str:
     if not candidate:
         return ""
     if re.fullmatch(r"\d{1,3}", candidate):
-        return candidate
+        try:
+            number = int(candidate)
+        except Exception:
+            return ""
+        return str(number) if number > 0 else ""
     if candidate in {"U", "PP", "P", "M", "G", "GG", "XG", "XXG", "G1", "G2", "G3", "G4"}:
         return candidate
     return ""
+
+
+def _extract_document_money(pattern: re.Pattern[str], text: str) -> Decimal | None:
+    match = pattern.search(str(text or ""))
+    if not match:
+        return None
+    return _parse_decimal_value(match.group("value"))
+
+
+def _extract_remessa_quantity(text: str) -> int | None:
+    match = _REMESSA_REGEX.search(str(text or ""))
+    if not match:
+        return None
+    try:
+        quantity = int(match.group("qty"))
+    except Exception:
+        return None
+    return quantity if quantity > 0 else None
+
+
+def analyze_parsed_document(text: str, records: list[Product]) -> dict[str, Any]:
+    source_text = str(text or "").strip()
+    if not source_text:
+        return {"warnings": [], "metrics": {}}
+
+    extracted_quantity = sum(max(int(item.quantidade or 0), 0) for item in (records or []))
+    extracted_total_products = Decimal("0")
+    for item in records or []:
+        unit_price = _parse_decimal_value(item.preco)
+        if unit_price is None:
+            continue
+        extracted_total_products += unit_price * Decimal(max(int(item.quantidade or 0), 0))
+
+    remessa_quantity = _extract_remessa_quantity(source_text)
+    document_total_products = _extract_document_money(_TOTAL_PRODUCTS_REGEX, source_text)
+    document_total_note = _extract_document_money(_TOTAL_NOTE_REGEX, source_text)
+
+    quantity_matches_remessa = remessa_quantity is not None and extracted_quantity == remessa_quantity
+    products_value_matches_document = False
+    matched_reference = ""
+    if document_total_products is not None:
+        products_value_matches_document = (
+            abs(extracted_total_products - document_total_products) <= _CONSISTENCY_TOLERANCE
+        )
+        if products_value_matches_document:
+            matched_reference = "produtos"
+    if not products_value_matches_document and document_total_note is not None:
+        products_value_matches_document = abs(extracted_total_products - document_total_note) <= _CONSISTENCY_TOLERANCE
+        if products_value_matches_document:
+            matched_reference = "nota"
+
+    warnings: list[str] = []
+    if remessa_quantity is not None and not quantity_matches_remessa:
+        warnings.append(
+            f"Quantidade extraida ({extracted_quantity}) difere da quantidade de remessa impressa no documento ({remessa_quantity})."
+        )
+
+    if (document_total_products is not None or document_total_note is not None) and not products_value_matches_document:
+        printed_totals: list[str] = []
+        if document_total_products is not None:
+            printed_totals.append(f"produtos: R$ {_normalize_decimal_price(document_total_products)}")
+        if document_total_note is not None:
+            printed_totals.append(f"nota: R$ {_normalize_decimal_price(document_total_note)}")
+        warnings.append(
+            "O total extraido dos itens nao bate com a nota. "
+            f"Extraido: R$ {_normalize_decimal_price(extracted_total_products)}. "
+            f"Documento: {' | '.join(printed_totals)}."
+        )
+
+    metrics: dict[str, Any] = {
+        "remessa_quantity": remessa_quantity,
+        "quantity_matches_remessa": quantity_matches_remessa if remessa_quantity is not None else None,
+        "document_total_products": _normalize_decimal_price(document_total_products) if document_total_products is not None else None,
+        "document_total_note": _normalize_decimal_price(document_total_note) if document_total_note is not None else None,
+        "extracted_total_products": _normalize_decimal_price(extracted_total_products),
+        "products_value_matches_document": products_value_matches_document if (document_total_products is not None or document_total_note is not None) else None,
+        "products_value_match_reference": matched_reference or None,
+    }
+    return {"warnings": warnings, "metrics": metrics}
 
 
 def _extract_embedded_size(value: Any) -> str:
@@ -381,6 +475,48 @@ def split_text_chunks(text: str, *, max_chars: int = 8000) -> list[str]:
             parts.append(chunk)
         remaining = remaining[cut:].strip()
     return [part for part in parts if part]
+
+
+def extract_structured_invoice_row_lines(text: str) -> list[str]:
+    rows: list[str] = []
+    for raw_line in (text or "").splitlines():
+        line = str(raw_line or "").strip()
+        if not line:
+            continue
+        if _INVOICE_LINE_REGEX.match(line):
+            rows.append(line)
+    return rows
+
+
+def split_structured_invoice_chunks(
+    text: str,
+    *,
+    max_lines: int = 24,
+    max_chars: int = 5000,
+) -> list[str]:
+    rows = extract_structured_invoice_row_lines(text)
+    if not rows:
+        return []
+
+    safe_max_lines = max(int(max_lines or 1), 1)
+    safe_max_chars = max(int(max_chars or 1), 1)
+    chunks: list[str] = []
+    current_rows: list[str] = []
+    current_chars = 0
+
+    for row in rows:
+        projected_chars = current_chars + len(row) + (1 if current_rows else 0)
+        if current_rows and (len(current_rows) >= safe_max_lines or projected_chars > safe_max_chars):
+            chunks.append("\n".join(current_rows))
+            current_rows = [row]
+            current_chars = len(row)
+            continue
+        current_rows.append(row)
+        current_chars = projected_chars
+
+    if current_rows:
+        chunks.append("\n".join(current_rows))
+    return chunks
 
 
 def split_image_batches(images: list[dict[str, Any]], *, batch_size: int = 1) -> list[list[dict[str, Any]]]:
@@ -597,6 +733,10 @@ def _extract_json_items(text: str) -> list[dict[str, Any]]:
     for section in _json_candidate_sections(text):
         _append(_extract_partial_json_objects(section))
     return collected
+
+
+def extract_llm_json_items(text: str) -> list[dict[str, Any]]:
+    return _extract_json_items(text)
 
 
 def _map_keys_lower(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1047,13 +1187,17 @@ def parse_candidate_content(text: str) -> list[Product]:
 
 
 __all__ = [
+    "analyze_parsed_document",
     "build_romaneio_image_message",
     "decode_text_content",
+    "extract_llm_json_items",
+    "extract_structured_invoice_row_lines",
     "filter_suspect_records",
     "looks_like_binary_blob",
     "parse_candidate_content",
     "products_to_text",
     "save_romaneio_text",
+    "split_structured_invoice_chunks",
     "slice_image_payloads",
     "split_image_batches",
     "split_text_chunks",

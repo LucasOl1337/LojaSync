@@ -697,14 +697,16 @@ body {
 /* Functional color mapping for list tools (clean, subtle tints) */
 #btn-formatar-codigos,
 #btn-editar-nomes,
-#btn-melhorar-descricao {
+#btn-melhorar-descricao,
+#btn-pos-processar-llm {
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.35);
 }
 
 #btn-formatar-codigos:hover,
 #btn-editar-nomes:hover,
-#btn-melhorar-descricao:hover {
+#btn-melhorar-descricao:hover,
+#btn-pos-processar-llm:hover {
   background: rgba(59, 130, 246, 0.2);
 }
 

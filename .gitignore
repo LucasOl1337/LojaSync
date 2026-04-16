@@ -38,6 +38,7 @@ dist/
 Legacy/engine/webapp/build*/
 Legacy/engine/webapp/dist/
 Legacy/engine/webapp/data/
+Legacy/engine/webapp/data/*.jsonl
 .pytest_cache/
 htmlcov/
 
@@ -49,8 +50,10 @@ node_modules/
 EnterviewArtifacts/
 data/romaneios/*.txt
 data/lojasync.db
+data/auth.json
 .claire/
 .claude/
+tmp*_text.txt
 
 # OS files
 .DS_Store

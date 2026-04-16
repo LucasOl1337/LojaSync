@@ -146,6 +146,14 @@ DEFAULT_BACKEND_PORT = _coerce_int(
     os.getenv("LOJASYNC_BACKEND_PORT"),
     _coerce_int(_param_value("BACKEND_PORT", 8800), 8800),
 )
+DEFAULT_AUTH_PORT = _coerce_int(
+    os.getenv("LOJASYNC_AUTH_PORT"),
+    _coerce_int(_param_value("AUTH_PORT", 8810), 8810),
+)
+DEFAULT_AUTH_ENABLED = _coerce_bool(
+    os.getenv("LOJASYNC_AUTH_ENABLED"),
+    False,
+)
 DEFAULT_LLM_PORT = _coerce_int(
     os.getenv("LOJASYNC_LLM_PORT"),
     _coerce_int(_param_value("LLM_PORT", 8002), 8002),
@@ -256,6 +264,8 @@ def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: boo
     package_json = FRONTEND_TS_DIR / "package.json"
     node_modules = FRONTEND_TS_DIR / "node_modules"
 
+    install_cmd = [npm_cmd, "ci"] if package_lock.exists() else [npm_cmd, "install"]
+
     needs_install = not node_modules.exists()
     if not needs_install and package_lock.exists():
         lock_mtime = package_lock.stat().st_mtime
@@ -267,11 +277,6 @@ def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: boo
         needs_install = installed_mtime < package_mtime
 
     if needs_install:
-        install_cmd = [npm_cmd, "ci"] if package_lock.exists() else [npm_cmd, "install"]
-        subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
-
-    if force_build or _typescript_frontend_needs_build():
-        subprocess.run([npm_cmd, "run", "build"], cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
         subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
 
     if force_build or _typescript_frontend_needs_build():
@@ -286,6 +291,8 @@ class Launcher:
         host: str = DEFAULT_HOST,
         frontend_port: int = DEFAULT_FRONTEND_PORT,
         backend_port: int = DEFAULT_BACKEND_PORT,
+        auth_port: int = DEFAULT_AUTH_PORT,
+        auth_enabled: bool = DEFAULT_AUTH_ENABLED,
         open_browser: bool = True,
         llm_port: int = DEFAULT_LLM_PORT,
         llm_monitor_port: int = DEFAULT_LLM_MONITOR_PORT,
@@ -300,6 +307,8 @@ class Launcher:
         self.host = host
         self.frontend_port = frontend_port
         self.backend_port = backend_port
+        self.auth_port = auth_port
+        self.auth_enabled = auth_enabled
         self.open_browser = open_browser
         self.llm_port = llm_port
         self.llm_monitor_port = llm_monitor_port
@@ -312,6 +321,7 @@ class Launcher:
         self._frontend_server: Optional[Any] = None
         self._frontend_thread: Optional[threading.Thread] = None
         self._backend_thread: Optional[threading.Thread] = None
+        self._auth_process: Optional[subprocess.Popen[str]] = None
         self._llm_thread: Optional[threading.Thread] = None
         self._llm_monitor_thread: Optional[threading.Thread] = None
         self._use_monitor_base_url = bool(llm_monitor_enabled)
@@ -328,6 +338,9 @@ class Launcher:
             webbrowser.open(url, new=2)
 
     def _run_backend(self) -> None:
+        os.environ["LOJASYNC_AUTH_ENABLED"] = "1" if self.auth_enabled else "0"
+        os.environ.setdefault("LOJASYNC_AUTH_HOST", self.host)
+        os.environ.setdefault("LOJASYNC_AUTH_PORT", str(self.auth_port))
         os.environ.setdefault("LLM_HOST", self.llm_host)
         os.environ.setdefault("LLM_PORT", str(self.llm_port))
         if self._use_monitor_base_url:
@@ -412,6 +425,30 @@ class Launcher:
         self._backend_thread = threading.Thread(target=self._run_backend, name="backend-thread", daemon=True)
         self._backend_thread.start()
 
+    def start_auth_async(self) -> None:
+        if not self.auth_enabled:
+            print("[launcher] auth desabilitado; aguardando comando explicito para conectar.")
+            return
+        if self.host in {"0.0.0.0", "::"}:
+            public_host = _guess_public_host()
+            print(f"[launcher] auth em {self.host}:{self.auth_port} (externo: http://{public_host}:{self.auth_port})")
+        else:
+            print(f"[launcher] auth em {self.host}:{self.auth_port}")
+        command = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app.interfaces.auth_api.http.app:create_auth_app",
+            "--factory",
+            "--host",
+            self.host,
+            "--port",
+            str(self.auth_port),
+            "--log-level",
+            "info",
+        ]
+        self._auth_process = subprocess.Popen(command, cwd=str(PROJECT_ROOT), env=os.environ.copy(), text=True)
+
     def start_frontend_async(self) -> None:
         self._frontend_thread = threading.Thread(target=self._run_frontend, name="frontend-thread", daemon=True)
         self._frontend_thread.start()
@@ -432,6 +469,13 @@ class Launcher:
         if self._frontend_server is not None:
             with suppress(Exception):
                 self._frontend_server.shutdown()
+        if self._auth_process is not None:
+            with suppress(Exception):
+                self._auth_process.terminate()
+                self._auth_process.wait(timeout=5)
+            if self._auth_process.poll() is None:
+                with suppress(Exception):
+                    self._auth_process.kill()
         for thread in (
             self._frontend_thread,
             self._backend_thread,
@@ -446,6 +490,21 @@ class Launcher:
             force_build=self.force_ts_build,
             skip_build=not self.prepare_ts_frontend,
         )
+
+        if self.auth_enabled:
+            auth_already_running = _is_tcp_listening(self.host, self.auth_port)
+            if auth_already_running:
+                print(f"[launcher] auth ja ativo em {self.host}:{self.auth_port}; reutilizando.")
+            elif _is_port_bindable(self.host, self.auth_port):
+                self.start_auth_async()
+                time.sleep(0.4)
+            else:
+                print(
+                    f"[launcher] porta do auth em uso ({self.host}:{self.auth_port}); "
+                    "nao foi possivel iniciar outra instancia."
+                )
+        else:
+            print("[launcher] auth remoto permanece desativado ate habilitacao explicita.")
 
         llm_already_running = _is_tcp_listening(self.llm_host, self.llm_port)
         if llm_already_running:
@@ -490,6 +549,8 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--host", default=DEFAULT_HOST, help="Host para os servidores")
     parser.add_argument("--frontend-port", type=int, default=DEFAULT_FRONTEND_PORT, help="Porta do frontend")
     parser.add_argument("--backend-port", type=int, default=DEFAULT_BACKEND_PORT, help="Porta do backend")
+    parser.add_argument("--auth-port", type=int, default=DEFAULT_AUTH_PORT, help="Porta do servico de autenticacao")
+    parser.add_argument("--enable-auth", action="store_true", help="Ativar o runtime de autenticacao e conectar o backend a ele")
     parser.add_argument("--llm-port", type=int, default=DEFAULT_LLM_PORT, help="Porta do servico LLM")
     parser.add_argument("--no-browser", action="store_true", help="Nao abrir navegador automaticamente")
     parser.add_argument("--disable-llm-monitor", action="store_true", help="Desabilitar monitor LLM")
@@ -512,6 +573,8 @@ def main(argv: Optional[list[str]] = None) -> None:
         host=args.host,
         frontend_port=args.frontend_port,
         backend_port=args.backend_port,
+        auth_port=args.auth_port,
+        auth_enabled=args.enable_auth,
         llm_port=args.llm_port,
         open_browser=not args.no_browser,
         llm_monitor_enabled=not args.disable_llm_monitor,

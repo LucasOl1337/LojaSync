@@ -13,12 +13,9 @@ CATALOG_SIZES = [
     "1",
     "2",
     "3",
-    "01",
-    "02",
-    "03",
-    "04",
-    "06",
-    "08",
+    "4",
+    "6",
+    "8",
     "10",
     "12",
     "14",
@@ -62,6 +59,10 @@ def get_automation_service(request: Request):
     return get_container(request).automation_service
 
 
+def get_auth_connector(request: Request):
+    return get_container(request).auth_connector
+
+
 def product_to_response(product: Product) -> ProductResponse:
     grades = (
         [{"tamanho": item.tamanho, "quantidade": int(item.quantidade)} for item in (product.grades or [])]
@@ -85,6 +86,10 @@ def product_to_response(product: Product) -> ProductResponse:
         descricao_completa=product.descricao_completa,
         grades=grades,
         cores=cores,
+        source_type=product.source_type,
+        import_batch_id=product.import_batch_id,
+        import_source_name=product.import_source_name,
+        pending_grade_import=bool(product.pending_grade_import),
         timestamp=product.timestamp,
         ordering_key=product.ordering_key(),
     )

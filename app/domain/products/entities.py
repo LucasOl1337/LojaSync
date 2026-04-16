@@ -86,6 +86,10 @@ class Product:
     ordering_key_value: str | None = None
     grades: list[GradeItem] | None = None
     cores: list[CorItem] | None = None
+    source_type: str | None = None
+    import_batch_id: str | None = None
+    import_source_name: str | None = None
+    pending_grade_import: bool = False
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
     def normalize(self, *, margin: float) -> "Product":
@@ -99,6 +103,12 @@ class Product:
             str(self.descricao_completa).strip() if self.descricao_completa not in (None, "") else None
         )
         self.codigo_original = (self.codigo_original or self.codigo).strip()
+        self.source_type = str(self.source_type).strip() if self.source_type not in (None, "") else None
+        self.import_batch_id = str(self.import_batch_id).strip() if self.import_batch_id not in (None, "") else None
+        self.import_source_name = (
+            str(self.import_source_name).strip() if self.import_source_name not in (None, "") else None
+        )
+        self.pending_grade_import = bool(self.pending_grade_import)
         self.grades = _parse_grades(self.grades)
         self.cores = _parse_cores(self.cores)
         if self.quantidade < 0:
@@ -141,6 +151,10 @@ class Product:
             ordering_key_value=payload.get("ordering_key") or payload.get("ordering_key_value"),
             grades=_parse_grades(payload.get("grades")),
             cores=_parse_cores(payload.get("cores")),
+            source_type=payload.get("source_type"),
+            import_batch_id=payload.get("import_batch_id"),
+            import_source_name=payload.get("import_source_name"),
+            pending_grade_import=bool(payload.get("pending_grade_import", False)),
             timestamp=timestamp,
         )
 

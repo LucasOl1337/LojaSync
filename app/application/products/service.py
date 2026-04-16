@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
-from typing import Iterable
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
+from typing import Any, Iterable
 
 from app.domain.brands.repository import BrandRepository
 from app.domain.metrics.entities import Metrics
@@ -32,12 +33,9 @@ GRADE_SIZE_ORDER = [
     "1",
     "2",
     "3",
-    "01",
-    "02",
-    "03",
-    "04",
-    "06",
-    "08",
+    "4",
+    "6",
+    "8",
     "10",
     "12",
     "14",
@@ -98,6 +96,8 @@ NAME_NOISE_TOKENS = {
     "tamanho",
 }
 
+POST_PROCESS_KEEP_ACTIONS = {"manter", "keep", "none"}
+
 
 def _fold_token(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", str(value or ""))
@@ -121,6 +121,13 @@ class ProductService:
     def list_products(self) -> list[Product]:
         return [Product.from_dict(item.to_dict()) for item in self._products.list_active()]
 
+    def get_post_process_review_candidates(self) -> list[Product]:
+        return [
+            Product.from_dict(item.to_dict())
+            for item in self.list_products()
+            if self._needs_llm_post_review(item)
+        ]
+
     def create_product(self, product: Product) -> Product:
         occupied_keys = {item.ordering_key() for item in self._products.list_active()}
         return self._create_product_with_occupied_keys(product, occupied_keys)
@@ -128,6 +135,10 @@ class ProductService:
     def _create_product_with_occupied_keys(self, product: Product, occupied_keys: set[str]) -> Product:
         margin = self.get_default_margin()
         normalized = product.normalize(margin=margin)
+        if not normalized.source_type:
+            normalized.source_type = "manual"
+        if normalized.import_batch_id is None:
+            normalized.pending_grade_import = False
         self._ensure_unique_ordering_key(normalized, occupied_keys)
         self._products.append_active(normalized)
         occupied_keys.add(normalized.ordering_key())
@@ -346,18 +357,91 @@ class ProductService:
             "removidos": len(items) - len(result),
         }
 
-    def join_with_grades(self) -> dict[str, int]:
+    def join_with_grades(self, keys: list[str] | None = None) -> dict[str, int]:
         items = self.list_products()
         if not items:
-            return {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0}
-        results, summary = self._compact_products_with_grades(items, force_merge_all_codes=True)
+            return {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0, "lotes_processados": 0}
 
-        self._products.replace_active(results)
+        scoped_keys = {str(key or "").strip() for key in (keys or []) if str(key or "").strip()}
+        if scoped_keys:
+            scoped_items: list[Product] = []
+            passthrough_items: list[Product] = []
+            for item in items:
+                cloned = Product.from_dict(item.to_dict())
+                if cloned.ordering_key() in scoped_keys:
+                    scoped_items.append(cloned)
+                else:
+                    passthrough_items.append(cloned)
+            if not scoped_items:
+                return {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0, "lotes_processados": 0}
+            results, summary = self._compact_products_with_grades(scoped_items, force_merge_all_codes=True)
+            for item in results:
+                item.pending_grade_import = False
+            final_items = passthrough_items + results
+            processed_batches = 1
+        else:
+            pending_batches: dict[str, list[Product]] = {}
+            pending_batch_order: list[str] = []
+            item_batch_lookup: dict[str, str] = {}
+
+            for item in items:
+                cloned = Product.from_dict(item.to_dict())
+                if not cloned.pending_grade_import:
+                    continue
+                batch_id = str(cloned.import_batch_id or cloned.ordering_key()).strip()
+                if batch_id not in pending_batches:
+                    pending_batches[batch_id] = []
+                    pending_batch_order.append(batch_id)
+                pending_batches[batch_id].append(cloned)
+                item_batch_lookup[cloned.ordering_key()] = batch_id
+
+            if not pending_batch_order:
+                return {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0, "lotes_processados": 0}
+
+            batch_results: dict[str, list[Product]] = {}
+            originais = 0
+            resultantes = 0
+            removidos = 0
+            atualizados_grades = 0
+            emitted_batches: set[str] = set()
+            final_items = []
+
+            for batch_id in pending_batch_order:
+                compacted, summary = self._compact_products_with_grades(pending_batches[batch_id], force_merge_all_codes=True)
+                for item in compacted:
+                    item.pending_grade_import = False
+                batch_results[batch_id] = compacted
+                originais += int(summary["originais"])
+                resultantes += int(summary["resultantes"])
+                removidos += int(summary["removidos"])
+                atualizados_grades += int(summary["atualizados_grades"])
+
+            for item in items:
+                cloned = Product.from_dict(item.to_dict())
+                batch_id = item_batch_lookup.get(cloned.ordering_key())
+                if not batch_id:
+                    final_items.append(cloned)
+                    continue
+                if batch_id in emitted_batches:
+                    continue
+                final_items.extend(Product.from_dict(result.to_dict()) for result in batch_results.get(batch_id, []))
+                emitted_batches.add(batch_id)
+
+            summary = {
+                "originais": originais,
+                "resultantes": resultantes,
+                "removidos": removidos,
+                "atualizados_grades": atualizados_grades,
+            }
+            processed_batches = len(pending_batch_order)
+
+        self._products.replace_active(final_items)
         return {
-            "originais": len(items),
-            "resultantes": len(results),
-            "removidos": len(items) - len(results),
+            "originais": summary["originais"],
+            "resultantes": summary["resultantes"],
+            "removidos": summary["removidos"],
             "atualizados_grades": summary["atualizados_grades"],
+            "lotes_processados": processed_batches,
         }
 
     def compact_import_batch(self, products: list[Product]) -> tuple[list[Product], dict[str, int]]:
@@ -580,6 +664,261 @@ class ProductService:
         if changed:
             self._products.replace_active(items)
         return {"total": len(items), "modificados": changed}
+
+    def apply_post_processing(self, llm_response_text: str | None = None) -> dict[str, Any]:
+        items = self.list_products()
+        if not items:
+            return {
+                "total": 0,
+                "modificados": 0,
+                "warnings": [],
+                "llm_suggestions_applied": 0,
+                "local_adjustments_applied": 0,
+                "dry_run": False,
+            }
+
+        suggestions = self._extract_post_process_suggestions(llm_response_text)
+        warnings: list[str] = []
+        margin = self.get_default_margin()
+        changed = 0
+        llm_applied = 0
+        local_applied = 0
+
+        for item in items:
+            original_name = item.nome or ""
+            original_code = item.codigo or ""
+            original_price = item.preco or ""
+            suggestion = suggestions.get(item.ordering_key()) or {}
+
+            next_name = self._post_process_name(item, suggestion)
+            next_code = self._post_process_code(item, suggestion)
+            next_price = self._post_process_price(item, suggestion)
+
+            modified = False
+            if next_name and next_name != original_name:
+                item.nome = next_name
+                modified = True
+            if next_code and next_code != original_code:
+                item.codigo = next_code
+                modified = True
+            if next_price and next_price != original_price:
+                item.preco = next_price
+                item.preco_final = None
+                modified = True
+
+            if modified:
+                action_name = str(suggestion.get("acoes") or suggestion.get("action") or "").strip().lower()
+                if action_name and action_name not in POST_PROCESS_KEEP_ACTIONS:
+                    llm_applied += 1
+                else:
+                    local_applied += 1
+                item.normalize(margin=margin)
+                changed += 1
+
+        if changed:
+            self._products.replace_active(items)
+
+        if llm_response_text and not suggestions:
+            warnings.append("Resposta da IA recebida sem JSON estruturado aproveitavel; aplicadas apenas regras locais seguras.")
+
+        return {
+            "total": len(items),
+            "modificados": changed,
+            "warnings": warnings,
+            "llm_suggestions_applied": llm_applied,
+            "local_adjustments_applied": local_applied,
+            "dry_run": False,
+        }
+
+    def _extract_post_process_suggestions(self, text: str | None) -> dict[str, dict[str, Any]]:
+        raw = str(text or "").strip()
+        if not raw:
+            return {}
+
+        payloads: list[Any] = []
+        fenced = re.findall(r"```(?:json)?\s*(.*?)```", raw, flags=re.IGNORECASE | re.DOTALL)
+        for fragment in fenced:
+            try:
+                payloads.append(json.loads(fragment.strip()))
+            except Exception:
+                continue
+
+        if not payloads:
+            decoder = json.JSONDecoder()
+            for start in range(len(raw)):
+                if raw[start] not in "[{":
+                    continue
+                try:
+                    payload, _ = decoder.raw_decode(raw[start:])
+                except Exception:
+                    continue
+                payloads.append(payload)
+                break
+
+        extracted: dict[str, dict[str, Any]] = {}
+        for payload in payloads:
+            items: list[Any]
+            if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+                items = payload["items"]
+            elif isinstance(payload, list):
+                items = payload
+            else:
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                ordering_key = str(item.get("ordering_key") or "").strip()
+                if ordering_key:
+                    extracted[ordering_key] = item
+        return extracted
+
+    def _post_process_name(self, item: Product, suggestion: dict[str, Any]) -> str:
+        confidence = self._coerce_confidence(suggestion.get("confianca"))
+        llm_name = str(suggestion.get("nome_sugerido") or "").strip()
+        if llm_name and confidence >= 0.7:
+            cleaned_llm = self._sanitize_store_name(llm_name)
+            if cleaned_llm:
+                return cleaned_llm
+
+        source = str(item.descricao_completa or item.nome or "").strip()
+        fallback = self._sanitize_store_name(source)
+        return fallback or (item.nome or "").strip()
+
+    def _post_process_code(self, item: Product, suggestion: dict[str, Any]) -> str:
+        confidence = self._coerce_confidence(suggestion.get("confianca"))
+        llm_code = str(suggestion.get("codigo_sugerido") or "").strip()
+        if llm_code and confidence >= 0.75:
+            cleaned_llm = self._sanitize_code_for_store(llm_code)
+            if cleaned_llm:
+                return cleaned_llm
+        return self._sanitize_code_for_store(item.codigo or "")
+
+    def _post_process_price(self, item: Product, suggestion: dict[str, Any]) -> str:
+        confidence = self._coerce_confidence(suggestion.get("confianca"))
+        llm_price = str(suggestion.get("preco_sugerido") or "").strip()
+        if llm_price and confidence >= 0.75:
+            normalized_llm = self._normalize_price_to_next_tenth(llm_price)
+            if normalized_llm:
+                return normalized_llm
+        normalized = self._normalize_price_to_next_tenth(item.preco or "")
+        return normalized or (item.preco or "").strip()
+
+    @classmethod
+    def _sanitize_store_name(cls, value: str) -> str:
+        text = str(value or "").upper().strip()
+        if not text:
+            return ""
+
+        text = re.sub(r"\[[^\]]*\]", " ", text)
+        text = re.sub(r"\([^)]*\)", " ", text)
+        text = re.sub(r"\*[^*]*\*", " ", text)
+        text = re.sub(r"(?i)\bCOR\s+[A-Z0-9]+\b", " ", text)
+        text = re.sub(r"(?i)\bTAM(?:ANHO)?\s*[A-Z0-9]+\b", " ", text)
+        text = re.sub(r"(?i)\b\d+\s*CM\b", " ", text)
+        text = re.sub(r"(?i)\bREF(?:ERENCIA)?\s*[A-Z0-9-]+\b", " ", text)
+        text = re.sub(r"(?i)\bCOD(?:IGO)?\s*[A-Z0-9-]+\b", " ", text)
+
+        tokens = re.findall(r"[A-ZÀ-Ÿ0-9]+", text)
+        cleaned: list[str] = []
+        for token in tokens:
+            folded = _fold_token(token)
+            normalized_size = cls._normalize_grade_label(token)
+            if not folded:
+                continue
+            if cls._is_known_grade_size(normalized_size):
+                continue
+            if folded in NAME_NOISE_TOKENS:
+                continue
+            if folded.isdigit():
+                continue
+            if len(token) <= 2:
+                continue
+            if re.fullmatch(r"[A-Z]{3,4}", token) and not re.search(r"[AEIOUÁÉÍÓÚÃÕÂÊÔ]", token):
+                continue
+            cleaned.append(token)
+
+        result = " ".join(cleaned)
+        result = re.sub(r"\bBASICOA\b", "BASICO", result)
+        result = re.sub(r"\bCALA\b", "CALCA", result)
+        result = re.sub(r"\bCAMISETAA\b", "CAMISETA", result)
+        result = re.sub(r"\bBLUSAA\b", "BLUSA", result)
+        result = re.sub(r"\s+", " ", result).strip()
+        return result
+
+    @staticmethod
+    def _sanitize_code_for_store(value: str) -> str:
+        code = re.sub(r"[^A-Za-z0-9]+", "", str(value or "").strip().upper())
+        if not code:
+            return ""
+
+        repeated_chunk = re.fullmatch(r"([A-Z0-9]{2,})(?:\1)+", code)
+        if repeated_chunk:
+            return repeated_chunk.group(1)
+
+        if re.search(r"(.)\1{3,}", code):
+            code = re.sub(r"(.)\1{2,}", r"\1\1", code)
+
+        for size in range(2, max(3, len(code) // 2 + 1)):
+            if len(code) < size * 2:
+                continue
+            chunk = code[:size]
+            if code == chunk * (len(code) // size) and len(code) % size == 0:
+                return chunk
+        return code
+
+    def _normalize_price_to_next_tenth(self, value: str) -> str:
+        parsed = self._parse_price_decimal(value)
+        if parsed is None:
+            return str(value or "").strip()
+        normalized = (parsed * Decimal("10")).to_integral_value(rounding=ROUND_CEILING) / Decimal("10")
+        return format_price(float(normalized)) or str(value or "").strip()
+
+    @staticmethod
+    def _coerce_confidence(value: Any) -> float:
+        try:
+            parsed = float(value)
+        except Exception:
+            return 0.0
+        return max(0.0, min(parsed, 1.0))
+
+    def _needs_llm_post_review(self, item: Product) -> bool:
+        raw_name = str(item.descricao_completa or item.nome or "").strip().upper()
+        current_name = str(item.nome or "").strip().upper()
+        code = str(item.codigo or "").strip().upper()
+        price = str(item.preco or "").strip()
+
+        suspicious_name_patterns = [
+            r"\bCOR\b",
+            r"\[[^\]]+\]",
+            r"\*[^*]+\*",
+            r"\b[A-Z]{1}\b",
+            r"\b[0-9]{2,}\s*CM\b",
+            r"\bBASICO\s+A\b",
+            r"\bCALA\b",
+        ]
+        if any(re.search(pattern, raw_name) for pattern in suspicious_name_patterns):
+            return True
+        if raw_name and current_name and raw_name != current_name:
+            if len(raw_name) - len(current_name) >= 8:
+                return True
+
+        if len(code) >= 16:
+            return True
+        if re.fullmatch(r"([A-Z0-9]{2,})(?:\1)+", code):
+            return True
+        if re.search(r"(.)\1{4,}", code):
+            return True
+
+        if self._price_has_visual_noise(price):
+            return True
+        return False
+
+    def _price_has_visual_noise(self, value: str) -> bool:
+        parsed = self._parse_price_decimal(value)
+        if parsed is None:
+            return False
+        cents = int((parsed * 100) % 100)
+        return cents not in {0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
 
     def get_active_file(self):
         return getattr(self._products, "_active_file")
@@ -962,10 +1301,7 @@ class ProductService:
                 number = 0
             if number <= 0:
                 return ""
-            if number in {4, 6, 8}:
-                return str(number).zfill(2)
-            if len(label) >= 3:
-                return str(number)
+            return str(number)
         return label
 
     @staticmethod

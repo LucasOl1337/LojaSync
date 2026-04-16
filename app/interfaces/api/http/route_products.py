@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import Response
 
 from app.domain.products.entities import Product
+from app.interfaces.api.http.route_jobs import (
+    create_post_process_job,
+    get_post_process_job,
+    get_post_process_result,
+    remove_post_process_job,
+    run_post_process_job,
+    update_post_process_job,
+)
 from app.interfaces.api.http.route_models import (
     BulkActionPayload,
     CreateSetPayload,
@@ -14,9 +22,13 @@ from app.interfaces.api.http.route_models import (
     FormatCodesResponse,
     ImproveDescriptionPayload,
     ImproveDescriptionResponse,
+    JoinGradesPayload,
     JoinGradesResponse,
     MarginPayload,
     MarginResponse,
+    PostProcessProductsResultResponse,
+    PostProcessProductsStartResponse,
+    PostProcessProductsStatusResponse,
     ReorderPayload,
     RestoreCodesResponse,
     SnapshotRestorePayload,
@@ -66,6 +78,8 @@ async def create_product(payload: ProductPayload, request: Request) -> ProductIt
             codigo_original=payload.codigo,
             grades=payload.grades,
             cores=payload.cores,
+            source_type="manual",
+            pending_grade_import=False,
         )
     )
     publish_state_changed(["products", "totals", "brands"])
@@ -179,9 +193,9 @@ async def reorder_products(payload: ReorderPayload, request: Request) -> dict[st
 
 
 @router.post("/actions/join-grades")
-async def join_grades(request: Request) -> JoinGradesResponse:
-    result = get_product_service(request).join_with_grades()
-    if result.get("removidos") or result.get("atualizados_grades"):
+async def join_grades(payload: JoinGradesPayload, request: Request) -> JoinGradesResponse:
+    result = get_product_service(request).join_with_grades(payload.keys)
+    if result.get("removidos") or result.get("atualizados_grades") or result.get("lotes_processados"):
         publish_state_changed(["products", "totals"])
     return JoinGradesResponse(**result)
 
@@ -251,6 +265,53 @@ async def improve_descriptions(payload: ImproveDescriptionPayload, request: Requ
     if result.get("modificados"):
         publish_state_changed(["products"])
     return ImproveDescriptionResponse(**result)
+
+
+@router.post("/actions/post-process-products", response_model=PostProcessProductsStartResponse)
+async def start_post_process_products(
+    request: Request,
+    background: BackgroundTasks,
+) -> PostProcessProductsStartResponse:
+    service = get_product_service(request)
+    if not service.list_products():
+        raise HTTPException(status_code=400, detail="Nao ha produtos para pos-processar")
+
+    job = create_post_process_job()
+    update_post_process_job(job.job_id, "processing")
+    background.add_task(
+        run_post_process_job,
+        job_id=job.job_id,
+        service=service,
+    )
+    return PostProcessProductsStartResponse(job_id=job.job_id)
+
+
+@router.get("/actions/post-process-products/status/{job_id}", response_model=PostProcessProductsStatusResponse)
+async def post_process_products_status(job_id: str) -> PostProcessProductsStatusResponse:
+    job = get_post_process_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job nao encontrado")
+    return job
+
+
+@router.get("/actions/post-process-products/result/{job_id}", response_model=PostProcessProductsResultResponse)
+async def post_process_products_result(job_id: str) -> PostProcessProductsResultResponse:
+    job = get_post_process_job(job_id)
+    result = get_post_process_result(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job nao encontrado")
+    if job.stage != "completed":
+        raise HTTPException(status_code=409, detail="Processamento ainda em andamento")
+    if result is None:
+        raise HTTPException(status_code=500, detail="Resultado indisponivel")
+    return result
+
+
+@router.delete("/actions/post-process-products/status/{job_id}")
+async def post_process_products_cleanup(job_id: str) -> dict[str, str]:
+    if not remove_post_process_job(job_id):
+        raise HTTPException(status_code=404, detail="Job nao encontrado")
+    return {"status": "removed", "job_id": job_id}
 
 
 @router.get("/actions/export-json")

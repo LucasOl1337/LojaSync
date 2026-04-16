@@ -41,7 +41,11 @@ def _bootstrap_database(connection: sqlite3.Connection) -> None:
             descricao_completa TEXT,
             codigo_original TEXT,
             grades_json TEXT,
-            cores_json TEXT
+            cores_json TEXT,
+            source_type TEXT,
+            import_batch_id TEXT,
+            import_source_name TEXT,
+            pending_grade_import INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE INDEX IF NOT EXISTS idx_active_products_position
@@ -61,7 +65,11 @@ def _bootstrap_database(connection: sqlite3.Connection) -> None:
             descricao_completa TEXT,
             codigo_original TEXT,
             grades_json TEXT,
-            cores_json TEXT
+            cores_json TEXT,
+            source_type TEXT,
+            import_batch_id TEXT,
+            import_source_name TEXT,
+            pending_grade_import INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS brands (
@@ -75,7 +83,25 @@ def _bootstrap_database(connection: sqlite3.Connection) -> None:
         );
         """
     )
+    _ensure_column(connection, "active_products", "source_type", "TEXT")
+    _ensure_column(connection, "active_products", "import_batch_id", "TEXT")
+    _ensure_column(connection, "active_products", "import_source_name", "TEXT")
+    _ensure_column(connection, "active_products", "pending_grade_import", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "history_products", "source_type", "TEXT")
+    _ensure_column(connection, "history_products", "import_batch_id", "TEXT")
+    _ensure_column(connection, "history_products", "import_source_name", "TEXT")
+    _ensure_column(connection, "history_products", "pending_grade_import", "INTEGER NOT NULL DEFAULT 0")
     connection.commit()
+
+
+def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {
+        str(row["name"])
+        for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column in columns:
+        return
+    connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def _load_jsonl_products(path: Path) -> list[Product]:
@@ -126,6 +152,10 @@ def _product_row_payload(row: sqlite3.Row) -> dict[str, object]:
         "ordering_key": row["ordering_key"],
         "grades": _deserialize_items(row["grades_json"]),
         "cores": _deserialize_items(row["cores_json"]),
+        "source_type": row["source_type"],
+        "import_batch_id": row["import_batch_id"],
+        "import_source_name": row["import_source_name"],
+        "pending_grade_import": bool(row["pending_grade_import"]),
         "timestamp": row["timestamp"],
     }
 
@@ -147,6 +177,10 @@ def _product_to_record(product: Product) -> tuple[object, ...]:
         product.codigo_original,
         _serialize_items(payload.get("grades")),
         _serialize_items(payload.get("cores")),
+        product.source_type,
+        product.import_batch_id,
+        product.import_source_name,
+        int(bool(product.pending_grade_import)),
     )
 
 
@@ -164,7 +198,8 @@ class SQLiteProductRepository(ProductRepository):
             rows = connection.execute(
                 """
                 SELECT ordering_key, timestamp, nome, codigo, quantidade, preco, categoria, marca,
-                       preco_final, descricao_completa, codigo_original, grades_json, cores_json
+                       preco_final, descricao_completa, codigo_original, grades_json, cores_json,
+                       source_type, import_batch_id, import_source_name, pending_grade_import
                 FROM active_products
                 ORDER BY position ASC, timestamp ASC, ordering_key ASC
                 """
@@ -176,7 +211,8 @@ class SQLiteProductRepository(ProductRepository):
             rows = connection.execute(
                 """
                 SELECT ordering_key, timestamp, nome, codigo, quantidade, preco, categoria, marca,
-                       preco_final, descricao_completa, codigo_original, grades_json, cores_json
+                       preco_final, descricao_completa, codigo_original, grades_json, cores_json,
+                       source_type, import_batch_id, import_source_name, pending_grade_import
                 FROM history_products
                 ORDER BY id ASC
                 """
@@ -197,8 +233,9 @@ class SQLiteProductRepository(ProductRepository):
                 """
                 INSERT OR REPLACE INTO active_products (
                     ordering_key, position, timestamp, nome, codigo, quantidade, preco, categoria, marca,
-                    preco_final, descricao_completa, codigo_original, grades_json, cores_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    preco_final, descricao_completa, codigo_original, grades_json, cores_json,
+                    source_type, import_batch_id, import_source_name, pending_grade_import
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (record[0], next_position, *record[1:]),
             )
@@ -212,8 +249,9 @@ class SQLiteProductRepository(ProductRepository):
                 """
                 INSERT INTO history_products (
                     ordering_key, timestamp, nome, codigo, quantidade, preco, categoria, marca,
-                    preco_final, descricao_completa, codigo_original, grades_json, cores_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    preco_final, descricao_completa, codigo_original, grades_json, cores_json,
+                    source_type, import_batch_id, import_source_name, pending_grade_import
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [_product_to_record(product) for product in products],
             )
@@ -272,8 +310,9 @@ class SQLiteProductRepository(ProductRepository):
             """
             INSERT INTO active_products (
                 ordering_key, position, timestamp, nome, codigo, quantidade, preco, categoria, marca,
-                preco_final, descricao_completa, codigo_original, grades_json, cores_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                preco_final, descricao_completa, codigo_original, grades_json, cores_json,
+                source_type, import_batch_id, import_source_name, pending_grade_import
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [(record[0], index, *record[1:]) for index, record in enumerate(_product_to_record(product) for product in products)],
         )
@@ -294,8 +333,9 @@ class SQLiteProductRepository(ProductRepository):
                     """
                     INSERT INTO history_products (
                         ordering_key, timestamp, nome, codigo, quantidade, preco, categoria, marca,
-                        preco_final, descricao_completa, codigo_original, grades_json, cores_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        preco_final, descricao_completa, codigo_original, grades_json, cores_json,
+                        source_type, import_batch_id, import_source_name, pending_grade_import
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [_product_to_record(product) for product in legacy_history],
                 )

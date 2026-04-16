@@ -40,6 +40,10 @@ class ProductResponse(BaseModel):
     descricao_completa: str | None
     grades: list[GradeItemPayload] | None = None
     cores: list[CorItemPayload] | None = None
+    source_type: str | None = None
+    import_batch_id: str | None = None
+    import_source_name: str | None = None
+    pending_grade_import: bool = False
     timestamp: datetime
     ordering_key: str
 

@@ -36,6 +36,10 @@ class RuntimePaths:
     def margin_file(self) -> Path:
         return self.data_dir / "margem.json"
 
+    @property
+    def auth_file(self) -> Path:
+        return self.data_dir / "auth.json"
+
 
 def build_runtime_paths() -> RuntimePaths:
     root_dir = Path(__file__).resolve().parents[3]

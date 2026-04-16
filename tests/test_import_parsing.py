@@ -1,37 +1,45 @@
 from __future__ import annotations
 
+import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from app.application.imports.parsing import (
+    analyze_parsed_document,
+    extract_structured_invoice_row_lines,
     filter_suspect_records,
     parse_candidate_content,
+    split_structured_invoice_chunks,
     split_text_chunks,
 )
 from app.application.products.service import ProductService
 from app.domain.metrics.entities import Metrics
 from app.domain.products.entities import Product
 from app.interfaces.api.http.jobs.runtime import run_import_job
-from app.interfaces.api.http.jobs.store import create_import_job, get_import_result, remove_import_job
+from app.interfaces.api.http.jobs.store import create_import_job, get_import_job, get_import_result, remove_import_job
 
 
 class _DummyRepo:
+    def __init__(self, items: list[Product] | None = None) -> None:
+        self.items = list(items or [])
+
     def list_active(self) -> list[Product]:
-        return []
+        return [Product.from_dict(item.to_dict()) for item in self.items]
 
     def list_history(self) -> list[Product]:
         return []
 
     def append_active(self, product: Product) -> None:
-        return None
+        self.items.append(Product.from_dict(product.to_dict()))
 
     def append_history(self, products: list[Product]) -> None:
         return None
 
     def replace_active(self, products: list[Product]) -> None:
-        return None
+        self.items = [Product.from_dict(item.to_dict()) for item in products]
 
 
 class _DummyBrands:
@@ -70,8 +78,9 @@ class _RecordingImportService:
             "atualizados_grades": 0,
         }
 
-    def create_many(self, products: list[Product]) -> None:
+    def create_many(self, products: list[Product]) -> list[Product]:
         self.created = list(products)
+        return list(products)
 
 
 class _FakeResponse:
@@ -183,6 +192,15 @@ class ImportParsingTests(unittest.TestCase):
         self.assertTrue(all(chunk for chunk in chunks))
         self.assertTrue(chunks[0].endswith("longa"))
 
+    def test_split_structured_invoice_chunks_preserves_complete_rows(self) -> None:
+        text = _sample_invoice_rows()
+
+        chunks = split_structured_invoice_chunks(text, max_lines=3, max_chars=500)
+
+        self.assertEqual(len(chunks), 3)
+        self.assertEqual(sum(len(extract_structured_invoice_row_lines(chunk)) for chunk in chunks), 8)
+        self.assertTrue(all(extract_structured_invoice_row_lines(chunk) for chunk in chunks))
+
     def test_compact_import_batch_keeps_same_code_with_different_prices_separate(self) -> None:
         service = ProductService(
             _DummyRepo(),
@@ -256,6 +274,51 @@ class ImportParsingTests(unittest.TestCase):
             ],
         )
 
+    def test_compact_import_batch_normalizes_zero_padded_grade_sizes_into_numeric_slots(self) -> None:
+        service = ProductService(
+            _DummyRepo(),
+            _DummyBrands(),
+            _DummyMarginStore(),
+            _DummyMetricsStore(),
+        )
+        payload = """
+        {"items":[
+          {"codigo":"1000108790","descricao_original":"CALCA JOGGER BASICO(A) Cor 00004 Tam 04","nome_curto":"CALCA JOGGER","quantidade":2,"preco":"33,49","tamanho":"04"},
+          {"codigo":"1000108790","descricao_original":"CALCA JOGGER BASICO(A) Cor 00004 Tam 06","nome_curto":"CALCA JOGGER","quantidade":3,"preco":"33,49","tamanho":"06"},
+          {"codigo":"1000108790","descricao_original":"CALCA JOGGER BASICO(A) Cor 00004 Tam 08","nome_curto":"CALCA JOGGER","quantidade":1,"preco":"33,49","tamanho":"08"}
+        ]}
+        """
+
+        parsed = parse_candidate_content(payload)
+        compacted, summary = service.compact_import_batch(parsed)
+
+        self.assertEqual(summary["resultantes"], 1)
+        self.assertEqual(
+            [(item.tamanho, item.quantidade) for item in (compacted[0].grades or [])],
+            [("4", 2), ("6", 3), ("8", 1)],
+        )
+
+    def test_analyze_parsed_document_flags_total_mismatch_against_printed_note(self) -> None:
+        analysis = analyze_parsed_document(
+            "VALOR TOTAL DOS PRODUTOS 19.214,49\nVALOR TOTAL DA NOTA 19.214,49",
+            [
+                Product(
+                    nome="CALCA JOGGER",
+                    codigo="1000108790",
+                    quantidade=1,
+                    preco="33,49",
+                    categoria="",
+                    marca="",
+                )
+            ],
+        )
+
+        self.assertTrue(analysis["warnings"])
+        self.assertIn("total extraido dos itens", analysis["warnings"][0].lower())
+        self.assertEqual(analysis["metrics"]["document_total_products"], "19214,49")
+        self.assertEqual(analysis["metrics"]["document_total_note"], "19214,49")
+        self.assertFalse(analysis["metrics"]["products_value_matches_document"])
+
     def test_compact_import_batch_merges_near_equal_llm_float_price_tiers(self) -> None:
         service = ProductService(
             _DummyRepo(),
@@ -286,7 +349,7 @@ class ImportParsingTests(unittest.TestCase):
             ],
         )
 
-    def test_run_import_job_still_runs_llm_when_local_structured_parser_finds_items(self) -> None:
+    def test_run_import_job_uses_only_llm_output_for_romaneio_selection(self) -> None:
         service = _RecordingImportService()
         job = create_import_job()
 
@@ -322,12 +385,286 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(result.total_itens, 8)
                 self.assertTrue(result.metrics["llm_upload_used"])
                 self.assertTrue(result.metrics["llm_chat_used"])
+                self.assertEqual(result.metrics["local_structured_candidates"], 8)
+                self.assertEqual(result.metrics["upload_structured_candidates"], 8)
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 1)
                 joggers = [item for item in service.created if item.codigo == "1000108790"]
                 self.assertEqual(len(joggers), 6)
         finally:
             remove_import_job(job.job_id)
+
+    def test_run_import_job_retries_incomplete_llm_chunk_with_smaller_structured_subchunks(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        upload_text = "\n".join(
+            [
+                "Qtd de Peças da Remessa: 12",
+                _sample_invoice_rows(),
+            ]
+        )
+        rows = _sample_invoice_rows().splitlines()
+        partial_llm_output = "\n".join(rows[:4])
+        retry_first_half = "\n".join(rows[:4])
+        retry_second_half = "\n".join(rows[4:])
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [{"name": "parte_1", "content": upload_text}],
+                        "images": [],
+                        "errors": [],
+                    }
+                )
+                with patch.dict(os.environ, {"LLM_IMPORT_RETRY_MAX_LINES": "4"}):
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            side_effect=[
+                                (partial_llm_output, None),
+                                (retry_first_half, None),
+                                (retry_second_half, None),
+                            ],
+                        ) as mocked_chat:
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=upload_text.encode("utf-8"),
+                                filename="romaneio.txt",
+                                content_type="text/plain",
+                                service=service,
+                                data_dir=data_dir,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["selected_source"], "llm")
+                self.assertEqual(result.metrics["upload_structured_candidates"], 8)
+                self.assertEqual(result.total_itens, 8)
+                self.assertTrue(result.metrics["llm_quantity_matches_remessa"])
+                self.assertIn("subdividindo o trecho", " ".join(result.warnings).lower())
+                self.assertEqual(fake_client.upload_calls, 1)
+                self.assertEqual(mocked_chat.call_count, 3)
+                self.assertEqual(len(service.created), 8)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_retries_when_llm_returns_same_count_but_wrong_chunk_tail(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        upload_text = "\n".join(
+            [
+                "Qtd de Peças da Remessa: 12",
+                _sample_invoice_rows(),
+            ]
+        )
+        rows = _sample_invoice_rows().splitlines()
+        same_count_wrong_tail = "\n".join(rows[:6] + rows[:2])
+        retry_first_half = "\n".join(rows[:4])
+        retry_second_half = "\n".join(rows[4:])
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [{"name": "parte_1", "content": upload_text}],
+                        "images": [],
+                        "errors": [],
+                    }
+                )
+                with patch.dict(os.environ, {"LLM_IMPORT_RETRY_MAX_LINES": "4"}):
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            side_effect=[
+                                (same_count_wrong_tail, None),
+                                (retry_first_half, None),
+                                (retry_second_half, None),
+                            ],
+                        ) as mocked_chat:
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=upload_text.encode("utf-8"),
+                                filename="romaneio.txt",
+                                content_type="text/plain",
+                                service=service,
+                                data_dir=data_dir,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["selected_source"], "llm")
+                self.assertTrue(result.metrics["llm_quantity_matches_remessa"])
+                self.assertGreaterEqual(int(result.metrics.get("llm_chunk_retry_count") or 0), 1)
+                self.assertIn("ultimo codigo", " ".join(result.warnings).lower())
+                self.assertEqual(mocked_chat.call_count, 3)
+                self.assertEqual(len(service.created), 8)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_blocks_persist_when_invoice_totals_still_do_not_match(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        upload_text = "\n".join(
+            [
+                "VALOR TOTAL DOS PRODUTOS 999,99",
+                "VALOR TOTAL DA NOTA 999,99",
+                _sample_invoice_rows(),
+            ]
+        )
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [{"name": "parte_1", "content": upload_text}],
+                        "images": [],
+                        "errors": [],
+                    }
+                )
+                with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                    with patch(
+                        "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                        return_value=(_sample_invoice_rows(), None),
+                    ):
+                        run_import_job(
+                            job_id=job.job_id,
+                            contents=upload_text.encode("utf-8"),
+                            filename="romaneio.txt",
+                            content_type="text/plain",
+                            service=service,
+                            data_dir=data_dir,
+                        )
+
+                status = get_import_job(job.job_id)
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(status)
+                assert status is not None
+                self.assertEqual(status.stage, "error")
+                self.assertIn("did not match the invoice validation checks", str(status.error))
+                self.assertIsNone(result)
+                self.assertEqual(len(service.created), 0)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_apply_post_processing_applies_local_safe_adjustments(self) -> None:
+        repo = _DummyRepo(
+            [
+                Product(
+                    nome="REGATA CROPPED [50CM] BASICO(A)",
+                    codigo="1000086766",
+                    quantidade=3,
+                    preco="20,37",
+                    categoria="",
+                    marca="",
+                    descricao_completa="REGATA CROPPED [50CM] BASICO(A) Cor 00004 Tam 12 *AB-CD* AD",
+                ),
+                Product(
+                    nome="CALA JOGGER BASICO(A)",
+                    codigo="1000108790",
+                    quantidade=2,
+                    preco="33,49",
+                    categoria="",
+                    marca="",
+                    descricao_completa="CALA JOGGER BASICO(A) Cor 00004 Tam 8",
+                ),
+            ]
+        )
+        service = ProductService(
+            repo,
+            _DummyBrands(),
+            _DummyMarginStore(),
+            _DummyMetricsStore(),
+        )
+
+        result = service.apply_post_processing(None)
+        items = service.list_products()
+
+        self.assertFalse(result["dry_run"])
+        self.assertEqual(result["modificados"], 2)
+        self.assertEqual(items[0].nome, "REGATA CROPPED BASICO")
+        self.assertEqual(items[0].preco, "20,40")
+        self.assertEqual(items[1].nome, "CALCA JOGGER BASICO")
+        self.assertEqual(items[1].preco, "33,50")
+
+    def test_apply_post_processing_uses_structured_llm_suggestion_when_confident(self) -> None:
+        product = Product(
+            nome="JAQUETA SOLIRA",
+            codigo="090840002",
+            quantidade=6,
+            preco="90,90",
+            categoria="",
+            marca="",
+            descricao_completa="JAQUETA SOLIRA *SA-FKII* AD",
+        )
+        repo = _DummyRepo([product])
+        service = ProductService(
+            repo,
+            _DummyBrands(),
+            _DummyMarginStore(),
+            _DummyMetricsStore(),
+        )
+
+        llm_payload = json.dumps(
+            {
+                "items": [
+                    {
+                        "ordering_key": product.ordering_key(),
+                        "nome_sugerido": "JAQUETA SOLAR",
+                        "codigo_sugerido": "090840002",
+                        "preco_sugerido": "90,91",
+                        "acoes": "ajustar_tudo",
+                        "confianca": 0.92,
+                    }
+                ]
+            }
+        )
+
+        result = service.apply_post_processing(llm_payload)
+        items = service.list_products()
+
+        self.assertEqual(result["llm_suggestions_applied"], 1)
+        self.assertEqual(items[0].nome, "JAQUETA SOLAR")
+        self.assertEqual(items[0].preco, "91,00")
+
+    def test_get_post_process_review_candidates_keeps_only_ambiguous_items_for_llm(self) -> None:
+        noisy = Product(
+            nome="REGATA CROPPED 50CM BASICO A COR",
+            codigo="1000086766",
+            quantidade=5,
+            preco="20,37",
+            categoria="",
+            marca="",
+            descricao_completa="REGATA CROPPED 50CM BASICO(A) COR 00004",
+        )
+        clean = Product(
+            nome="EMBALAGEM KRAFT MALWEE KIDS",
+            codigo="1000131724",
+            quantidade=3,
+            preco="19,00",
+            categoria="",
+            marca="",
+            descricao_completa="EMBALAGEM KRAFT MALWEE KIDS",
+        )
+        repo = _DummyRepo([noisy, clean])
+        service = ProductService(
+            repo,
+            _DummyBrands(),
+            _DummyMarginStore(),
+            _DummyMetricsStore(),
+        )
+
+        candidates = service.get_post_process_review_candidates()
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].codigo, noisy.codigo)
 
 
 if __name__ == "__main__":

@@ -137,6 +137,10 @@ const initialState: LoadState = {
   automation: {},
 };
 
+const APP_STAGE_WIDTH = 1720;
+const APP_STAGE_HEIGHT = 980;
+const APP_STAGE_PADDING = 8;
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -523,6 +527,10 @@ function normalizeUiFamiliesDraft(families: UiGradeFamily[], fallbackSizes: stri
 
 export default function App() {
   const [state, setState] = useState<LoadState>(initialState);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== "undefined" ? window.innerWidth : APP_STAGE_WIDTH,
+    height: typeof window !== "undefined" ? window.innerHeight : APP_STAGE_HEIGHT,
+  }));
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<ProductPayload>({
     nome: "",
@@ -858,6 +866,19 @@ export default function App() {
     }
     await restoreSnapshotState(snapshot);
   };
+
+  useEffect(() => {
+    const syncViewport = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => {
     queueRefresh(["products", "totals", "brands", "margin", "automation"]);
@@ -2289,30 +2310,54 @@ export default function App() {
   const importProcessLog = coerceImportProcessLog(importMetrics);
   const importWarnings = importResult?.warnings?.length ? importResult.warnings : [];
   const importValidationStatus = String(importMetrics["final_validation_status"] || importMetrics["local_validation_status"] || "").trim();
+  const stageScale = Math.min(
+    1,
+    Math.max(0.72, (viewport.width - APP_STAGE_PADDING * 2) / APP_STAGE_WIDTH),
+    Math.max(0.72, (viewport.height - APP_STAGE_PADDING * 2) / APP_STAGE_HEIGHT),
+  );
+  const stageWidth = APP_STAGE_WIDTH * stageScale;
+  const stageHeight = APP_STAGE_HEIGHT * stageScale;
 
   return (
-    <div className="shell">
+    <div className="shellViewport">
+      <div className="shellStage" style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}>
+        <div
+          className="shell"
+          style={{
+            width: `${APP_STAGE_WIDTH}px`,
+            height: `${APP_STAGE_HEIGHT}px`,
+            transform: `scale(${stageScale})`,
+          }}
+        >
       <main className="appShellTs">
         <aside className="leftPanelTs">
+          <div className="lojasyncBrandHeader">
+            <img src="/logo.png" alt="LojaSync" className="lojasyncLogoImg" />
+            <span className="lojasyncBrandName"><b>Loja</b>sync</span>
+          </div>
           <div className="actionsFloatingTs">
             <div className="panelActionCompact">
               <button className="iconShellButton" type="button" title="Configuracoes" onClick={() => void openSettingsModal()}>
-                CFG
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
-              <button className={`ghostButton compactButton ${simpleModeEnabled ? "activeToggle" : ""}`} type="button" onClick={handleToggleSimpleMode}>
-                {simpleModeEnabled ? "Modo completo" : "Modo simplificado"}
+              <button className={`ghostButton compactButton modeToggleButton ${simpleModeEnabled ? "activeToggle" : ""}`} type="button" onClick={handleToggleSimpleMode}>
+                {simpleModeEnabled ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M4 6h16M4 12h16M4 18h7"/></svg>Modo completo</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M4 6h16M4 12h8"/></svg>Modo simplificado</>}
               </button>
             </div>
 
             <div className="importStageTs">
+              <div className="stageHeaderTs">
+                <span className="sectionTag">Importacao</span>
+                <strong className="stageTitleTs">Entrada do romaneio</strong>
+              </div>
               <button className="primaryButton fullButton importButtonTs" disabled={importing || localExperimentLoading} onClick={() => void handleImportPrimaryClick()}>
-                {importing ? "Importando..." : "Importar Romaneio"}
+                {importing ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Importando...</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar Romaneio</> }
               </button>
               <button className="ghostButton fullButton importSecondaryButtonTs" disabled={importing || localExperimentLoading} onClick={() => void handleLocalExperimentClick()}>
-                {localExperimentLoading ? "Running Local Parsing..." : "Import With Local Parsing"}
+                {localExperimentLoading ? "Running Local Parsing..." : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Import With Local Parsing</>}
               </button>
               <label className="fileInput compactFileInput">
-                <span>{selectedFile ? selectedFile.name : "Selecionar arquivo do romaneio"}</span>
+                <span>{selectedFile ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{selectedFile.name}</> : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Selecionar arquivo do romaneio</>}</span>
                 <input
                   ref={importInputRef}
                   type="file"
@@ -2357,6 +2402,10 @@ export default function App() {
           </div>
 
           <section className="editorStageTs">
+            <div className="stageHeaderTs">
+              <span className="sectionTag">Cadastro rapido</span>
+              <strong className="stageTitleTs">Entrada manual</strong>
+            </div>
             <form className="productFormTs" onSubmit={(event) => event.preventDefault()} onKeyDown={handleProductFormKeyDown}>
               <div className={`formGridTs ${simpleModeEnabled ? "simpleModeGrid" : ""}`}>
                 <label className="inputFieldTs fieldNameTs">
@@ -2385,13 +2434,16 @@ export default function App() {
                   <input ref={priceInputRef} name="preco" value={form.preco} onChange={(event) => handleInputChange("preco", event.target.value)} placeholder="R$ 0,00" />
                 </label>
               </div>
-
             </form>
           </section>
 
           <section className="marginStageTs">
+            <div className="stageHeaderTs compactStageHeader">
+              <span className="sectionTag">Financeiro</span>
+              <strong className="stageTitleTs">Margem padrao da sessao</strong>
+            </div>
             <button className="toolButtonTs warning fullWidthToolButton" type="button" onClick={() => void runBusyAction("margem", handleMargin)}>
-              Margem <span className="marginBadgeTs">{state.marginPercentual.toFixed(1)}%</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Margem <span className="marginBadgeTs">{state.marginPercentual.toFixed(1)}%</span>
             </button>
           </section>
 
@@ -2432,51 +2484,40 @@ export default function App() {
 
         <section className="rightPanelTs">
           <section className="batchControlsTs">
-            <div className="batchPrimaryTs">
-              <span className="sectionTag">Centro de execucao</span>
-              <div className="batchPrimaryActionsTs">
-                <button className="actionButtonTs highlight large" type="button" onClick={() => void runBusyAction("cadastro-completo", handleStartComplete)}>
-                  Cadastro Completo
-                </button>
-                <button className="actionButtonTs highlight" type="button" onClick={() => void runBusyAction("executar-grades", handleExecuteGrades)}>
-                  Executar Grades
-                </button>
-                <button className="actionButtonTs accent large" type="button" onClick={() => void runBusyAction("cadastro-massa", async () => handleAutomationAction("catalog"))}>
-                  Executar Cadastro em Massa
-                </button>
-                <button className="actionButtonTs danger" type="button" onClick={() => void runBusyAction("parar", async () => handleAutomationAction("stop"))}>
-                  Parar
-                </button>
-              </div>
-            </div>
-
-            <div className="batchRightRail">
-              <div className="batchUtilityActionsTs">
-                <button className="toolButtonTs accent" type="button" onClick={() => void runBusyAction("importar-grades", handleJoinGrades)}>Importar Grades</button>
-                <button className="toolButtonTs accent" type="button" onClick={() => void runBusyAction("inserir-grade", openGradeModal)}>Inserir Grade</button>
-              </div>
-              <div className="progressSummaryTs">
-                <span className="sectionTag">Status da automacao</span>
-                <strong>Estado: {state.automation.estado || "idle"}</strong>
-                {state.automation.message ? <span className="automationStatusText">{state.automation.message}</span> : null}
-                <div className="progressBarTs">
+            <span className="sectionTag">Centro de execucao</span>
+            <div className="batchInlineRowTs">
+              <button className="actionButtonTs highlight completeActionButton large" type="button" onClick={() => void runBusyAction("cadastro-completo", handleStartComplete)}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polygon points="5 3 19 12 5 21 5 3"/></svg>Cadastro Completo
+              </button>
+              <button className="actionButtonTs highlight" type="button" onClick={() => void runBusyAction("executar-grades", handleExecuteGrades)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Executar Grades
+              </button>
+              <button className="actionButtonTs accent large" type="button" onClick={() => void runBusyAction("cadastro-massa", async () => handleAutomationAction("catalog"))}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Executar Cadastro
+              </button>
+              <button className="actionButtonTs danger" type="button" onClick={() => void runBusyAction("parar", async () => handleAutomationAction("stop"))}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>Parar
+              </button>
+              <span className="batchInlineDivider" aria-hidden="true" />
+              <button className="actionButtonTs secondaryInlineAction" type="button" onClick={() => void runBusyAction("importar-grades", handleJoinGrades)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar Grades
+              </button>
+              <button className="actionButtonTs secondaryInlineAction" type="button" onClick={() => void runBusyAction("inserir-grade", openGradeModal)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Inserir Grade
+              </button>
+              <aside className="compactAutomationStatusTs">
+                <strong>{state.automation.estado || "idle"}</strong>
+                <div className="progressBarTs compactProgressBarTs">
                   <div className="progressFillTs" style={{ width: automationProgressWidth }} />
                 </div>
-                {automationIsRunning && automationCurrentName ? (
-                  <div className="automationCurrentCard">
-                    <span className="automationCurrentLabel">Item em execucao</span>
-                    <strong>{automationCurrentName}</strong>
-                    {state.automation.item_atual && state.automation.total_itens ? (
-                      <small>{`Item ${state.automation.item_atual} de ${state.automation.total_itens}`}</small>
-                    ) : null}
-                    {automationTypedDescription ? <small>{`Texto enviado: ${automationTypedDescription}`}</small> : null}
-                  </div>
-                ) : null}
-                {automationError ? <div className="miniError">{automationError}</div> : null}
                 {incompleteGradeProducts.length ? (
-                  <div className="miniWarning">{`Cadastro Completo bloqueado: ${incompleteGradeProducts.length} item(ns) com grade pendente.`}</div>
+                  <small>{`${incompleteGradeProducts.length} grade pendente`}</small>
+                ) : automationError ? (
+                  <small>{automationError}</small>
+                ) : state.automation.message ? (
+                  <small>{state.automation.message}</small>
                 ) : null}
-              </div>
+              </aside>
             </div>
           </section>
 
@@ -2484,6 +2525,9 @@ export default function App() {
             <div className="listToolbarTs">
               <div className="listToolbarIntroTs">
                 <span className="toolsTitleTs">Ferramentas da lista</span>
+                <div className="listToolbarMetaTs">
+                  <span className="contextChipTs">{displayedProducts.length} itens ativos</span>
+                </div>
               </div>
 
               <div className="listContentTs">
@@ -2491,7 +2535,7 @@ export default function App() {
                   <span className="listGroupLabelTs">Edicao e estrutura</span>
                   <div className="listPrimaryActionsTs" role="group" aria-label="Acoes principais">
                     <button className={`toolButtonTs ${globalEditMode ? "activeToolButton" : ""}`} type="button" onClick={handleToggleGlobalEdit}>
-                      {globalEditMode ? "Finalizar Edicoes" : "Permitir Edicoes"}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{globalEditMode ? "Finalizar Edicoes" : "Permitir Edicoes"}
                     </button>
                     <button
                       className={`toolButtonTs ${showFormatCodesPanel ? "activeToolButton" : ""}`}
@@ -2501,7 +2545,7 @@ export default function App() {
                         setShowDescriptionPanel(false);
                       }}
                     >
-                      Formatar Codigos
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Formatar Codigos
                     </button>
                     <button
                       className={`toolButtonTs ${showDescriptionPanel ? "activeToolButton" : ""}`}
@@ -2511,24 +2555,24 @@ export default function App() {
                         setShowFormatCodesPanel(false);
                       }}
                     >
-                      Melhorar Descricao
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Melhorar Descricao
                     </button>
                     <button
                       className="toolButtonTs aiReviewButton"
                       type="button"
                       onClick={() => void runBusyAction("revisar-itens-ia", handleStartPostProcess)}
                     >
-                      {postProcessing ? "Revisando com IA..." : "Revisar Itens com IA"}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>{postProcessing ? "Revisando com IA..." : "Revisar Itens com IA"}
                     </button>
-                    <button className={`toolButtonTs accent ${orderingMode ? "activeToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", handleToggleOrdering)}>
-                      {orderingMode ? "Salvar Ordem" : "Ordenar Lista"}
+                    <button className={`toolButtonTs accent orderingToolButton ${orderingMode ? "activeToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", handleToggleOrdering)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>Ordenar Lista
                     </button>
                     <button className={`toolButtonTs accent ${createSetMode ? "activeToolButton" : ""}`} type="button" onClick={handleToggleCreateSets}>
-                      {createSetMode ? `Selecionar ${Math.max(0, 2 - createSetKeys.length)} item(ns)` : "Criar Conjuntos"}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="2" y="3" width="9" height="9"/><rect x="13" y="3" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><path d="M17.5 17.5 22 22M13 17.5h9M17.5 13v9"/></svg>{createSetMode ? `Selecionar ${Math.max(0, 2 - createSetKeys.length)} item(ns)` : "Criar Conjuntos"}
                     </button>
-                    <button className="toolButtonTs success" type="button" onClick={() => void runBusyAction("juntar-repetidos", handleJoinDuplicates)}>Juntar Repetidos</button>
+                    <button className="toolButtonTs success" type="button" onClick={() => void runBusyAction("juntar-repetidos", handleJoinDuplicates)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M8 17l4 4 4-4"/><path d="M12 12v9"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Juntar Repetidos</button>
                     <button className="toolButtonTs danger" type="button" onClick={() => void runBusyAction("limpar-lista", handleClearProducts)}>
-                      Limpar Lista
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Limpar Lista
                     </button>
                   </div>
                 </div>
@@ -2635,7 +2679,7 @@ export default function App() {
 
           <section className={`tableWrapperTs ${orderingMode ? "orderingModeActive" : ""}`}>
             <div className="tableScrollTs">
-              <table>
+              <table className="productsTableTs">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -2747,10 +2791,10 @@ export default function App() {
                         <td>{renderCellContent(product, "preco_final", product.preco_final || product.preco || "-")}</td>
                         <td>{renderCellContent(product, "categoria", product.categoria || "-")}</td>
                         <td>
-                          <div className="rowActionStack">
+                          <div className={`rowActionStack ${orderingMode ? "orderingRowActionStack" : ""}`}>
                             {orderingMode ? (
-                              <span className={`orderingSelectionBadge ${selectionPosition ? "activeOrderingSelectionBadge" : ""}`}>
-                                {selectionPosition ? `Posicao ${selectionPosition}` : "Use as setas para ordenar"}
+                              <span className={`orderingSelectionBadge compactOrderingSelectionBadge ${selectionPosition ? "activeOrderingSelectionBadge" : ""}`}>
+                                {selectionPosition ? `${selectionPosition}` : "•"}
                               </span>
                             ) : null}
                             {isAutomationCurrentRow ? <span className="automationCurrentBadge">Em execucao</span> : null}
@@ -2764,19 +2808,21 @@ export default function App() {
                                 </button>
                               </>
                             ) : null}
-                            <button
-                              className="rowLink dangerRowLink"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void runBusyAction(`excluir-${product.ordering_key}`, async () => {
-                                  pushUndoSnapshot();
-                                  await deleteProduct(product.ordering_key);
-                                  queueRefresh(["products", "totals"]);
-                                });
-                              }}
-                            >
-                              Excluir
-                            </button>
+                            {!orderingMode ? (
+                              <button
+                                className="rowLink dangerRowLink"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void runBusyAction(`excluir-${product.ordering_key}`, async () => {
+                                    pushUndoSnapshot();
+                                    await deleteProduct(product.ordering_key);
+                                    queueRefresh(["products", "totals"]);
+                                  });
+                                }}
+                              >
+                                Excluir
+                              </button>
+                            ) : null}
                             {createSetMode ? <span className="selectionHint">{createSetKeys.includes(product.ordering_key) ? "Selecionado" : "Selecionar"}</span> : null}
                           </div>
                         </td>
@@ -2796,6 +2842,8 @@ export default function App() {
           </section>
         </section>
       </main>
+        </div>
+      </div>
       {settingsOpen ? (
         <div className="settingsModalBackdrop" onClick={closeSettingsModal}>
           <section className="settingsModalShell" onClick={(event) => event.stopPropagation()}>

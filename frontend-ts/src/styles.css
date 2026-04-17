@@ -1,20 +1,48 @@
 :root {
   color-scheme: dark;
-  --bg: #07101d;
-  --panel: rgba(9, 16, 29, 0.96);
-  --panel-alt: rgba(11, 19, 33, 0.9);
-  --field: rgba(6, 13, 26, 0.82);
-  --line: rgba(148, 163, 184, 0.14);
-  --line-strong: rgba(96, 165, 250, 0.18);
-  --text: #edf4ff;
-  --muted: rgba(191, 203, 226, 0.76);
-  --accent: #ffb34f;
-  --blue: #2990ff;
-  --violet: #8054ff;
-  --danger: #f14848;
-  --success: #2fd27f;
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
+  --bg: #0e1117;
+  --surface: #161b25;
+  --surface-2: #1c2333;
+  --surface-3: #212840;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --text: #e8edf5;
+  --text-2: rgba(180, 192, 212, 0.9);
+  --text-3: rgba(140, 155, 180, 0.8);
+  --green: #4ade80;
+  --green-dim: rgba(74, 222, 128, 0.12);
+  --green-border: rgba(74, 222, 128, 0.25);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96, 165, 250, 0.1);
+  --blue-border: rgba(96, 165, 250, 0.22);
+  --red: #f87171;
+  --red-dim: rgba(248, 113, 113, 0.1);
+  --red-border: rgba(248, 113, 113, 0.22);
+  --amber: #fbbf24;
+  --amber-dim: rgba(251, 191, 36, 0.1);
+  --amber-border: rgba(251, 191, 36, 0.22);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167, 139, 250, 0.1);
+  --purple-border: rgba(167, 139, 250, 0.22);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   font-family: "Space Grotesk", system-ui, sans-serif;
+  /* legacy compat */
+  --panel: var(--surface);
+  --panel-alt: var(--surface-2);
+  --field: var(--surface);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --muted: var(--text-3);
+  --accent: var(--amber);
+  --violet: var(--purple);
+  --danger: var(--red);
+  --success: var(--green);
 }
 
 * {
@@ -31,9 +59,9 @@ body {
   margin: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, rgba(88, 28, 135, 0.12), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.12), transparent 30%),
-    linear-gradient(180deg, #060d18 0%, #08101c 100%);
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 24%),
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.12), transparent 28%),
+    #0e1117;
   color: var(--text);
 }
 
@@ -47,10 +75,8 @@ body {
 .authCard,
 .securityPanel,
 .securityBar {
-  border: 1px solid var(--line);
-  background:
-    linear-gradient(180deg, rgba(12, 19, 32, 0.96), rgba(6, 11, 20, 0.94)),
-    var(--panel);
+  border: 1px solid var(--border);
+  background: var(--surface);
   box-shadow: var(--shadow);
 }
 
@@ -158,39 +184,48 @@ button {
   border: none;
 }
 
+.shellViewport {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.shellStage {
+  position: relative;
+}
+
 .shell {
-  width: min(1920px, 99vw);
-  height: calc(100vh - 20px);
-  margin: 10px auto;
+  margin: 0;
+  transform-origin: top left;
 }
 
 .appShellTs {
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(286px, 320px) minmax(0, 1fr);
+  gap: 8px;
 }
 
 .leftPanelTs,
 .rightPanelTs {
   min-height: 0;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-radius: 24px;
-  border: 1px solid var(--line);
+  gap: 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    linear-gradient(180deg, rgba(12, 19, 32, 0.96), rgba(6, 11, 20, 0.94)),
-    var(--panel);
+    linear-gradient(180deg, rgba(24, 30, 43, 0.96), rgba(19, 24, 35, 0.98));
   box-shadow: var(--shadow);
   overflow: hidden;
 }
 
 .leftPanelTs {
   justify-content: flex-start;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 .rightPanelTs {
@@ -205,9 +240,11 @@ button {
 
 .panelActionCompact {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
+  padding: 4px 0 0;
+  width: 100%;
 }
 
 .iconShellButton,
@@ -216,43 +253,59 @@ button {
 .actionButtonTs,
 .toolButtonTs,
 .rowLink {
-  border-radius: 14px;
-  cursor: pointer;
-  transition: transform 140ms ease, filter 140ms ease, border-color 140ms ease, background 140ms ease;
-}
-
-.iconShellButton {
-  width: 38px;
-  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text);
-  background: rgba(17, 28, 47, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 140ms ease, filter 140ms ease, border-color 140ms ease, background 140ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.iconShellButton {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
 }
 
 .ghostButton,
 .toolButtonTs {
-  min-height: 34px;
-  padding: 8px 13px;
-  color: var(--text);
-  background: rgba(29, 40, 61, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  min-height: 36px;
+  padding: 7px 12px;
+  color: #cdd6e8;
+  background: rgba(29, 38, 54, 0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 0.83rem;
+  font-weight: 600;
+  gap: 6px;
 }
 
 .compactButton {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 38px;
   justify-content: center;
 }
 
+.modeToggleButton {
+  font-size: 0.8rem;
+}
+
 .primaryButton {
-  min-height: 46px;
-  padding: 11px 18px;
-  font-weight: 700;
-  color: #1c1000;
-  background: linear-gradient(135deg, #7f33ff 0%, #aa58ff 30%, #ffb34f 100%);
+  min-height: 38px;
+  padding: 8px 16px;
+  font-weight: 600;
+  color: #1a0800;
+  background: linear-gradient(135deg, #7f33ff 0%, #ad63ff 46%, #ffb55c 100%);
+  border: 1px solid rgba(255, 179, 79, 0.34);
+  letter-spacing: 0.01em;
+  gap: 7px;
 }
 
 .fullButton {
@@ -267,12 +320,14 @@ button {
 .listToolbarTs,
 .tableWrapperTs {
   position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
   background:
-    linear-gradient(180deg, rgba(13, 21, 36, 0.92), rgba(8, 13, 23, 0.88)),
-    var(--panel-alt);
+    linear-gradient(180deg, rgba(30, 37, 52, 0.98), rgba(24, 30, 43, 0.98));
+}
+
+.tableWrapperTs {
+  overflow: hidden;
 }
 
 .importStageTs,
@@ -280,7 +335,7 @@ button {
 .marginStageTs,
 .summaryStageTs,
 .listToolbarTs {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .batchControlsTs,
@@ -289,7 +344,7 @@ button {
 }
 
 .batchControlsTs {
-  padding-top: 14px;
+  padding-top: 10px;
   overflow: visible;
 }
 
@@ -300,11 +355,7 @@ button {
 .batchControlsTs::before,
 .listToolbarTs::before,
 .tableWrapperTs::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%);
+  content: none;
 }
 
 .importButtonTs {
@@ -403,9 +454,9 @@ button {
   position: relative;
   display: block;
   width: 100%;
-  min-height: 44px;
-  padding: 11px 14px;
-  border-radius: 14px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 12px;
   border: 1px solid rgba(96, 165, 250, 0.12);
   background: var(--field);
   color: var(--text);
@@ -478,7 +529,7 @@ button {
 .experimentPreviewGradesTs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 5px;
   align-items: center;
   justify-content: space-between;
 }
@@ -503,7 +554,7 @@ button {
 
 .message {
   margin-top: 7px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.1);
   background: rgba(255, 255, 255, 0.03);
@@ -525,13 +576,14 @@ button {
 .productFormTs {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .formGridTs {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px 10px;
+  gap: 8px 6px;
+  width: 100%;
 }
 
 .inputFieldTs {
@@ -549,12 +601,13 @@ button {
 .inputFieldTs select,
 .brandComposerTs input {
   width: 100%;
-  min-height: 38px;
-  padding: 9px 11px;
-  border-radius: 14px;
-  border: 1px solid rgba(96, 165, 250, 0.1);
-  background: var(--field);
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #111827;
   color: var(--text);
+  font-size: 0.83rem;
 }
 
 .fieldNameTs {
@@ -602,8 +655,10 @@ button {
 }
 
 .marginStageTs {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  display: grid;
+  gap: 8px;
 }
 
 .fullWidthToolButton {
@@ -612,7 +667,26 @@ button {
 }
 
 .stageHeaderTs {
-  margin-bottom: 6px;
+  display: grid;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.compactStageHeader {
+  margin-bottom: 2px;
+}
+
+.stageTitleTs,
+.sectionTitleTs {
+  color: rgba(248, 250, 252, 0.98);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sectionTitleTs {
+  margin: 4px 0 0;
+  font-size: 1.05rem;
 }
 
 .sectionTag,
@@ -620,28 +694,29 @@ button {
 .listGroupLabelTs {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-family: "IBM Plex Mono", monospace;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.72rem;
-  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  font-weight: 600;
   line-height: 1.2;
+  color: var(--text-3);
 }
 
 .totalsBoardTs {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .totalsSectionTs {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 11px 12px 9px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: linear-gradient(180deg, rgba(8, 14, 26, 0.84), rgba(11, 17, 29, 0.72));
+  padding: 10px 11px 8px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-3);
 }
 
 .totalsSectionHeadTs {
@@ -652,7 +727,7 @@ button {
 }
 
 .totalsGroupTitleTs {
-  font-size: 1rem;
+  font-size: 0.96rem;
   color: rgba(248, 250, 252, 0.96);
 }
 
@@ -670,21 +745,21 @@ button {
 }
 
 .totalsChipTs.live {
-  background: rgba(14, 165, 233, 0.14);
-  border: 1px solid rgba(125, 211, 252, 0.18);
-  color: rgba(224, 242, 254, 0.92);
+  background: var(--green-dim);
+  border: 1px solid var(--green-border);
+  color: var(--green);
 }
 
 .totalsChipTs.muted {
-  background: rgba(71, 85, 105, 0.16);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  color: rgba(203, 213, 225, 0.84);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  color: var(--text-3);
 }
 
 .totalsRowsTs {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .totalsRowTs {
@@ -703,100 +778,143 @@ button {
 
 .totalsRowTs span {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.77rem;
 }
 
 .totalsRowTs strong {
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .batchControlsTs {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: 12px;
+  gap: 4px;
+  align-items: start;
+  justify-items: stretch;
   width: 100%;
 }
 
-.batchPrimaryTs {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.batchRightRail {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 10px;
-  align-items: stretch;
-}
-
-.batchUtilityActionsTs {
+.batchInlineRowTs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  align-content: flex-start;
+  padding-right: 190px;
+  min-height: 44px;
+}
+
+.listToolbarMetaTs {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  min-width: 200px;
-}
-
-.batchPrimaryActionsTs {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-
-.actionButtonTs {
-  min-height: 42px;
-  padding: 10px 16px;
-  font-weight: 700;
-  color: #f8fbff;
-  white-space: nowrap;
-}
-
-.actionButtonTs.large {
-  min-height: 46px;
-  padding: 12px 18px;
-}
-
-.actionButtonTs.highlight {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.96), rgba(37, 99, 235, 0.94));
-  border: 1px solid rgba(125, 211, 252, 0.34);
-}
-
-.actionButtonTs.accent {
-  background: linear-gradient(135deg, rgba(103, 76, 255, 0.96), rgba(140, 92, 242, 0.94));
-  border: 1px solid rgba(180, 162, 255, 0.28);
-}
-
-.actionButtonTs.danger {
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.96), rgba(239, 68, 68, 0.92));
-  border: 1px solid rgba(254, 202, 202, 0.18);
-}
-
-.actionButtonTs.danger.soft {
-  background: linear-gradient(135deg, rgba(176, 30, 30, 0.9), rgba(220, 38, 38, 0.82));
-}
-
-.progressSummaryTs {
-  width: min(280px, 100%);
-  padding: 8px 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.44);
-  display: flex;
-  flex-direction: column;
   gap: 6px;
 }
 
-.progressSummaryTs strong {
-  font-size: 0.9rem;
+.contextChipTs {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(12, 18, 31, 0.82);
+  color: rgba(219, 229, 244, 0.96);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
-.automationStatusText {
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
+.warningContextChip {
+  color: #ffe2b3;
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(69, 46, 7, 0.82);
+}
+
+.actionButtonTs {
+  min-height: 38px;
+  width: auto;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.84rem;
+  color: #fff;
+  justify-content: center;
+  background: rgba(37, 46, 65, 0.98);
+  border: 1px solid rgba(255,255,255,0.12);
+  letter-spacing: 0.01em;
+  gap: 7px;
+}
+
+.actionButtonTs.large {
+  min-height: 42px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+}
+
+.secondaryInlineAction {
+  background: rgba(43, 54, 77, 0.96);
+}
+
+.batchInlineDivider {
+  width: 1px;
+  height: 28px;
+  margin: 0 2px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+/* Azul: acao de execucao principal */
+.actionButtonTs.highlight {
+  color: #fff;
+  background: #1a65d6;
+  border: 1px solid #4389f5;
+  box-shadow: 0 0 0 1px rgba(67,137,245,0.2);
+}
+
+.actionButtonTs.completeActionButton {
+  background: linear-gradient(135deg, #0f7ae5 0%, #22c1c3 100%);
+  border-color: rgba(103, 232, 249, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Roxo: executar em massa */
+.actionButtonTs.accent {
+  color: #fff;
+  background: #6d28d9;
+  border: 1px solid #8b5cf6;
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.2);
+}
+
+/* Vermelho: parar / destrutivo */
+.actionButtonTs.danger {
+  color: #fff;
+  background: #c81c1c;
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 0 1px rgba(239,68,68,0.2);
+}
+
+.actionButtonTs.danger.soft {
+  background: #b91c1c;
+  border-color: #dc2626;
+}
+
+.compactAutomationStatusTs {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  min-width: 150px;
+  width: 172px;
+  padding: 7px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(12, 18, 31, 0.88);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.compactAutomationStatusTs strong {
+  font-size: 0.8rem;
+  text-transform: capitalize;
 }
 
 .progressBarTs {
@@ -810,8 +928,18 @@ button {
 .progressFillTs {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(148, 51, 234, 0.95), rgba(59, 130, 246, 0.95));
-  box-shadow: 0 0 20px rgba(140, 92, 242, 0.35);
+  background: var(--green);
+  transition: width 400ms ease;
+}
+
+.compactProgressBarTs {
+  height: 6px;
+}
+
+.compactAutomationStatusTs small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
 }
 
 .miniError {
@@ -821,35 +949,8 @@ button {
 
 .miniWarning {
   color: #ffd37d;
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
-.automationCurrentCard {
-  display: grid;
-  gap: 4px;
-  padding: 9px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(96, 165, 250, 0.18);
-  background: rgba(17, 28, 47, 0.62);
-}
-
-.automationCurrentCard strong {
-  font-size: 0.84rem;
-}
-
-.automationCurrentCard small {
-  color: var(--muted);
   font-size: 0.74rem;
-  line-height: 1.4;
-}
-
-.automationCurrentLabel {
-  color: rgba(147, 197, 253, 0.96);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  line-height: 1.3;
 }
 
 .listControlsTs {
@@ -858,7 +959,10 @@ button {
 
 .listToolbarIntroTs {
   display: flex;
-  padding-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
 }
 
@@ -869,28 +973,27 @@ button {
 .listContentTs {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 10px;
+  gap: 6px;
+  padding-top: 6px;
 }
 
 .listHeadTs {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .listGroupLabelTs::before {
   content: "";
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(59, 130, 246, 0.92));
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+  background: var(--blue);
 }
 
 .listGroupLabelTs.secondary::before {
-  background: linear-gradient(135deg, rgba(140, 92, 242, 0.9), rgba(181, 128, 255, 0.92));
-  box-shadow: 0 0 16px rgba(140, 92, 242, 0.3);
+  background: var(--purple);
 }
 
 .listPrimaryActionsTs,
@@ -900,11 +1003,20 @@ button {
   gap: 7px;
 }
 
+.listPrimaryActionsTs {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.orderingToolButton {
+  min-width: 148px;
+}
+
 .toolConfigPanel {
   display: grid;
   gap: 12px;
-  padding: 12px;
-  border-radius: 18px;
+  padding: 10px;
+  border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(9, 16, 29, 0.78);
 }
@@ -984,39 +1096,53 @@ button {
 
 .toolButtonTs {
   min-height: 34px;
-  padding: 7px 13px;
-  font-weight: 700;
+  padding: 7px 12px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: #dde5f0;
 }
 
 .activeToolButton,
 .activeToggle {
-  border-color: rgba(125, 211, 252, 0.34);
-  background: rgba(37, 99, 235, 0.22);
+  border-color: var(--blue-border);
+  background: var(--blue-dim);
+  color: var(--blue);
 }
 
+/* Roxo escuro: Ordenar Lista */
 .toolButtonTs.accent {
-  background: rgba(49, 67, 170, 0.46);
-  border-color: rgba(96, 165, 250, 0.24);
+  color: #e9d5ff;
+  background: #3b1f6b;
+  border-color: #7c3aed;
 }
 
+/* Azul-petróleo: Juntar Repetidos */
 .toolButtonTs.success {
-  background: rgba(7, 108, 90, 0.42);
-  border-color: rgba(52, 211, 153, 0.22);
+  color: #bae6fd;
+  background: #0c3655;
+  border-color: #38bdf8;
 }
 
+/* Ciano: IA (Revisar Itens com IA) */
 .toolButtonTs.aiReviewButton {
-  background: rgba(16, 110, 109, 0.36);
-  border-color: rgba(45, 212, 191, 0.26);
+  color: #a5f3fc;
+  background: #164e63;
+  border-color: #22d3ee;
 }
 
+/* Amarelo ouro: configuracao financeira (Margem) */
 .toolButtonTs.warning {
-  background: rgba(170, 105, 0, 0.32);
-  border-color: rgba(251, 191, 36, 0.22);
+  color: #1a0f00;
+  background: #f59e0b;
+  border-color: #fbbf24;
+  font-weight: 700;
 }
 
+/* Vermelho suave: destrutivo (Limpar Lista) */
 .toolButtonTs.danger {
-  background: rgba(127, 29, 29, 0.46);
-  border-color: rgba(248, 113, 113, 0.24);
+  color: #fecaca;
+  background: #7f1d1d;
+  border-color: #ef4444;
 }
 
 .marginBadgeTs {
@@ -1027,12 +1153,19 @@ button {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  padding: 0;
 }
 
 .tableScrollTs {
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
+  padding: 0 6px 6px;
+}
+
+.productsTableTs {
+  min-width: 980px;
+  table-layout: fixed;
 }
 
 table {
@@ -1041,24 +1174,27 @@ table {
 }
 
 thead {
-  background: rgba(9, 16, 29, 0.96);
+  background: var(--surface-2);
 }
 
 th,
 td {
-  padding: 10px 9px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--border);
   text-align: left;
+  font-size: 0.84rem;
 }
 
 th {
   position: sticky;
   top: 0;
   z-index: 2;
-  color: var(--muted);
-  font-size: 0.8rem;
+  color: var(--text-3);
+  font-size: 0.72rem;
   font-weight: 600;
-  background: rgba(11, 18, 31, 0.98);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface-2);
   backdrop-filter: blur(8px);
 }
 
@@ -1067,8 +1203,19 @@ td:nth-child(1) {
   width: 52px;
 }
 
+th:nth-child(2),
+td:nth-child(2) {
+  width: 29%;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+  width: 11%;
+}
+
 th:nth-child(4),
 td:nth-child(4) {
+  width: 13%;
   font-family: Consolas, "SFMono-Regular", "Courier New", monospace;
 }
 
@@ -1078,7 +1225,18 @@ th:nth-child(7),
 td:nth-child(5),
 td:nth-child(6),
 td:nth-child(7) {
+  width: 8%;
   text-align: right;
+}
+
+th:nth-child(8),
+td:nth-child(8) {
+  width: 11%;
+}
+
+th:nth-child(9),
+td:nth-child(9) {
+  width: 116px;
 }
 
 .bulkHeaderCell {
@@ -1176,11 +1334,11 @@ td:nth-child(7) {
 }
 
 tbody tr:nth-child(even) {
-  background: rgba(10, 18, 32, 0.72);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 tbody tr:hover {
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .orderingModeActive tbody tr {
@@ -1188,20 +1346,20 @@ tbody tr:hover {
 }
 
 .selectedRow {
-  background: rgba(99, 102, 241, 0.12) !important;
+  background: var(--blue-dim) !important;
 }
 
 .automationCurrentRow {
-  background: rgba(37, 99, 235, 0.14) !important;
+  background: rgba(74, 222, 128, 0.06) !important;
 }
 
 .automationCurrentRow td {
-  border-bottom-color: rgba(96, 165, 250, 0.2);
+  border-bottom-color: var(--green-border);
 }
 
 .orderedRow {
-  background: rgba(92, 57, 191, 0.12) !important;
-  box-shadow: inset 0 3px 0 rgba(128, 84, 255, 0.9);
+  background: var(--purple-dim) !important;
+  box-shadow: inset 3px 0 0 var(--purple);
 }
 
 .rowLink {
@@ -1239,6 +1397,14 @@ tbody tr:hover {
   gap: 4px;
 }
 
+.nameCellButton,
+.nameCellStack strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .automationPreviewText {
   color: rgba(147, 197, 253, 0.92);
   font-size: 0.72rem;
@@ -1264,9 +1430,14 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   min-height: 24px;
   flex-wrap: wrap;
+}
+
+.orderingRowActionStack {
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 
 .rowMiniButton {
@@ -1277,10 +1448,6 @@ tbody tr:hover {
   background: rgba(29, 40, 61, 0.72);
   color: var(--text);
   cursor: pointer;
-}
-
-.orderingModeActive .rowMiniButton {
-  display: none;
 }
 
 .dangerMiniButton {
@@ -1301,6 +1468,11 @@ tbody tr:hover {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.compactOrderingSelectionBadge {
+  min-width: 26px;
+  padding: 0 8px;
 }
 
 .activeOrderingSelectionBadge {
@@ -1347,10 +1519,10 @@ tbody tr:hover {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
   padding: 18px;
-  border-radius: 28px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: linear-gradient(180deg, rgba(10, 16, 29, 0.98), rgba(7, 12, 22, 0.96));
-  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.42);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .settingsModalHeader,
@@ -1386,9 +1558,9 @@ tbody tr:hover {
   align-content: start;
   gap: 12px;
   padding: 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(12, 20, 35, 0.76);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   overflow: auto;
 }
 
@@ -1512,12 +1684,10 @@ tbody tr:hover {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
   padding: 18px;
-  border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background:
-    linear-gradient(180deg, rgba(12, 19, 32, 0.98), rgba(6, 11, 20, 0.96)),
-    var(--panel);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .gradeModalHeader,
@@ -1551,9 +1721,9 @@ tbody tr:hover {
 .gradeModalEditor {
   min-height: 0;
   padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  background: rgba(10, 18, 32, 0.78);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 .gradeModalProductList {
@@ -1566,12 +1736,12 @@ tbody tr:hover {
 .gradeProductRow {
   display: grid;
   gap: 4px;
-  padding: 11px 12px;
+  padding: 10px 12px;
   text-align: left;
   color: var(--text);
-  background: rgba(17, 28, 47, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 14px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .gradeProductRowHead {
@@ -1620,8 +1790,8 @@ tbody tr:hover {
 }
 
 .activeGradeProductRow {
-  border-color: rgba(96, 165, 250, 0.34);
-  background: rgba(37, 99, 235, 0.18);
+  border-color: var(--blue-border);
+  background: var(--blue-dim);
 }
 
 .gradeModalEditor {
@@ -1906,7 +2076,7 @@ tbody tr:hover {
 }
 
 .emptyState {
-  padding: 20px 10px;
+  padding: 26px 10px;
   color: var(--muted);
 }
 
@@ -1916,8 +2086,8 @@ tbody tr:hover {
 .actionButtonTs:hover,
 .toolButtonTs:hover,
 .rowLink:hover {
+  filter: brightness(1.12);
   transform: translateY(-1px);
-  filter: brightness(1.03);
 }
 
 button:disabled {
@@ -1927,42 +2097,35 @@ button:disabled {
 }
 
 @media (max-width: 1480px) {
-  .appShellTs {
-    grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  .batchInlineRowTs {
+    gap: 8px;
+    padding-right: 0;
+    min-height: 0;
   }
 
-  .batchControlsTs {
-    width: 100%;
-    grid-template-columns: 1fr;
+  .compactAutomationStatusTs {
+    position: static;
+    width: auto;
+    min-width: 0;
   }
 
-  .batchPrimaryActionsTs {
-    flex-wrap: wrap;
+  .listToolbarIntroTs {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .listHeadTs {
+    align-items: flex-start;
+  }
+
+  .listToolbarMetaTs {
+    justify-content: flex-start;
   }
 }
 
 @media (max-width: 1180px) {
-  body {
-    overflow: auto;
-  }
-
   .securityPanel {
     grid-template-columns: 1fr;
-  }
-
-  .shell {
-    height: auto;
-    min-height: calc(100vh - 20px);
-  }
-
-  .appShellTs {
-    height: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .leftPanelTs,
-  .rightPanelTs {
-    min-height: auto;
   }
 
   .inlineActionsTs,
@@ -1972,6 +2135,10 @@ button:disabled {
   .gradeModalBody,
   .gradeModalMeta {
     grid-template-columns: 1fr;
+  }
+
+  .toolConfigGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1991,4 +2158,45 @@ button:disabled {
   .securityPanelActions .primaryButton {
     flex: 1;
   }
+
+  .toolConfigGrid,
+  .settingsFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .productsTableTs {
+    min-width: 980px;
+  }
+}
+
+/* ── LojaSync Brand Header ─────────────────────────────────── */
+.lojasyncBrandHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 8px 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.lojasyncLogoImg {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.lojasyncBrandName {
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+  font-weight: 400;
+}
+
+.lojasyncBrandName b {
+  color: var(--green);
+  font-weight: 800;
 }

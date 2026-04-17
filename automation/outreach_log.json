@@ -1,0 +1,26 @@
+[
+  {
+    "timestamp": "2026-04-17T12:27:14.345787",
+    "lead_id": 2,
+    "canal": "whatsapp",
+    "mensagem": "Oi Loja Modelo 2! Sua loja parece ter muitos produtos. O LojaSync automatiza cadastro de NFs e grades em minutos. Posso mostrar como funciona?",
+    "resultado": {
+      "sucesso": true,
+      "timestamp": "2026-04-17T12:27:14.301876",
+      "telefone": "(11) 99999-0002",
+      "canal": "whatsapp"
+    }
+  },
+  {
+    "timestamp": "2026-04-17T12:27:19.391634",
+    "lead_id": 1,
+    "canal": "whatsapp",
+    "mensagem": "Oi Loja Modelo 1! Sua loja parece ter muitos produtos. O LojaSync automatiza cadastro de NFs e grades em minutos. Posso mostrar como funciona?",
+    "resultado": {
+      "sucesso": true,
+      "timestamp": "2026-04-17T12:27:19.354912",
+      "telefone": "(11) 99999-0001",
+      "canal": "whatsapp"
+    }
+  }
+]

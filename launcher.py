@@ -1,74 +1,70 @@
+"""LojaSync Launcher — entry point.
+
+Refactored from monolithic 600-line file into modular structure:
+- app.bootstrap.launcher.env    — configuration & defaults
+- app.bootstrap.launcher.net    — networking utilities
+- app.bootstrap.launcher.frontend — TS build & frontend serving
+
+Usage: python launcher.py [--host HOST] [--backend-port PORT] ...
+"""
 from __future__ import annotations
 
 import argparse
 import importlib
 import os
-import shutil
-import socket
 import subprocess
 import sys
 import threading
 import time
 import webbrowser
 from contextlib import suppress
-from http.server import SimpleHTTPRequestHandler
-from pathlib import Path
 from typing import Any, Callable, Optional
 
 import uvicorn
 
 from app.interfaces.api.http.app import create_app
 
+# Import refactored modules
+from app.bootstrap.launcher.env import (
+    DEFAULT_AUTH_ENABLED,
+    DEFAULT_AUTH_PORT,
+    DEFAULT_BACKEND_PORT,
+    DEFAULT_BROWSER_HOST,
+    DEFAULT_FRONTEND_PORT,
+    DEFAULT_HOST,
+    DEFAULT_LLM_BIND,
+    DEFAULT_LLM_HOST,
+    DEFAULT_LLM_MONITOR_ENABLED,
+    DEFAULT_LLM_MONITOR_PORT,
+    DEFAULT_LLM_PORT,
+    ENGINE_DIR,
+    FRONTEND_TS_DIR,
+    PERFORMANCE_DEFAULTS,
+    ROOT_DIR,
+    _coerce_int,
+    _param_value,
+)
+from app.bootstrap.launcher.net import (
+    connect_host,
+    guess_public_host,
+    is_port_bindable,
+    is_tcp_listening,
+)
+from app.bootstrap.launcher.frontend import (
+    ensure_typescript_frontend_ready,
+    make_http_server,
+    typescript_frontend_is_available,
+    _iter_files,
+    _latest_mtime,
+    locate_npm_command,
+)
 
-ROOT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = ROOT_DIR
-ENGINE_DIR = PROJECT_ROOT / "Legacy" / "engine"
-FRONTEND_TS_DIR = ROOT_DIR / "frontend-ts"
-FRONTEND_TS_DIST_DIR = FRONTEND_TS_DIR / "dist"
-NODEJS_DIR = Path(r"C:\Program Files\nodejs")
 
-for candidate in (ROOT_DIR, ENGINE_DIR):
-    candidate_str = str(candidate)
-    if candidate_str not in sys.path:
-        sys.path.insert(0, candidate_str)
-
-try:
-    import webapp.parametros as _user_params  # type: ignore
-except Exception:
-    _user_params = None
-
+# ---------------------------------------------------------------------------
+# Module discovery helper
+# ---------------------------------------------------------------------------
 
 _ENTRYPOINT_CANDIDATES = ("run", "start", "serve", "main")
-
-
-def _coerce_int(value: Any, fallback: int) -> int:
-    try:
-        if value in (None, ""):
-            raise ValueError
-        return int(value)
-    except (TypeError, ValueError):
-        return fallback
-
-
-def _coerce_bool(value: Any, fallback: bool) -> bool:
-    if value in (None, ""):
-        return fallback
-    if isinstance(value, bool):
-        return value
-    raw = str(value).strip().lower()
-    if raw in {"1", "true", "yes", "y", "on"}:
-        return True
-    if raw in {"0", "false", "no", "n", "off"}:
-        return False
-    return fallback
-
-
-def _param_value(name: str, fallback: Any) -> Any:
-    if _user_params and hasattr(_user_params, name):
-        value = getattr(_user_params, name)
-        if value not in (None, ""):
-            return value
-    return fallback
 
 
 def _find_callable(module: Any, names: tuple[str, ...]) -> Optional[Callable[..., Any]]:
@@ -88,202 +84,9 @@ def _maybe_call(func: Optional[Callable[..., Any]], *args: Any) -> None:
         func()
 
 
-def _guess_public_host() -> str:
-    with suppress(Exception):
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.connect(("8.8.8.8", 80))
-            return sock.getsockname()[0]
-    return "127.0.0.1"
-
-
-def _connect_host(host: str) -> str:
-    return "127.0.0.1" if host in {"0.0.0.0", "::"} else host
-
-
-def _is_tcp_listening(host: str, port: int, timeout: float = 0.25) -> bool:
-    target_host = _connect_host(host)
-    with suppress(Exception):
-        with socket.create_connection((target_host, port), timeout=timeout):
-            return True
-    return False
-
-
-def _is_port_bindable(host: str, port: int) -> bool:
-    bind_host = "0.0.0.0" if host in {"0.0.0.0", "::"} else host
-    family = socket.AF_INET6 if ":" in bind_host and bind_host != "0.0.0.0" else socket.AF_INET
-    with suppress(Exception):
-        with socket.socket(family, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((bind_host, port))
-            return True
-    return False
-
-
-def _make_http_server(host: str, port: int, backend_url: str):
-    from http.server import ThreadingHTTPServer
-
-    class FrontendHandler(SimpleHTTPRequestHandler):
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            super().__init__(*args, **kwargs)
-
-        def do_GET(self) -> None:  # pragma: no cover - exercised via launcher smoke test
-            target_url = backend_url + self.path
-            self.send_response(307)
-            self.send_header("Location", target_url)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
-    handler_cls = FrontendHandler
-    return ThreadingHTTPServer((host, port), handler_cls)
-
-
-DEFAULT_HOST = os.getenv("LOJASYNC_HOST") or str(_param_value("HOST", "127.0.0.1"))
-DEFAULT_FRONTEND_PORT = _coerce_int(
-    os.getenv("LOJASYNC_FRONTEND_PORT"),
-    _coerce_int(_param_value("FRONTEND_PORT", 5173), 5173),
-)
-DEFAULT_BACKEND_PORT = _coerce_int(
-    os.getenv("LOJASYNC_BACKEND_PORT"),
-    _coerce_int(_param_value("BACKEND_PORT", 8800), 8800),
-)
-DEFAULT_AUTH_PORT = _coerce_int(
-    os.getenv("LOJASYNC_AUTH_PORT"),
-    _coerce_int(_param_value("AUTH_PORT", 8810), 8810),
-)
-DEFAULT_AUTH_ENABLED = _coerce_bool(
-    os.getenv("LOJASYNC_AUTH_ENABLED"),
-    False,
-)
-DEFAULT_LLM_PORT = _coerce_int(
-    os.getenv("LOJASYNC_LLM_PORT"),
-    _coerce_int(_param_value("LLM_PORT", 8002), 8002),
-)
-DEFAULT_LLM_MONITOR_PORT = _coerce_int(
-    os.getenv("LOJASYNC_LLM_MONITOR_PORT"),
-    _coerce_int(_param_value("LLM_MONITOR_PORT", 5174), 5174),
-)
-DEFAULT_LLM_MONITOR_ENABLED = _coerce_bool(
-    os.getenv("LOJASYNC_LLM_MONITOR_ENABLED"),
-    True,
-)
-DEFAULT_LLM_HOST = os.getenv("LOJASYNC_LLM_HOST") or str(_param_value("LLM_HOST", DEFAULT_HOST))
-DEFAULT_LLM_BIND = os.getenv("LOJASYNC_LLM_BIND", "0.0.0.0")
-DEFAULT_BROWSER_HOST = os.getenv("LOJASYNC_BROWSER_HOST") or str(_param_value("BROWSER_OVERRIDE_HOST", "127.0.0.1"))
-
-PERFORMANCE_DEFAULTS = {
-    "LLM_DOC_CHUNK_CHARS": "16000",
-    "LLM_INCLUDE_IMAGES_WITH_TEXT": "0",
-    "PDF_RENDER_MAX_PAGES": "12",
-    "PDF_RENDER_ZOOM": "1.5",
-    "LLM_ROMANEIO_RETRY_VISION_MAX_PAGES": "4",
-    "LLM_ROMANEIO_RETRY_VISION_ZOOM": "1.5",
-}
-
-TS_BUILD_INPUTS = (
-    FRONTEND_TS_DIR / "index.html",
-    FRONTEND_TS_DIR / "package.json",
-    FRONTEND_TS_DIR / "package-lock.json",
-    FRONTEND_TS_DIR / "tsconfig.json",
-    FRONTEND_TS_DIR / "tsconfig.app.json",
-    FRONTEND_TS_DIR / "vite.config.ts",
-    FRONTEND_TS_DIR / "src",
-)
-
-
-def _iter_files(paths: tuple[Path, ...]) -> list[Path]:
-    files: list[Path] = []
-    for path in paths:
-        if not path.exists():
-            continue
-        if path.is_file():
-            files.append(path)
-            continue
-        files.extend(candidate for candidate in path.rglob("*") if candidate.is_file())
-    return files
-
-
-def _latest_mtime(paths: tuple[Path, ...]) -> float:
-    mtimes = [candidate.stat().st_mtime for candidate in _iter_files(paths)]
-    return max(mtimes, default=0.0)
-
-
-def _typescript_frontend_needs_build() -> bool:
-    if not FRONTEND_TS_DIR.exists():
-        return False
-    if not FRONTEND_TS_DIST_DIR.exists():
-        return True
-    dist_mtime = _latest_mtime((FRONTEND_TS_DIST_DIR,))
-    source_mtime = _latest_mtime(TS_BUILD_INPUTS)
-    return source_mtime > dist_mtime
-
-def _typescript_frontend_is_available() -> bool:
-    return (FRONTEND_TS_DIST_DIR / "index.html").exists()
-def _run_command(command: list[str], cwd: Path, step_name: str) -> None:
-    print(f"[launcher] {step_name}: {' '.join(command)}")
-    try:
-        subprocess.run(command, cwd=str(cwd), check=True)
-    except FileNotFoundError as exc:
-        missing = command[0]
-        raise RuntimeError(f"{missing} nao encontrado no PATH; nao foi possivel preparar o frontend TypeScript.") from exc
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"falha ao executar {step_name} (codigo {exc.returncode}).") from exc
-
-def _locate_npm_command() -> Optional[str]:
-    npm_cmd = shutil.which("npm")
-    if npm_cmd:
-        return npm_cmd
-
-    for candidate in (NODEJS_DIR / "npm.cmd", NODEJS_DIR / "npm"):
-        if candidate.exists():
-            return str(candidate)
-
-    return None
-
-
-def _npm_environment(npm_cmd: str) -> dict[str, str]:
-    env = os.environ.copy()
-    node_dir = str(Path(npm_cmd).resolve().parent)
-    current_path = env.get("PATH", "")
-    env["PATH"] = node_dir if not current_path else f"{node_dir}{os.pathsep}{current_path}"
-    return env
-def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: bool = False) -> None:
-    if skip_build or not FRONTEND_TS_DIR.exists():
-        return
-
-    npm_cmd = _locate_npm_command()
-    if not npm_cmd:
-        if force_build:
-            raise RuntimeError("npm nao encontrado no PATH; nao foi possivel preparar o frontend TypeScript.")
-        print(
-            "[launcher] npm nao encontrado no PATH; pulando preparacao do frontend-ts. "
-            "O frontend principal continua disponivel, mas /ts pode ficar indisponivel ou desatualizado."
-        )
-        return
-
-    package_lock = FRONTEND_TS_DIR / "package-lock.json"
-    package_json = FRONTEND_TS_DIR / "package.json"
-    node_modules = FRONTEND_TS_DIR / "node_modules"
-
-    install_cmd = [npm_cmd, "ci"] if package_lock.exists() else [npm_cmd, "install"]
-
-    needs_install = not node_modules.exists()
-    if not needs_install and package_lock.exists():
-        lock_mtime = package_lock.stat().st_mtime
-        installed_mtime = _latest_mtime((node_modules,))
-        needs_install = installed_mtime < lock_mtime
-    elif not needs_install and package_json.exists():
-        package_mtime = package_json.stat().st_mtime
-        installed_mtime = _latest_mtime((node_modules,))
-        needs_install = installed_mtime < package_mtime
-
-    if needs_install:
-        subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
-
-    if force_build or _typescript_frontend_needs_build():
-        subprocess.run([npm_cmd, "run", "build"], cwd=str(FRONTEND_TS_DIR), check=True, env=_npm_environment(npm_cmd))
-    else:
-        print("[launcher] frontend-ts/dist ja esta atualizado; pulando build.")
-
+# ---------------------------------------------------------------------------
+# Launcher class
+# ---------------------------------------------------------------------------
 
 class Launcher:
     def __init__(
@@ -350,7 +153,7 @@ class Launcher:
             os.environ.setdefault("LLM_BASE_URL", f"http://{self.llm_host}:{self.llm_port}")
 
         if self.host in {"0.0.0.0", "::"}:
-            public_host = _guess_public_host()
+            public_host = guess_public_host()
             print(f"[launcher] backend em {self.host}:{self.backend_port} (externo: http://{public_host}:{self.backend_port})")
         else:
             print(f"[launcher] backend em {self.host}:{self.backend_port}")
@@ -360,10 +163,10 @@ class Launcher:
         server = None
         last_exc: Optional[Exception] = None
         start_port = self.frontend_port
-        backend_url = f"http://{_connect_host(self.host)}:{self.backend_port}"
+        backend_url = f"http://{connect_host(self.host)}:{self.backend_port}"
         for candidate in [start_port] + list(range(start_port + 1, start_port + 20)):
             try:
-                server = _make_http_server(self.host, candidate, backend_url)
+                server = make_http_server(self.host, candidate, backend_url)
                 self.frontend_port = candidate
                 break
             except OSError as exc:
@@ -374,7 +177,7 @@ class Launcher:
 
         url = self._browser_url()
         print(f"[launcher] frontend legado redireciona para {url}")
-        if _typescript_frontend_is_available():
+        if typescript_frontend_is_available():
             print(f"[launcher] frontend-ts principal em {url}")
         else:
             print("[launcher] frontend-ts indisponivel; o frontend legado segue acessivel em /legacy.")
@@ -430,7 +233,7 @@ class Launcher:
             print("[launcher] auth desabilitado; aguardando comando explicito para conectar.")
             return
         if self.host in {"0.0.0.0", "::"}:
-            public_host = _guess_public_host()
+            public_host = guess_public_host()
             print(f"[launcher] auth em {self.host}:{self.auth_port} (externo: http://{public_host}:{self.auth_port})")
         else:
             print(f"[launcher] auth em {self.host}:{self.auth_port}")
@@ -447,7 +250,7 @@ class Launcher:
             "--log-level",
             "info",
         ]
-        self._auth_process = subprocess.Popen(command, cwd=str(PROJECT_ROOT), env=os.environ.copy(), text=True)
+        self._auth_process = subprocess.Popen(command, cwd=str(ROOT_DIR), env=os.environ.copy(), text=True)
 
     def start_frontend_async(self) -> None:
         self._frontend_thread = threading.Thread(target=self._run_frontend, name="frontend-thread", daemon=True)
@@ -486,16 +289,16 @@ class Launcher:
                 thread.join(timeout=2)
 
     def run(self) -> None:
-        _ensure_typescript_frontend_ready(
+        ensure_typescript_frontend_ready(
             force_build=self.force_ts_build,
             skip_build=not self.prepare_ts_frontend,
         )
 
         if self.auth_enabled:
-            auth_already_running = _is_tcp_listening(self.host, self.auth_port)
+            auth_already_running = is_tcp_listening(self.host, self.auth_port)
             if auth_already_running:
                 print(f"[launcher] auth ja ativo em {self.host}:{self.auth_port}; reutilizando.")
-            elif _is_port_bindable(self.host, self.auth_port):
+            elif is_port_bindable(self.host, self.auth_port):
                 self.start_auth_async()
                 time.sleep(0.4)
             else:
@@ -506,10 +309,10 @@ class Launcher:
         else:
             print("[launcher] auth remoto permanece desativado ate habilitacao explicita.")
 
-        llm_already_running = _is_tcp_listening(self.llm_host, self.llm_port)
+        llm_already_running = is_tcp_listening(self.llm_host, self.llm_port)
         if llm_already_running:
             print(f"[launcher] LLM ja ativo em {self.llm_host}:{self.llm_port}; reutilizando.")
-        elif _is_port_bindable(self.llm_bind_host, self.llm_port):
+        elif is_port_bindable(self.llm_bind_host, self.llm_port):
             self.start_llm_async()
         else:
             print(
@@ -520,11 +323,11 @@ class Launcher:
         self._use_monitor_base_url = False
         if self.llm_monitor_enabled:
             monitor_host = "127.0.0.1"
-            monitor_running = _is_tcp_listening(monitor_host, self.llm_monitor_port)
+            monitor_running = is_tcp_listening(monitor_host, self.llm_monitor_port)
             if monitor_running:
                 print(f"[launcher] monitor LLM ja ativo em {monitor_host}:{self.llm_monitor_port}; reutilizando.")
                 self._use_monitor_base_url = True
-            elif _is_port_bindable(monitor_host, self.llm_monitor_port):
+            elif is_port_bindable(monitor_host, self.llm_monitor_port):
                 self.start_llm_monitor_async()
                 self._use_monitor_base_url = True
             else:
@@ -543,6 +346,10 @@ class Launcher:
             print("\n[launcher] encerrando...")
             self.shutdown()
 
+
+# ---------------------------------------------------------------------------
+# CLI argument parser
+# ---------------------------------------------------------------------------
 
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launcher do LojaSync")
@@ -598,3 +405,12 @@ if __name__ == "__main__":
         main(sys.argv[1:])
     except KeyboardInterrupt:
         print("\n[launcher] encerrado pelo usuario.")
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatible aliases (tests import these from launcher.*)
+# ---------------------------------------------------------------------------
+_ensure_typescript_frontend_ready = ensure_typescript_frontend_ready
+_locate_npm_command = locate_npm_command
+_make_http_server = make_http_server
+_typescript_frontend_needs_build = typescript_frontend_is_available

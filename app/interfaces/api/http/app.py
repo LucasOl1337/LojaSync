@@ -81,6 +81,20 @@ def create_app() -> FastAPI:
 
     app.state.container = container
     app.state.ui_event_broker = configure_ui_event_broker(UiEventBroker())
+
+    # ------------------------------------------------------------------
+    # Health check endpoint
+    # ------------------------------------------------------------------
+    import time as _time
+
+    @app.get("/health", tags=["ops"])
+    async def health_check():
+        return {
+            "status": "ok",
+            "version": "1.1.0",
+            "timestamp": _time.time(),
+        }
+
     app.include_router(router)
 
     @app.get("/ts", include_in_schema=False)

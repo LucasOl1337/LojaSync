@@ -1,5 +1,106 @@
 # Patch Notes
 
+<!-- safe-commit:generated:start -->
+Generated: 2026-05-29T11:23:31.323Z
+Repository: LojaSync
+Path: C:\projetos\LojaSync
+Branch: main
+Remote: https://github.com/LucasOl1337/LojaSync.git
+GitHub baseline: origin/main
+State before safe commit: dirty
+Ahead/behind before safe commit: ahead 0, behind 0
+Recent local file changes detected: 6
+Recent local commit detected: no
+Last commit: 2026-04-22T07:25:19-03:00 - Refactor launcher bootstrap and add health endpoint
+
+## Executive Summary
+
+This safe-commit report records the current PC state for LojaSync before committing the local work. Fetch from origin completed successfully before this report.
+The comparison target is origin/main. The local branch is main, with ahead 0 and behind 0 relative to GitHub after fetch.
+No Git merge conflict entries were detected in the current status.
+GitHub did not report remote-only commits for this branch, or the upstream comparison is unavailable.
+
+## PC Versus GitHub
+
+### Working Tree Compared To GitHub
+```text
+ PATCHNOTES.md          | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ frontend-ts/index.html |  4 +++
+ 2 files changed, 97 insertions(+)
+```
+
+### File-Level Delta Against GitHub
+```text
+M	PATCHNOTES.md
+M	frontend-ts/index.html
+```
+
+### Local-Only Commits
+- None.
+
+### GitHub-Only Commits
+- None.
+
+## Local Working Tree
+
+### Current Status
+```text
+## main...origin/main
+ M PATCHNOTES.md
+ M frontend-ts/index.html
+?? brand/
+?? changelog.md
+?? frontend-ts/public/apple-touch-icon.png
+?? frontend-ts/public/favicon-32.png
+?? frontend-ts/public/favicon.svg
+?? frontend-ts/public/icon-512.png
+ M PATCHNOTES.md
+ M frontend-ts/index.html
+?? brand/
+?? changelog.md
+?? frontend-ts/public/apple-touch-icon.png
+?? frontend-ts/public/favicon-32.png
+?? frontend-ts/public/favicon.svg
+?? frontend-ts/public/icon-512.png
+```
+
+### Unstaged Diff Stat
+```text
+ PATCHNOTES.md          | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ frontend-ts/index.html |  4 +++
+ 2 files changed, 97 insertions(+)
+```
+
+### Unstaged File Changes
+```text
+M	PATCHNOTES.md
+M	frontend-ts/index.html
+```
+
+### Staged Diff Stat
+None.
+
+### Staged File Changes
+None.
+
+## Recent Files On This PC
+- frontend-ts/index.html (2026-05-29T11:02:58.687Z)
+- brand (2026-05-29T03:14:54.816Z, dir)
+- frontend-ts/public/apple-touch-icon.png (2026-05-29T03:14:53.969Z)
+- frontend-ts/public/favicon-32.png (2026-05-29T03:14:54.817Z)
+- frontend-ts/public/favicon.svg (2026-05-29T03:13:14.162Z)
+- frontend-ts/public/icon-512.png (2026-05-29T03:14:53.229Z)
+
+## Operational Notes
+
+- These notes were generated before the final staging step for this safe commit.
+- Existing local notes, when present, are preserved below this generated block instead of being discarded.
+- Untracked files are listed through Git status; ignored build/cache folders are not forced into the commit.
+- The intended commit message format is date plus state plus "safe commit".
+<!-- safe-commit:generated:end -->
+
+## Previous Local Notes Preserved
+
 ## Release atual
 
 Esta entrega consolida a nova base do LojaSync com frontend TypeScript opcional em `/ts`, mantendo o frontend legado funcional em `/`.

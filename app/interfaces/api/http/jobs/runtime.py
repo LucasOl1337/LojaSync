@@ -558,6 +558,14 @@ def run_grade_extraction_job(
             else:
                 warnings.append("Upload do LLM nao retornou documentos ou imagens.")
     except Exception as exc:
+        log_event(
+            logger,
+            logging.WARNING,
+            "grade_extraction_llm_failed",
+            "grade extraction LLM pipeline failed",
+            job_id=job_id,
+            exception_type=type(exc).__name__,
+        )
         logger.warning("Falha no pipeline LLM de grades (job_id=%s): %s", job_id, exc)
         warnings.append(f"Falha ao processar grades com o servico LLM: {exc}")
 
@@ -599,6 +607,17 @@ def run_grade_extraction_job(
         content=llm_text or None,
     )
     update_grade_job(job_id, "completed", result=result)
+    log_event(
+        logger,
+        logging.INFO,
+        "grade_extraction_job_completed",
+        "grade extraction job completed",
+        job_id=job_id,
+        status=result.status,
+        parsed_items=len(parsed_items),
+        updated_products=total_atualizados,
+        warnings=len(warnings),
+    )
 
 
 def run_import_job(

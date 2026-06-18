@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,10 +23,12 @@ from app.infrastructure.persistence.sqlite import (
     SQLiteProductRepository,
 )
 from app.interfaces.api.http.app import create_app
-from app.interfaces.api.http.jobs.runtime import run_import_job, run_post_process_job
+from app.interfaces.api.http.jobs.runtime import run_grade_extraction_job, run_import_job, run_post_process_job
 from app.interfaces.api.http.jobs.store import (
+    create_grade_job,
     create_import_job,
     create_post_process_job,
+    remove_grade_job,
     remove_import_job,
     remove_post_process_job,
 )
@@ -159,6 +162,26 @@ class LoggingCoverageTests(unittest.TestCase):
         self.assertEqual(getattr(failed_record, "status_code"), 401)
         self.assertNotIn("senha-errada-123", failed_record.getMessage())
 
+    def test_frontend_auth_route_logs_bootstrap_without_password(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_main_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+
+                with self.assertLogs("app.interfaces.api.http.route_auth", level="INFO") as logs:
+                    response = client.post(
+                        "/auth/bootstrap",
+                        json={"password": "senha-forte-123"},
+                        headers={"x-request-id": "req-auth-bootstrap-1"},
+                    )
+
+        self.assertEqual(response.status_code, 200)
+        record = _record_with_event(logs.records, "auth_bootstrap_succeeded")
+        self.assertEqual(getattr(record, "request_id"), "req-auth-bootstrap-1")
+        self.assertEqual(getattr(record, "user"), "admin")
+        self.assertNotIn("senha-forte-123", record.getMessage())
+
     def test_product_create_logs_mutation_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -188,6 +211,13 @@ class LoggingCoverageTests(unittest.TestCase):
     def test_automation_background_operation_logs_start_and_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             service = AutomationService(product_service=Mock(), data_dir=Path(tmpdir))
+            worker_started = threading.Event()
+            worker_can_finish = threading.Event()
+
+            def worker() -> dict[str, str]:
+                worker_started.set()
+                self.assertTrue(worker_can_finish.wait(2))
+                return {"status": "success", "message": "ok", "job_kind": "catalog"}
 
             with self.assertLogs("app.application.automation.service", level="INFO") as logs:
                 result = service._start_background_operation(
@@ -195,10 +225,12 @@ class LoggingCoverageTests(unittest.TestCase):
                     thread_name="test-automation-worker",
                     started_message="Teste iniciado",
                     started_phase="catalog",
-                    worker=lambda: {"status": "success", "message": "ok", "job_kind": "catalog"},
+                    worker=worker,
                 )
                 thread = service._thread
                 self.assertIsNotNone(thread)
+                self.assertTrue(worker_started.wait(2))
+                worker_can_finish.set()
                 thread.join(2)
                 self.assertFalse(thread.is_alive())
 
@@ -256,6 +288,55 @@ class LoggingCoverageTests(unittest.TestCase):
         self.assertEqual(getattr(record, "selected_source"), "local")
         self.assertEqual(getattr(record, "imported_items"), 1)
         self.assertEqual(getattr(record, "llm_chat_calls"), 0)
+
+    def test_grade_extraction_job_logs_completion_summary(self) -> None:
+        class FakeResponse:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return {"documents": [{"name": "nota.txt", "content": "grades"}], "images": []}
+
+        class FakeClient:
+            def __init__(self, *_args: object, **_kwargs: object) -> None:
+                pass
+
+            def __enter__(self) -> "FakeClient":
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+            def post(self, *_args: object, **_kwargs: object) -> FakeResponse:
+                return FakeResponse()
+
+        class FakeGradeService:
+            def update_grades_by_identifier(self, **_kwargs: object) -> object:
+                return object()
+
+        job = create_grade_job()
+        self.addCleanup(remove_grade_job, job.job_id)
+
+        with (
+            patch("app.interfaces.api.http.jobs.runtime.httpx.Client", FakeClient),
+            patch(
+                "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                return_value=('{"items":[{"codigo":"C20","grades":{"P":2}}]}', None),
+            ),
+        ):
+            with self.assertLogs("app.interfaces.api.http.jobs.runtime", level="INFO") as logs:
+                run_grade_extraction_job(
+                    job_id=job.job_id,
+                    contents=b"fake-pdf",
+                    filename="nota.pdf",
+                    content_type="application/pdf",
+                    service=FakeGradeService(),
+                )
+
+        record = _record_with_event(logs.records, "grade_extraction_job_completed")
+        self.assertEqual(getattr(record, "job_id"), job.job_id)
+        self.assertEqual(getattr(record, "parsed_items"), 1)
+        self.assertEqual(getattr(record, "updated_products"), 1)
 
     def test_post_process_background_job_logs_completion_summary(self) -> None:
         class FakeService:

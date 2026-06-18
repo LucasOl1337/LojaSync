@@ -34,7 +34,9 @@ def is_port_bindable(host: str, port: int) -> bool:
     family = socket.AF_INET6 if ":" in bind_host and bind_host != "0.0.0.0" else socket.AF_INET
     with suppress(Exception):
         with socket.socket(family, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            exclusive_addr_use = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+            if exclusive_addr_use is not None:
+                sock.setsockopt(socket.SOL_SOCKET, exclusive_addr_use, 1)
             sock.bind((bind_host, port))
             return True
     return False

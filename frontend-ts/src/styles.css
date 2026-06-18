@@ -21,9 +21,9 @@
   --amber: #fbbf24;
   --amber-dim: rgba(251, 191, 36, 0.1);
   --amber-border: rgba(251, 191, 36, 0.22);
-  --purple: #a78bfa;
-  --purple-dim: rgba(167, 139, 250, 0.1);
-  --purple-border: rgba(167, 139, 250, 0.22);
+  --cyan: #22d3ee;
+  --cyan-dim: rgba(34, 211, 238, 0.1);
+  --cyan-border: rgba(34, 211, 238, 0.24);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
   --shadow: 0 4px 16px rgba(0,0,0,0.4);
   --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
@@ -40,7 +40,7 @@
   --line-strong: var(--border-strong);
   --muted: var(--text-3);
   --accent: var(--amber);
-  --violet: var(--purple);
+  --violet: var(--cyan);
   --danger: var(--red);
   --success: var(--green);
 }
@@ -59,8 +59,8 @@ body {
   margin: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 24%),
-    radial-gradient(circle at top right, rgba(168, 85, 247, 0.12), transparent 28%),
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent 28%),
     #0e1117;
   color: var(--text);
 }
@@ -188,34 +188,77 @@ button {
   width: 100%;
   height: 100%;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
   padding: 8px;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.skipLinkTs {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px;
+  transform: translateY(-160%);
+  border: 1px solid var(--cyan-border);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 17, 27, 0.98);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.skipLinkTs:hover,
+.skipLinkTs:focus {
+  border-color: var(--cyan);
+  background: rgba(22, 27, 37, 0.98);
+}
+
+.skipLinkTs:focus,
+.skipLinkTs:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 
 .shellStage {
   position: relative;
+  min-width: 0;
 }
 
 .shell {
   margin: 0;
-  transform-origin: top left;
+  min-width: 0;
+  min-height: 0;
 }
 
 .appShellTs {
   height: 100%;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(286px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(268px, 300px) minmax(0, 1fr);
   gap: 8px;
 }
 
 .leftPanelTs,
 .rightPanelTs {
   min-height: 0;
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
@@ -226,10 +269,40 @@ button {
 
 .leftPanelTs {
   justify-content: flex-start;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-color: rgba(148, 163, 184, 0.45) rgba(15, 23, 42, 0.32);
+  scrollbar-width: thin;
+}
+
+.leftPanelTs::-webkit-scrollbar {
+  width: 10px;
+}
+
+.leftPanelTs::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.32);
+  border-radius: 999px;
+}
+
+.leftPanelTs::-webkit-scrollbar-thumb {
+  min-height: 72px;
+  border: 2px solid rgba(15, 23, 42, 0.32);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.leftPanelTs::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 192, 212, 0.62);
 }
 
 .rightPanelTs {
   min-width: 0;
+  overflow: hidden;
+}
+
+.rightPanelTs:focus {
+  outline: 2px solid rgba(34, 211, 238, 0.58);
+  outline-offset: -4px;
 }
 
 .actionsFloatingTs {
@@ -301,9 +374,12 @@ button {
   min-height: 38px;
   padding: 8px 16px;
   font-weight: 600;
-  color: #1a0800;
-  background: linear-gradient(135deg, #7f33ff 0%, #ad63ff 46%, #ffb55c 100%);
-  border: 1px solid rgba(255, 179, 79, 0.34);
+  color: #031b17;
+  background: #2dd4bf;
+  border: 1px solid rgba(94, 234, 212, 0.46);
+  box-shadow:
+    0 0 0 1px rgba(20, 184, 166, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
   letter-spacing: 0.01em;
   gap: 7px;
 }
@@ -340,11 +416,11 @@ button {
 
 .batchControlsTs,
 .tableWrapperTs {
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .batchControlsTs {
-  padding-top: 10px;
+  padding-top: 8px;
   overflow: visible;
 }
 
@@ -392,6 +468,48 @@ button {
   background: rgba(17, 28, 47, 0.9);
 }
 
+.importInsightChipsTs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.importInsightChipTs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  max-width: 100%;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(17, 28, 47, 0.82);
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.importInsightChipTs span {
+  color: var(--muted);
+}
+
+.importInsightChipTs strong {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.importInsightChipTs.chip-success {
+  border-color: rgba(47, 210, 127, 0.28);
+}
+
+.importInsightChipTs.chip-warning {
+  border-color: rgba(255, 179, 79, 0.28);
+}
+
+.importInsightChipTs.chip-error {
+  border-color: rgba(241, 72, 72, 0.32);
+}
+
 .importValidationBadge.validation-approved {
   color: #caffdf;
   border-color: rgba(47, 210, 127, 0.35);
@@ -409,6 +527,104 @@ button {
   color: #ffd6d6;
   border-color: rgba(241, 72, 72, 0.35);
   background: rgba(54, 14, 18, 0.92);
+}
+
+.recentImportsTs {
+  display: grid;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(8, 14, 26, 0.62);
+}
+
+.recentImportsHeaderTs,
+.recentImportMetaTs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recentImportsHeaderTs {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.recentImportMainTs {
+  display: grid;
+  min-width: 0;
+}
+
+.recentImportsHeaderTs strong,
+.recentImportMainTs strong {
+  min-width: 0;
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.76rem;
+}
+
+.recentImportsHeaderTs span {
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.recentImportsListTs {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.recentImportItemTs {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.recentImportMainTs strong {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.recentImportSourceTs {
+  direction: ltr;
+  flex: 1 1 auto;
+}
+
+.recentImportMetaTs {
+  flex-wrap: wrap;
+  column-gap: 5px;
+  row-gap: 5px;
+}
+
+.recentImportMetaTs span,
+.recentImportMetaTs time {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 20px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  color: var(--text-3);
+  font-size: 0.66rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentImportMetaTs time {
+  border-color: rgba(96, 165, 250, 0.18);
+  color: #bfdbfe;
+  font-family: "IBM Plex Mono", monospace;
 }
 
 .importLogListTs,
@@ -457,18 +673,30 @@ button {
   min-height: 40px;
   padding: 9px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(96, 165, 250, 0.12);
-  background: var(--field);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.58);
   color: var(--text);
+  cursor: pointer;
   overflow: hidden;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
 .fileInput span {
-  display: block;
-  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: rgba(219, 229, 244, 0.82);
+  font-size: 0.83rem;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.fileInput span svg {
+  flex: 0 0 auto;
+  color: var(--blue);
 }
 
 .fileInput input {
@@ -476,6 +704,21 @@ button {
   inset: 0;
   opacity: 0;
   cursor: pointer;
+}
+
+.fileInput:hover:not(.fileInputDisabled),
+.fileInput:focus-within:not(.fileInputDisabled) {
+  border-color: rgba(96, 165, 250, 0.34);
+  background: rgba(30, 41, 59, 0.72);
+}
+
+.fileInputDisabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.fileInputDisabled input {
+  cursor: not-allowed;
 }
 
 .experimentPreviewTs {
@@ -626,6 +869,12 @@ button {
   grid-column: span 4;
 }
 
+.manualSubmitButtonTs {
+  grid-column: 1 / -1;
+  min-height: 34px;
+  justify-self: stretch;
+}
+
 .fieldCategoryTs,
 .fieldBrandTs {
   grid-column: span 3;
@@ -652,6 +901,7 @@ button {
 .summaryStageTs {
   flex: 0 0 auto;
   overflow: visible;
+  padding: 8px 10px;
 }
 
 .marginStageTs {
@@ -666,10 +916,80 @@ button {
   justify-content: center;
 }
 
+.marginControlButtonTs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.16);
+  background: rgba(69, 46, 7, 0.24);
+  color: rgba(254, 243, 199, 0.94);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.marginControlButtonTs:hover,
+.marginControlButtonTs:focus-visible {
+  border-color: rgba(251, 191, 36, 0.34);
+  background: rgba(69, 46, 7, 0.38);
+  color: #fef3c7;
+}
+
+.marginControlLabelTs {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.marginControlLabelTs svg {
+  flex: 0 0 auto;
+  color: #fbbf24;
+}
+
+.marginControlLabelTs span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .stageHeaderTs {
   display: grid;
   gap: 3px;
   margin-bottom: 8px;
+}
+
+.summaryStageTs .stageHeaderTs {
+  margin-bottom: 4px;
+}
+
+.stageLabelRowTs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.stageStepBadgeTs {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.26);
+  background: rgba(37, 99, 235, 0.14);
+  color: #bfdbfe;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .compactStageHeader {
@@ -678,10 +998,12 @@ button {
 
 .stageTitleTs,
 .sectionTitleTs {
+  margin: 0;
   color: rgba(248, 250, 252, 0.98);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
 .sectionTitleTs {
@@ -704,9 +1026,69 @@ button {
   color: var(--text-3);
 }
 
+.sectionTag,
+.toolsTitleTs {
+  margin: 0;
+}
+
+.operationalHealthPanelTs {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 3px;
+  padding: 6px 7px;
+  border-radius: 8px;
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  background: rgba(8, 14, 26, 0.72);
+}
+
+.operationalHealthPanelHeaderTs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.operationalHealthPanelHeaderTs strong {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 0.8rem;
+}
+
+.operationalHealthPanelHeaderTs span {
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+}
+
+.operationalHealthPanelTs .importInsightChipsTs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.operationalHealthPanelTs .importInsightChipTs {
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  min-height: 21px;
+  padding: 3px 5px;
+  gap: 3px;
+  font-size: 0.6rem;
+}
+
+.operationalHealthPanelTs .importInsightChipTs span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operationalHealthPanelTs .importInsightChipTs strong {
+  font-size: 0.6rem;
+}
+
 .totalsBoardTs {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .totalsSectionTs {
@@ -717,6 +1099,11 @@ button {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--surface-3);
+}
+
+.currentTotalsSectionTs {
+  gap: 4px;
+  padding: 7px 8px 6px;
 }
 
 .totalsSectionHeadTs {
@@ -785,21 +1172,242 @@ button {
   font-size: 0.88rem;
 }
 
+.historicalTotalsTs {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(8, 14, 26, 0.62);
+}
+
+.historicalTotalsTs summary {
+  min-height: 34px;
+  padding: 6px 9px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.historicalTotalsTs summary::-webkit-details-marker {
+  display: none;
+}
+
+.historicalTotalsTs[open] .totalsRowsTs {
+  padding: 0 9px 9px;
+}
+
+.summaryDetailsRowTs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr);
+  gap: 4px;
+  min-width: 0;
+}
+
+.summaryDetailsRowTs .historicalTotalsTs,
+.summaryDetailsRowTs .operationDiaryTs {
+  min-width: 0;
+}
+
+.summaryDetailsRowTs .historicalTotalsTs[open],
+.summaryDetailsRowTs .operationDiaryTs[open] {
+  grid-column: 1 / -1;
+}
+
+.summaryDetailsRowTs .historicalTotalsTs summary,
+.summaryDetailsRowTs .operationDiaryTs summary {
+  min-height: 30px;
+  padding: 5px 7px;
+}
+
+.summaryDetailsRowTs .totalsGroupTitleTs,
+.summaryDetailsRowTs .operationDiaryTs summary span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaryDetailsRowTs .totalsChipTs {
+  display: none;
+}
+
+.summaryDetailsRowTs .operationDiaryTs summary strong {
+  min-width: 18px;
+  min-height: 18px;
+  font-size: 0.6rem;
+}
+
+.operationDiaryTs {
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(8, 14, 26, 0.62);
+}
+
+.operationDiaryTs summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 9px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.operationDiaryTs summary::-webkit-details-marker {
+  display: none;
+}
+
+.operationDiaryTs summary span {
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.operationDiaryTs summary strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+}
+
+.operationDiaryListTs {
+  display: grid;
+  gap: 6px;
+  max-height: 132px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 9px 9px;
+}
+
+.operationDiaryItemTs {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 24, 39, 0.78);
+}
+
+.operationDiaryItemTs.diary-success {
+  border-color: rgba(47, 210, 127, 0.24);
+}
+
+.operationDiaryItemTs.diary-warning {
+  border-color: rgba(255, 179, 79, 0.24);
+}
+
+.operationDiaryItemTs.diary-error {
+  border-color: rgba(241, 72, 72, 0.28);
+}
+
+.operationDiaryMainTs,
+.operationDiaryMetaTs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.operationDiaryMainTs {
+  justify-content: space-between;
+}
+
+.operationDiaryMainTs strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.74rem;
+}
+
+.operationDiaryMainTs span {
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+.operationDiaryItemTs p {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.operationDiaryMetaTs {
+  flex-wrap: wrap;
+  column-gap: 5px;
+  row-gap: 5px;
+}
+
+.operationDiaryMetaTs span {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 20px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  color: var(--text-3);
+  font-size: 0.64rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .batchControlsTs {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   align-items: start;
   justify-items: stretch;
   width: 100%;
 }
 
-.batchInlineRowTs {
+.executionCenterHeaderTs {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding-right: 190px;
-  min-height: 44px;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.executionStateChipTs {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 210, 127, 0.18);
+  background: rgba(20, 83, 45, 0.2);
+  color: rgba(187, 247, 208, 0.94);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.executionStateRunningTs {
+  border-color: rgba(96, 165, 250, 0.32);
+  background: rgba(30, 64, 175, 0.28);
+  color: rgba(219, 234, 254, 0.98);
+}
+
+.batchInlineRowTs {
+  display: grid;
+  grid-template-columns: minmax(142px, 0.48fr) minmax(450px, 1.55fr) 1px minmax(214px, 0.72fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
 }
 
 .listToolbarMetaTs {
@@ -829,6 +1437,47 @@ button {
   background: rgba(69, 46, 7, 0.82);
 }
 
+.undoRedoStatusChipTs {
+  color: var(--text-3);
+}
+
+.undoRedoStatusChipTs.historyReady {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.24);
+  background: rgba(30, 64, 175, 0.24);
+}
+
+.undoRedoActionsTs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.historyIconButtonTs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.historyIconButtonTs:hover:not(:disabled),
+.historyIconButtonTs:focus-visible:not(:disabled) {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+.historyIconButtonTs:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .actionButtonTs {
   min-height: 38px;
   width: auto;
@@ -850,38 +1499,80 @@ button {
 }
 
 .secondaryInlineAction {
-  background: rgba(43, 54, 77, 0.96);
+  color: rgba(219, 229, 244, 0.94);
+  background: rgba(31, 41, 59, 0.78);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.executionActionClusterTs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(8, 14, 26, 0.34);
+}
+
+.executionActionClusterPrimaryTs {
+  border-color: rgba(96, 165, 250, 0.14);
+}
+
+.executionActionClusterSecondaryTs {
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.executionActionClusterTs .actionButtonTs {
+  flex: 1 1 128px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 11px;
+}
+
+.executionActionClusterPrimaryTs .completeActionButton {
+  flex: 1.18 1 178px;
+}
+
+.executionActionClusterTs .actionButtonTs.large {
+  min-height: 40px;
+  padding: 7px 12px;
+  font-size: 0.84rem;
 }
 
 .batchInlineDivider {
   width: 1px;
-  height: 28px;
-  margin: 0 2px;
+  height: auto;
+  min-height: 28px;
+  margin: 3px 0;
   background: rgba(148, 163, 184, 0.22);
 }
 
-/* Azul: acao de execucao principal */
+/* Execucao secundaria: acao disponivel, mas sem competir com o CTA principal */
 .actionButtonTs.highlight {
   color: #fff;
-  background: #1a65d6;
-  border: 1px solid #4389f5;
-  box-shadow: 0 0 0 1px rgba(67,137,245,0.2);
+  background: rgba(14, 116, 144, 0.28);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  box-shadow: none;
 }
 
 .actionButtonTs.completeActionButton {
-  background: linear-gradient(135deg, #0f7ae5 0%, #22c1c3 100%);
-  border-color: rgba(103, 232, 249, 0.5);
+  background: linear-gradient(135deg, #07856d 0%, #0f7ae5 100%);
+  border-color: rgba(94, 234, 212, 0.42);
   box-shadow:
-    0 0 0 1px rgba(56, 189, 248, 0.18),
+    0 0 0 1px rgba(20, 184, 166, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* Roxo: executar em massa */
+/* Cadastro em massa: acao secundaria no centro de execucao */
 .actionButtonTs.accent {
-  color: #fff;
-  background: #6d28d9;
-  border: 1px solid #8b5cf6;
-  box-shadow: 0 0 0 1px rgba(139,92,246,0.2);
+  color: rgba(226, 232, 240, 0.96);
+  background: rgba(43, 54, 77, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: none;
 }
 
 /* Vermelho: parar / destrutivo */
@@ -898,22 +1589,32 @@ button {
 }
 
 .compactAutomationStatusTs {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  min-width: 150px;
-  width: 172px;
-  padding: 7px 10px;
-  border-radius: 14px;
+  min-width: 0;
+  width: auto;
+  min-height: 52px;
+  padding: 5px 8px;
+  border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(12, 18, 31, 0.88);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
+  justify-content: center;
+}
+
+.automationStatusLabelTs {
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .compactAutomationStatusTs strong {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.05;
   text-transform: capitalize;
 }
 
@@ -933,13 +1634,74 @@ button {
 }
 
 .compactProgressBarTs {
-  height: 6px;
+  height: 5px;
 }
 
 .compactAutomationStatusTs small {
   color: var(--muted);
+  overflow: hidden;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executionReadinessTs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(9, 16, 29, 0.62);
+}
+
+.executionReadinessTs.readiness-success {
+  border-color: rgba(47, 210, 127, 0.2);
+}
+
+.executionReadinessTs.readiness-warning {
+  border-color: rgba(255, 179, 79, 0.22);
+}
+
+.executionReadinessTs.readiness-error {
+  border-color: rgba(241, 72, 72, 0.26);
+}
+
+.executionReadinessMainTs {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.executionReadinessMainTs strong {
+  font-size: 0.78rem;
+}
+
+.executionReadinessMainTs span {
+  overflow: hidden;
+  color: var(--muted);
   font-size: 0.7rem;
-  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executionReadinessChipsTs {
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.executionReadinessChipsTs .importInsightChipTs {
+  min-height: 23px;
+  padding: 3px 7px;
+  gap: 5px;
+  font-size: 0.68rem;
+}
+
+.executionReadinessChipsTs .importInsightChipTs strong {
+  font-size: 0.68rem;
 }
 
 .miniError {
@@ -957,13 +1719,254 @@ button {
   flex: 0 0 auto;
 }
 
+.listToolbarTs {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(300px, 420px);
+  align-items: start;
+  gap: 6px 10px;
+  padding: 8px 10px;
+}
+
 .listToolbarIntroTs {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  min-width: 0;
+}
+
+.quickFiltersTs {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  grid-column: 1 / -1;
+  flex-wrap: nowrap;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 5px 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(8, 14, 26, 0.34);
+  scrollbar-width: thin;
+}
+
+.quickFiltersLabelTs {
+  flex: 0 0 auto;
+  padding: 0 6px 0 2px;
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.listSearchTs {
+  display: grid;
+  justify-self: end;
+  gap: 4px;
+  width: min(100%, 420px);
+  min-width: 0;
+}
+
+.listSearchTs > span {
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.listSearchInputWrapTs {
+  position: relative;
+  min-width: 0;
+}
+
+.listSearchInputTs {
+  width: 100%;
+  min-height: 32px;
+  padding: 7px 32px 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.68);
+  color: var(--text);
+  font-size: 0.76rem;
+  outline: none;
+}
+
+.listSearchInputTs::placeholder {
+  color: rgba(148, 163, 184, 0.62);
+}
+
+.listSearchInputTs:focus {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.12);
+}
+
+.listSearchClearTs {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(8, 14, 26, 0.82);
+  color: var(--text-3);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.listSearchClearTs:hover,
+.listSearchClearTs:focus-visible {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.42);
+}
+
+.quickFilterButtonTs {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  min-height: 26px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.68);
+  color: var(--text-2);
+  font-size: 0.7rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.quickFilterButtonTs strong {
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.13);
+  color: var(--text);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  text-align: center;
+}
+
+.quickFilterButtonTs:hover,
+.quickFilterButtonTs:focus-visible {
+  border-color: rgba(96, 165, 250, 0.32);
+}
+
+.quickFilterButtonTs.activeQuickFilterButtonTs {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(30, 64, 175, 0.42);
+}
+
+.quickFilterButtonTs.emptyQuickFilterButtonTs {
+  color: rgba(148, 163, 184, 0.68);
+  border-color: rgba(148, 163, 184, 0.08);
+  background: rgba(15, 23, 42, 0.36);
+}
+
+.quickFilterButtonTs.emptyQuickFilterButtonTs strong {
+  color: rgba(148, 163, 184, 0.72);
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.quickFilterButtonTs.emptyQuickFilterButtonTs:hover,
+.quickFilterButtonTs.emptyQuickFilterButtonTs:focus-visible {
+  color: var(--text-2);
+  border-color: rgba(96, 165, 250, 0.26);
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.quickFilterButtonTs.emptyQuickFilterButtonTs:disabled,
+.quickFilterButtonTs.emptyQuickFilterButtonTs:disabled:hover {
+  cursor: not-allowed;
+  color: rgba(148, 163, 184, 0.48);
+  border-color: rgba(148, 163, 184, 0.07);
+  background: rgba(15, 23, 42, 0.28);
+  opacity: 1;
+}
+
+.quickFilterContextTs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px 5px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 14, 26, 0.64);
+}
+
+.quickFilterContextTs.contextTone-warning {
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.quickFilterContextTs.contextTone-review {
+  border-color: rgba(96, 165, 250, 0.24);
+}
+
+.quickFilterContextMainTs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quickFilterContextMainTs strong {
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickFilterContextMainTs span {
+  flex: 0 0 auto;
+  color: var(--text-3);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.quickFilterContextActionsTs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.quickFilterContextButtonTs {
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--text-2);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.quickFilterContextButtonTs.contextAction-review {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.26);
+  background: rgba(30, 64, 175, 0.26);
+}
+
+.quickFilterContextButtonTs:hover,
+.quickFilterContextButtonTs:focus-visible {
+  border-color: rgba(96, 165, 250, 0.42);
 }
 
 .toolsTitleTs {
@@ -973,8 +1976,10 @@ button {
 .listContentTs {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  grid-column: 1 / -1;
   padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
 }
 
 .listHeadTs {
@@ -993,19 +1998,210 @@ button {
 }
 
 .listGroupLabelTs.secondary::before {
-  background: var(--purple);
+  background: var(--cyan);
 }
 
-.listPrimaryActionsTs,
 .listSecondaryActionsTs {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
 }
 
 .listPrimaryActionsTs {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(12px, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.toolActionGroupTs {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(8, 14, 26, 0.24);
+}
+
+.toolActionGroupDangerTs {
+  grid-column: 5;
+  justify-self: end;
+  min-width: max-content;
+  border-color: rgba(248, 113, 113, 0.16);
+  background: rgba(127, 29, 29, 0.12);
+}
+
+.toolActionGroupLabelTs {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.toolActionGroupButtonsTs {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.toolActionGroupDangerTs .toolActionGroupButtonsTs {
+  justify-content: flex-end;
+}
+
+.editModeContextTs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.22), rgba(8, 14, 26, 0.62));
+}
+
+.editModeContextMainTs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.editModeContextMainTs strong {
+  flex: 0 0 auto;
+  color: #fee2e2;
+  font-size: 0.76rem;
+}
+
+.editModeContextMainTs span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editModeContextButtonTs {
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: rgba(127, 29, 29, 0.22);
+  color: #fee2e2;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.editModeContextButtonTs:hover,
+.editModeContextButtonTs:focus-visible {
+  border-color: rgba(252, 165, 165, 0.52);
+  background: rgba(127, 29, 29, 0.38);
+}
+
+.listModeContextTs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  background: linear-gradient(90deg, rgba(14, 116, 144, 0.18), rgba(8, 14, 26, 0.62));
+}
+
+.listModeContextTs.contextTone-createSet {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: linear-gradient(90deg, rgba(30, 64, 175, 0.18), rgba(8, 14, 26, 0.62));
+}
+
+.listModeContextMainTs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.listModeContextMainTs strong {
+  flex: 0 0 auto;
+  color: rgba(207, 250, 254, 0.98);
+  font-size: 0.76rem;
+}
+
+.listModeContextMainTs span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listModeContextActionsTs {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.listModeContextMetaTs {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  background: rgba(8, 47, 73, 0.34);
+  color: rgba(207, 250, 254, 0.88);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.listModeContextButtonTs {
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  background: rgba(14, 116, 144, 0.28);
+  color: rgba(207, 250, 254, 0.98);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.listModeContextButtonTs:hover,
+.listModeContextButtonTs:focus-visible {
+  border-color: rgba(125, 211, 252, 0.52);
+  background: rgba(14, 116, 144, 0.42);
+}
+
+.secondaryListModeContextButtonTs {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.48);
+  color: var(--text-2);
+}
+
+.secondaryListModeContextButtonTs:hover,
+.secondaryListModeContextButtonTs:focus-visible {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(30, 41, 59, 0.62);
 }
 
 .orderingToolButton {
@@ -1095,10 +2291,11 @@ button {
 }
 
 .toolButtonTs {
-  min-height: 34px;
-  padding: 7px 12px;
+  min-height: 30px;
+  padding: 5px 9px;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
+  gap: 5px;
   color: #dde5f0;
 }
 
@@ -1109,11 +2306,10 @@ button {
   color: var(--blue);
 }
 
-/* Roxo escuro: Ordenar Lista */
 .toolButtonTs.accent {
-  color: #e9d5ff;
-  background: #3b1f6b;
-  border-color: #7c3aed;
+  color: rgba(207, 250, 254, 0.98);
+  background: rgba(14, 116, 144, 0.32);
+  border-color: var(--cyan-border);
 }
 
 /* Azul-petróleo: Juntar Repetidos */
@@ -1146,6 +2342,18 @@ button {
 }
 
 .marginBadgeTs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  background: rgba(15, 23, 42, 0.48);
+  color: #fde68a;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
   font-weight: 700;
 }
 
@@ -1153,7 +2361,229 @@ button {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  flex-direction: column;
   padding: 0;
+}
+
+.tableHeaderTs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.tableHeaderCopyTs {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tableHeaderKickerTs {
+  color: var(--text-3);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tableHeaderTitleTs {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.tableHeaderChipsTs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tableHeaderChipTs {
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.42);
+  color: var(--text-3);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.tableHeaderChipActiveTs {
+  border-color: rgba(96, 165, 250, 0.24);
+  background: rgba(37, 99, 235, 0.14);
+  color: #bfdbfe;
+}
+
+.tableBulkActionsTs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 8px 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.filteredBulkActionsTs {
+  border-bottom-color: rgba(245, 158, 11, 0.14);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.05), rgba(15, 23, 42, 0));
+}
+
+.tableBulkActionsLockedTs {
+  border-bottom-color: rgba(245, 158, 11, 0.12);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.04), rgba(15, 23, 42, 0));
+}
+
+.tableBulkActionsLabelTs {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-3);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tableBulkActionsCopyTs {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tableBulkScopeSummaryTs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  min-width: 0;
+}
+
+.tableBulkScopeSummaryTs strong {
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.tableBulkScopeSummaryTs small {
+  flex: 1 1 260px;
+  min-width: 180px;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableBulkActionsHintTs {
+  flex: 0 0 auto;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 2px 6px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fcd34d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableBulkUnlockButtonTs {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.tableBulkUnlockButtonTs:hover,
+.tableBulkUnlockButtonTs:focus-visible {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.18);
+  color: #fff7d6;
+}
+
+.tableBulkControlsTs {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tableBulkControlTs:last-child .bulkMenuPopover {
+  right: 0;
+  left: auto;
+}
+
+.bulkHeaderButton.tableBulkButtonTs {
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
+  background: rgba(17, 28, 47, 0.62);
+  color: var(--text);
+}
+
+.bulkHeaderButton.tableBulkButtonTs:hover {
+  border-color: rgba(96, 165, 250, 0.24);
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.bulkHeaderButton.tableBulkButtonTs:disabled {
+  cursor: not-allowed;
+  border-color: rgba(148, 163, 184, 0.08);
+  background: rgba(15, 23, 42, 0.32);
+  opacity: 0.68;
+}
+
+.bulkHeaderButton.tableBulkButtonTs:disabled:hover {
+  border-color: rgba(148, 163, 184, 0.08);
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.bulkHeaderButton.tableBulkButtonTs span {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.bulkHeaderButton.tableBulkButtonTs small {
+  color: var(--text-3);
+  font-size: 0.72rem;
 }
 
 .tableScrollTs {
@@ -1163,9 +2593,23 @@ button {
   padding: 0 6px 6px;
 }
 
+.tableScrollStateTs .productsTableTs {
+  height: 100%;
+}
+
+.tableScrollStateTs tbody,
+.tableScrollStateTs tr,
+.tableScrollStateTs .richTableStateCell {
+  height: 100%;
+}
+
 .productsTableTs {
   min-width: 980px;
   table-layout: fixed;
+}
+
+.productsTableNoActionsTs {
+  min-width: 900px;
 }
 
 table {
@@ -1179,7 +2623,7 @@ thead {
 
 th,
 td {
-  padding: 8px 8px;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--border);
   text-align: left;
   font-size: 0.84rem;
@@ -1196,6 +2640,19 @@ th {
   text-transform: uppercase;
   background: var(--surface-2);
   backdrop-filter: blur(8px);
+}
+
+tbody th.rowIndexHeaderTs {
+  position: static;
+  z-index: auto;
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 th:nth-child(1),
@@ -1299,6 +2756,14 @@ td:nth-child(9) {
   cursor: pointer;
 }
 
+.bulkAddButton:hover,
+.bulkAddButton:focus-visible {
+  border-color: rgba(125, 211, 252, 0.48);
+  background: rgba(37, 99, 235, 0.28);
+  outline: 2px solid rgba(125, 211, 252, 0.28);
+  outline-offset: 2px;
+}
+
 .bulkComposer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1313,6 +2778,12 @@ td:nth-child(9) {
   border: 1px solid rgba(96, 165, 250, 0.12);
   background: var(--field);
   color: var(--text);
+}
+
+.bulkComposer input:focus-visible {
+  border-color: rgba(125, 211, 252, 0.58);
+  outline: 2px solid rgba(125, 211, 252, 0.24);
+  outline-offset: 2px;
 }
 
 .bulkMenuList {
@@ -1333,6 +2804,14 @@ td:nth-child(9) {
   cursor: pointer;
 }
 
+.bulkMenuItem:hover,
+.bulkMenuItem:focus-visible {
+  border-color: rgba(125, 211, 252, 0.36);
+  background: rgba(30, 64, 175, 0.42);
+  outline: 2px solid rgba(125, 211, 252, 0.22);
+  outline-offset: 2px;
+}
+
 tbody tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.02);
 }
@@ -1341,8 +2820,16 @@ tbody tr:hover {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.orderingModeActive tbody tr {
+.orderingModeActive tbody tr,
+.createSetModeActive tbody tr {
   cursor: pointer;
+}
+
+.orderingModeActive tbody tr:focus-visible,
+.createSetModeActive tbody tr:focus-visible {
+  position: relative;
+  outline: 2px solid rgba(125, 211, 252, 0.48);
+  outline-offset: -2px;
 }
 
 .selectedRow {
@@ -1358,8 +2845,8 @@ tbody tr:hover {
 }
 
 .orderedRow {
-  background: var(--purple-dim) !important;
-  box-shadow: inset 3px 0 0 var(--purple);
+  background: var(--cyan-dim) !important;
+  box-shadow: inset 3px 0 0 var(--cyan);
 }
 
 .rowLink {
@@ -1370,6 +2857,36 @@ tbody tr:hover {
 
 .dangerRowLink {
   color: #ff8f8f;
+}
+
+.rowDeleteButtonTs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(15, 23, 42, 0.34);
+  color: rgba(148, 163, 184, 0.72);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+tbody tr:hover .rowDeleteButtonTs {
+  border-color: rgba(248, 113, 113, 0.2);
+  background: rgba(127, 29, 29, 0.12);
+  color: rgba(252, 165, 165, 0.86);
+}
+
+.rowDeleteButtonTs:hover,
+.rowDeleteButtonTs:focus-visible {
+  border-color: rgba(248, 113, 113, 0.38);
+  background: rgba(127, 29, 29, 0.34);
+  color: #fee2e2;
 }
 
 .cellActionButton {
@@ -1386,6 +2903,16 @@ tbody tr:hover {
 
 .cellActionButton:hover {
   color: #9bcbff;
+}
+
+.cellActionPlaceholderTs {
+  color: var(--text-3);
+  font-weight: 700;
+}
+
+.cellActionButton:hover .cellActionPlaceholderTs,
+.cellActionButton:focus-visible .cellActionPlaceholderTs {
+  color: #bfdbfe;
 }
 
 .nameCellButton strong {
@@ -1409,6 +2936,89 @@ tbody tr:hover {
   color: rgba(147, 197, 253, 0.92);
   font-size: 0.72rem;
   line-height: 1.35;
+}
+
+.productReviewBadgesTs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.productReviewBadgeTs {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 18px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  color: var(--text-2);
+  font-size: 0.66rem;
+  line-height: 1.15;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.productReviewBadgeTs.reviewBadge-warning {
+  color: rgba(253, 230, 138, 0.9);
+  border-color: rgba(245, 158, 11, 0.18);
+  background: rgba(120, 53, 15, 0.18);
+}
+
+.productReviewBadgeTs.reviewBadge-error {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(127, 29, 29, 0.36);
+}
+
+.productReviewBadgeTs:hover,
+.productReviewBadgeTs:focus-visible {
+  border-color: rgba(96, 165, 250, 0.42);
+  color: #dbeafe;
+}
+
+.tableFieldStatusTs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(17, 24, 39, 0.52);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tableFieldStatusDotTs {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.14);
+}
+
+.tableFieldStatusTs.fieldStatus-warning {
+  color: rgba(253, 230, 138, 0.78);
+  border-color: rgba(245, 158, 11, 0.14);
+  background: rgba(120, 53, 15, 0.12);
+}
+
+.tableFieldStatusTs:hover,
+.tableFieldStatusTs:focus-visible {
+  border-color: rgba(96, 165, 250, 0.42);
+  color: #dbeafe;
 }
 
 .cellEditInput {
@@ -1476,14 +3086,30 @@ tbody tr:hover {
 }
 
 .activeOrderingSelectionBadge {
-  border-color: rgba(167, 139, 250, 0.36);
-  background: rgba(91, 33, 182, 0.34);
-  color: rgba(240, 235, 255, 0.96);
+  border-color: var(--cyan-border);
+  background: rgba(14, 116, 144, 0.28);
+  color: rgba(207, 250, 254, 0.98);
 }
 
 .selectionHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(17, 28, 47, 0.72);
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.selectedSelectionHint {
+  border-color: var(--cyan-border);
+  background: rgba(14, 116, 144, 0.28);
+  color: rgba(207, 250, 254, 0.98);
 }
 
 .automationCurrentBadge {
@@ -1501,6 +3127,547 @@ tbody tr:hover {
   letter-spacing: 0.03em;
 }
 
+.confirmationBackdropTs {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 8, 15, 0.78);
+  backdrop-filter: blur(12px);
+}
+
+.confirmationDialogTs {
+  width: min(560px, calc(100vw - 36px));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: rgba(12, 18, 32, 0.98);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+}
+
+.confirmationDialogTs :focus-visible {
+  outline: 2px solid rgba(248, 113, 113, 0.58);
+  outline-offset: 2px;
+}
+
+.confirmationIconTs {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.32);
+  background: rgba(127, 29, 29, 0.42);
+  color: #fecaca;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.confirmationBodyTs {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.confirmationBodyTs h3 {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.confirmationBodyTs p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.confirmationBodyTs small {
+  color: var(--text-3);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.confirmationErrorTs {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  background: rgba(127, 29, 29, 0.24);
+  color: #fecaca;
+  font-size: 0.76rem;
+}
+
+.confirmationActionsTs {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmationCancelButtonTs {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.confirmationConfirmButtonTs {
+  min-height: 34px;
+  padding: 7px 12px;
+}
+
+.marginDialogBackdropTs {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 8, 15, 0.74);
+  backdrop-filter: blur(12px);
+}
+
+.marginDialogTs {
+  width: min(520px, calc(100vw - 36px));
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  background: rgba(12, 18, 32, 0.98);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+}
+
+.marginDialogTs :focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.58);
+  outline-offset: 2px;
+}
+
+.marginDialogHeaderTs {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.marginDialogTitleBlockTs {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.marginDialogTitleBlockTs h3 {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.marginDialogTitleBlockTs p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.marginCurrentChipTs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: rgba(30, 64, 175, 0.28);
+  color: rgba(224, 242, 254, 0.98);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.marginDialogFormTs {
+  display: grid;
+  gap: 10px;
+}
+
+.marginDialogFieldTs {
+  display: grid;
+  gap: 6px;
+}
+
+.marginDialogFieldTs > span {
+  color: var(--text-2);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.marginInputWrapTs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  background: var(--field);
+  overflow: hidden;
+}
+
+.marginInputWrapTs:focus-within {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.marginInputWrapTs input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 42px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1rem;
+  outline: 0;
+}
+
+.marginInputWrapTs > span {
+  padding: 0 12px;
+  color: var(--text-3);
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 800;
+}
+
+.marginDialogHintTs {
+  color: var(--text-3);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.marginDialogErrorTs {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  background: rgba(127, 29, 29, 0.24);
+  color: #fecaca;
+  font-size: 0.76rem;
+}
+
+.marginDialogActionsTs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.marginCancelButtonTs {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.marginConfirmButtonTs {
+  min-height: 34px;
+  padding: 7px 12px;
+}
+
+.textInputDialogBackdropTs {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 8, 15, 0.74);
+  backdrop-filter: blur(12px);
+}
+
+.textInputDialogTs {
+  width: min(520px, calc(100vw - 36px));
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(12, 18, 32, 0.98);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+}
+
+.textInputDialogTs :focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.58);
+  outline-offset: 2px;
+}
+
+.textInputDialogHeaderTs {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.textInputDialogHeaderTs h3 {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.textInputDialogHeaderTs p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.textInputDialogFormTs {
+  display: grid;
+  gap: 10px;
+}
+
+.textInputDialogFieldTs {
+  display: grid;
+  gap: 6px;
+}
+
+.textInputDialogFieldTs > span {
+  color: var(--text-2);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.textInputDialogFieldTs input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  background: var(--field);
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1rem;
+}
+
+.textInputDialogFieldTs input:focus {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+  outline: 0;
+}
+
+.textInputDialogErrorTs {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  background: rgba(127, 29, 29, 0.24);
+  color: #fecaca;
+  font-size: 0.76rem;
+}
+
+.textInputDialogActionsTs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.textInputCancelButtonTs {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.textInputConfirmButtonTs {
+  min-height: 34px;
+  padding: 7px 12px;
+}
+
+.noticeDialogBackdropTs {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 8, 15, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.noticeDialogTs {
+  width: min(540px, calc(100vw - 36px));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  background: rgba(12, 18, 32, 0.98);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+}
+
+.noticeDialogTs :focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.58);
+  outline-offset: 2px;
+}
+
+.noticeDialogIconTs {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  background: rgba(30, 64, 175, 0.34);
+  color: rgba(224, 242, 254, 0.98);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.noticeTone-success .noticeDialogIconTs {
+  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(6, 78, 59, 0.38);
+  color: #bbf7d0;
+}
+
+.noticeTone-warning .noticeDialogIconTs {
+  border-color: rgba(251, 191, 36, 0.32);
+  background: rgba(120, 53, 15, 0.38);
+  color: #fde68a;
+}
+
+.noticeTone-danger .noticeDialogIconTs {
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(127, 29, 29, 0.42);
+  color: #fecaca;
+}
+
+.noticeDialogBodyTs {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.noticeDialogBodyTs h3 {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.noticeDialogBodyTs p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.noticeDialogActionsTs {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.noticeConfirmButtonTs {
+  min-height: 34px;
+  padding: 7px 14px;
+}
+
+.noticeToastRegionTs {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 65;
+  display: grid;
+  gap: 10px;
+  width: min(420px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.noticeToastTs {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  background: rgba(12, 18, 32, 0.96);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.noticeToastIconTs {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(30, 64, 175, 0.3);
+  color: rgba(224, 242, 254, 0.98);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.noticeToast-success .noticeToastIconTs {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(6, 78, 59, 0.34);
+  color: #bbf7d0;
+}
+
+.noticeToastBodyTs {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.noticeToastBodyTs strong {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.noticeToastBodyTs p {
+  max-height: 7.5rem;
+  margin: 0;
+  overflow: auto;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.noticeToastCloseTs {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.62);
+  color: var(--text-3);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.noticeToastCloseTs:hover {
+  border-color: rgba(96, 165, 250, 0.34);
+  color: var(--text);
+}
+
+.noticeToastCloseTs:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.58);
+  outline-offset: 2px;
+}
+
 .settingsModalBackdrop {
   position: fixed;
   inset: 0;
@@ -1514,9 +3681,9 @@ tbody tr:hover {
 
 .settingsModalShell {
   width: min(1420px, 96vw);
-  max-height: min(92vh, 980px);
+  height: min(92vh, 980px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
   padding: 18px;
   border-radius: var(--radius-xl);
@@ -1525,8 +3692,12 @@ tbody tr:hover {
   box-shadow: var(--shadow-lg);
 }
 
-.settingsModalHeader,
-.settingsModalFooter {
+.settingsModalShell :focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.72);
+  outline-offset: 2px;
+}
+
+.settingsModalHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1545,6 +3716,12 @@ tbody tr:hover {
   gap: 8px;
 }
 
+.settingsModalCloseButton {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.94);
+  color: rgba(241, 245, 249, 0.96);
+}
+
 .settingsModalBody {
   min-height: 0;
   display: grid;
@@ -1556,12 +3733,13 @@ tbody tr:hover {
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 12px;
-  padding: 14px;
-  border-radius: var(--radius-lg);
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .settingsPanelWide {
@@ -1604,7 +3782,7 @@ tbody tr:hover {
 }
 
 .settingsField textarea {
-  min-height: 108px;
+  min-height: 88px;
   resize: vertical;
 }
 
@@ -1624,8 +3802,8 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: 16px;
+  padding: 9px 10px;
+  border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.1);
   background: rgba(9, 16, 29, 0.54);
 }
@@ -1774,6 +3952,12 @@ tbody tr:hover {
   border: 1px solid rgba(248, 113, 113, 0.24);
 }
 
+.gradeStatusBadge.warning {
+  color: #fde68a;
+  background: rgba(146, 64, 14, 0.28);
+  border: 1px solid rgba(251, 191, 36, 0.24);
+}
+
 .gradeProductRow span,
 .gradeProductRow small,
 .gradeModalMeta span,
@@ -1787,6 +3971,10 @@ tbody tr:hover {
 
 .gradeStatusTextDanger {
   color: #ff8f8f !important;
+}
+
+.gradeStatusTextWarning {
+  color: #ffd37d !important;
 }
 
 .activeGradeProductRow {
@@ -1973,6 +4161,46 @@ tbody tr:hover {
   border: 1px solid rgba(148, 163, 184, 0.08);
 }
 
+.gradeProgressSummaryTs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(8, 14, 26, 0.58);
+}
+
+.gradeProgressSummaryTs > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gradeProgressSummaryTs span,
+.gradeProgressSummaryTs small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.gradeProgressSummaryTs strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.gradeProgress-warning {
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.gradeProgress-danger {
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
+.gradeProgress-success {
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
 .gradeGridEditor {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -2080,6 +4308,161 @@ tbody tr:hover {
   color: var(--muted);
 }
 
+.richTableStateCell {
+  padding: 0;
+  background: rgba(9, 16, 29, 0.48);
+}
+
+.tableStateTs {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.88fr) minmax(320px, 1.12fr);
+  align-items: center;
+  align-content: center;
+  gap: 18px;
+  min-height: clamp(340px, 46vh, 500px);
+  padding: 34px 24px;
+  text-align: left;
+}
+
+.tableStateMainTs {
+  display: grid;
+  align-content: center;
+  gap: 9px;
+  min-width: 0;
+  max-width: 560px;
+}
+
+.tableStateKickerTs {
+  color: var(--blue);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tableStateMainTs strong {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 1.02rem;
+  line-height: 1.2;
+}
+
+.tableStateMainTs span:not(.tableStateKickerTs) {
+  color: var(--text-3);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.tableStateActionsTs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 5px;
+}
+
+.tableStateChecklistTs {
+  display: grid;
+  align-content: center;
+  gap: 9px;
+  margin: 0;
+  min-height: 94px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+  background: rgba(8, 14, 26, 0.62);
+  color: var(--text-3);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  list-style: none;
+}
+
+.tableStateChecklistTs li {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.tableStateChecklistTs li::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
+}
+
+.tableSkeletonTs {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius);
+  background: rgba(8, 14, 26, 0.62);
+}
+
+.tableSkeletonRowTs {
+  display: grid;
+  grid-template-columns: 34px 1.4fr 0.8fr 0.85fr 0.45fr 0.65fr 0.65fr 0.8fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 26px;
+}
+
+.tableSkeletonCellTs {
+  height: 10px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(71, 85, 105, 0.34),
+      rgba(148, 163, 184, 0.28),
+      rgba(71, 85, 105, 0.34)
+    );
+  background-size: 220% 100%;
+  animation: tableShimmer 1.6s linear infinite;
+}
+
+@keyframes tableShimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tableSkeletonCellTs {
+    animation: none;
+  }
+}
+
+.filteredEmptyStateTs {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  text-align: center;
+}
+
+.filteredEmptyStateTs strong {
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.84rem;
+}
+
+.filteredEmptyStateTs span {
+  color: var(--text-3);
+  font-size: 0.74rem;
+}
+
+.filteredEmptyActionsTs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+}
+
 .iconShellButton:hover,
 .ghostButton:hover,
 .primaryButton:hover,
@@ -2098,24 +4481,56 @@ button:disabled {
 
 @media (max-width: 1480px) {
   .batchInlineRowTs {
+    grid-template-columns: minmax(142px, 0.44fr) minmax(0, 1fr);
     gap: 8px;
-    padding-right: 0;
     min-height: 0;
   }
 
+  .executionActionClusterPrimaryTs {
+    grid-column: 2;
+  }
+
+  .batchInlineDivider {
+    display: none;
+  }
+
+  .executionActionClusterSecondaryTs {
+    grid-column: 1 / -1;
+  }
+
   .compactAutomationStatusTs {
-    position: static;
     width: auto;
     min-width: 0;
   }
 
-  .listToolbarIntroTs {
-    flex-direction: column;
-    align-items: flex-start;
+  .executionReadinessTs {
+    grid-template-columns: 1fr;
+  }
+
+  .executionReadinessChipsTs {
+    justify-content: flex-start;
+  }
+
+  .quickFiltersTs {
+    justify-content: flex-start;
   }
 
   .listHeadTs {
     align-items: flex-start;
+  }
+
+  .listPrimaryActionsTs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolActionGroupDangerTs {
+    grid-column: auto;
+    justify-self: stretch;
+    min-width: 0;
+  }
+
+  .toolActionGroupDangerTs .toolActionGroupButtonsTs {
+    justify-content: flex-start;
   }
 
   .listToolbarMetaTs {
@@ -2124,6 +4539,19 @@ button:disabled {
 }
 
 @media (max-width: 1180px) {
+  .shellViewport {
+    justify-items: stretch;
+  }
+
+  .appShellTs {
+    grid-template-columns: 1fr;
+  }
+
+  .leftPanelTs,
+  .rightPanelTs {
+    overflow: visible;
+  }
+
   .securityPanel {
     grid-template-columns: 1fr;
   }
@@ -2140,9 +4568,42 @@ button:disabled {
   .toolConfigGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .listPrimaryActionsTs {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
+  .listToolbarTs {
+    grid-template-columns: 1fr;
+  }
+
+  .listContentTs {
+    grid-column: auto;
+  }
+
+  .editModeContextTs,
+  .listModeContextTs,
+  .editModeContextMainTs {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .editModeContextMainTs,
+  .listModeContextMainTs {
+    display: grid;
+  }
+
+  .listModeContextActionsTs {
+    justify-content: flex-start;
+  }
+
+  .listToolbarIntroTs {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .securityBar {
     flex-direction: column;
     align-items: flex-start;
@@ -2167,6 +4628,50 @@ button:disabled {
   .productsTableTs {
     min-width: 980px;
   }
+
+  .tableHeaderTs {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tableHeaderCopyTs strong {
+    white-space: normal;
+  }
+
+  .tableHeaderTitleTs {
+    white-space: normal;
+  }
+
+  .tableHeaderChipsTs {
+    justify-content: flex-start;
+  }
+
+  .tableBulkActionsTs,
+  .tableBulkActionsCopyTs {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tableBulkUnlockButtonTs {
+    width: 100%;
+  }
+
+  .tableStateTs {
+    grid-template-columns: 1fr;
+    min-height: 320px;
+    padding: 18px;
+  }
+}
+
+@media (max-width: 820px) {
+  .batchInlineRowTs {
+    grid-template-columns: 1fr;
+  }
+
+  .executionActionClusterPrimaryTs,
+  .executionActionClusterSecondaryTs {
+    grid-column: auto;
+  }
 }
 
 /* ── LojaSync Brand Header ─────────────────────────────────── */
@@ -2189,6 +4694,7 @@ button:disabled {
 }
 
 .lojasyncBrandName {
+  margin: 0;
   font-size: 1.15rem;
   letter-spacing: -0.03em;
   color: var(--text);

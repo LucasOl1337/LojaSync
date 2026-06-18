@@ -17,10 +17,12 @@ import type {
   ProductListResponse,
   ProductPayload,
   TargetCaptureResponse,
+  RuntimeHealthResponse,
   TotalsResponse,
 } from "./types";
 
-const API_BASE_URL = (window as Window & { __BACKEND_URL__?: string }).__BACKEND_URL__ || window.location.origin;
+const runtimeWindow = (globalThis as typeof globalThis & { window?: Window & { __BACKEND_URL__?: string } }).window;
+const API_BASE_URL = runtimeWindow?.__BACKEND_URL__ || runtimeWindow?.location?.origin || "";
 
 function buildRequestUrl(path: string, method: string) {
   const url = new URL(`${API_BASE_URL}${path}`);
@@ -36,7 +38,31 @@ async function parseError(response: Response) {
     const parsed = JSON.parse(text) as { detail?: string };
     return parsed.detail || text || response.statusText;
   } catch {
-    return text || response.statusText;
+    return buildUnexpectedJsonResponseMessage(text, response.statusText);
+  }
+}
+
+function looksLikeHtmlResponse(text: string) {
+  return /^\s*(<!doctype|<html|<body)\b/i.test(text);
+}
+
+export function buildUnexpectedJsonResponseMessage(text: string, fallback = "Resposta invalida do servidor.") {
+  const trimmed = String(text || "").trim();
+  if (looksLikeHtmlResponse(trimmed)) {
+    return "O backend do LojaSync retornou HTML em vez de JSON. Verifique se o runtime principal e o runtime de autenticacao estao ativos.";
+  }
+  return trimmed || fallback;
+}
+
+export async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) {
+    return null as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(buildUnexpectedJsonResponseMessage(text, response.statusText));
   }
 }
 
@@ -54,7 +80,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
-  return (await response.json()) as T;
+  return parseJsonResponse<T>(response);
 }
 
 export function buildWsUrl(path: string) {
@@ -64,6 +90,10 @@ export function buildWsUrl(path: string) {
   url.search = "";
   url.hash = "";
   return url.toString();
+}
+
+export function fetchRuntimeHealth() {
+  return requestJson<RuntimeHealthResponse>("/health");
 }
 
 export function fetchAuthSession() {
@@ -383,7 +413,7 @@ export async function importRomaneio(file: File) {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
-  return (await response.json()) as ImportStartResponse;
+  return parseJsonResponse<ImportStartResponse>(response);
 }
 
 export function fetchImportStatus(jobId: string) {
@@ -406,7 +436,7 @@ export async function importRomaneioLocalExperiment(file: File) {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
-  return (await response.json()) as ImportResult;
+  return parseJsonResponse<ImportResult>(response);
 }
 
 export function cleanupImportJob(jobId: string) {

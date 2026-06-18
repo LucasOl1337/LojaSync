@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +9,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.interfaces.api.http.app import create_app
+from app.interfaces.api.http.app import _cors_origins, create_app
 
 
 class HttpFrontendRoutingTests(unittest.TestCase):
@@ -61,6 +62,55 @@ class HttpFrontendRoutingTests(unittest.TestCase):
                 self.assertEqual(response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
                 self.assertEqual(response.headers["pragma"], "no-cache")
                 self.assertEqual(response.headers["expires"], "0")
+
+    def test_cors_uses_configured_origins_instead_of_wildcard_with_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            ts_dir = root / "frontend-ts" / "dist"
+            legacy_dir = root / "app" / "interfaces" / "webapp" / "static"
+            ts_dir.mkdir(parents=True, exist_ok=True)
+            legacy_dir.mkdir(parents=True, exist_ok=True)
+            (ts_dir / "index.html").write_text("<!doctype html><title>TS</title>", encoding="utf-8")
+            (legacy_dir / "index.html").write_text("<!doctype html><title>Legacy</title>", encoding="utf-8")
+
+            fake_paths = SimpleNamespace(web_ts_dist_dir=ts_dir, web_static_dir=legacy_dir)
+            fake_container = SimpleNamespace(paths=fake_paths)
+
+            with (
+                patch("app.interfaces.api.http.app.build_container", return_value=fake_container),
+                patch.dict(os.environ, {"LOJASYNC_CORS_ORIGINS": "http://allowed.test"}, clear=False),
+            ):
+                client = TestClient(create_app())
+
+                allowed = client.options(
+                    "/health",
+                    headers={
+                        "Origin": "http://allowed.test",
+                        "Access-Control-Request-Method": "GET",
+                    },
+                )
+                blocked = client.options(
+                    "/health",
+                    headers={
+                        "Origin": "http://blocked.test",
+                        "Access-Control-Request-Method": "GET",
+                    },
+                )
+
+                self.assertEqual(allowed.status_code, 200)
+                self.assertEqual(allowed.headers["access-control-allow-origin"], "http://allowed.test")
+                self.assertEqual(allowed.headers["access-control-allow-credentials"], "true")
+                self.assertNotIn("access-control-allow-origin", blocked.headers)
+
+    def test_cors_formats_ipv6_hosts_as_valid_origins(self) -> None:
+        settings = SimpleNamespace(api_host="::1", auth_host="0.0.0.0", api_port=8800, auth_port=8810)
+        container = SimpleNamespace(settings=settings)
+
+        with patch.dict(os.environ, {"LOJASYNC_CORS_ORIGINS": "", "LOJASYNC_FRONTEND_PORT": "5173"}, clear=False):
+            origins = _cors_origins(container)
+
+        self.assertIn("http://[::1]:8800", origins)
+        self.assertNotIn("http://::1:8800", origins)
 
 
 if __name__ == "__main__":

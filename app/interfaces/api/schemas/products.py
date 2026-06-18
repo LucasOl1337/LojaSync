@@ -2,7 +2,25 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.domain.products.entities import parse_non_negative_price
+
+
+def _validate_price_text(value: str | None, *, allow_empty: bool) -> str | None:
+    if value is None:
+        if allow_empty:
+            return None
+        raise ValueError("Preco invalido")
+    text = str(value).strip()
+    if not text:
+        if allow_empty:
+            return None
+        raise ValueError("Preco invalido")
+    parsed = parse_non_negative_price(text)
+    if parsed is None:
+        raise ValueError("Preco invalido")
+    return text
 
 
 class GradeItemPayload(BaseModel):
@@ -26,6 +44,16 @@ class ProductPayload(BaseModel):
     descricao_completa: str | None = None
     grades: list[GradeItemPayload] | None = None
     cores: list[CorItemPayload] | None = None
+
+    @field_validator("preco")
+    @classmethod
+    def validate_preco(cls, value: str) -> str:
+        return _validate_price_text(value, allow_empty=False) or ""
+
+    @field_validator("preco_final")
+    @classmethod
+    def validate_preco_final(cls, value: str | None) -> str | None:
+        return _validate_price_text(value, allow_empty=True)
 
 
 class ProductResponse(BaseModel):
@@ -67,6 +95,16 @@ class ProductPatchPayload(BaseModel):
     descricao_completa: str | None = None
     grades: list[GradeItemPayload] | None = None
     cores: list[CorItemPayload] | None = None
+
+    @field_validator("preco")
+    @classmethod
+    def validate_preco(cls, value: str | None) -> str:
+        return _validate_price_text(value, allow_empty=False) or ""
+
+    @field_validator("preco_final")
+    @classmethod
+    def validate_preco_final(cls, value: str | None) -> str | None:
+        return _validate_price_text(value, allow_empty=True)
 
 
 class BrandPayload(BaseModel):

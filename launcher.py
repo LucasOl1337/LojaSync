@@ -10,7 +10,9 @@ Usage: python launcher.py [--host HOST] [--backend-port PORT] ...
 from __future__ import annotations
 
 import argparse
+import http.client
 import importlib
+import json
 import os
 import subprocess
 import sys
@@ -53,6 +55,7 @@ from app.bootstrap.launcher.net import (
 from app.bootstrap.launcher.frontend import (
     ensure_typescript_frontend_ready,
     make_http_server,
+    npm_environment,
     typescript_frontend_is_available,
     _iter_files,
     _latest_mtime,
@@ -82,6 +85,25 @@ def _maybe_call(func: Optional[Callable[..., Any]], *args: Any) -> None:
         func(*args)
     except TypeError:
         func()
+
+
+def _is_llm_monitor_healthy(host: str, port: int) -> bool:
+    connection: Optional[http.client.HTTPConnection] = None
+    try:
+        connection = http.client.HTTPConnection(connect_host(host), port, timeout=1.5)
+        connection.request("GET", "/api/history?limit=1")
+        response = connection.getresponse()
+        body = response.read(4096)
+        if response.status != 200:
+            return False
+        payload = json.loads(body.decode("utf-8", errors="replace"))
+        return isinstance(payload, dict) and "upstream_base_url" in payload and "history_file" in payload
+    except Exception:
+        return False
+    finally:
+        if connection is not None:
+            with suppress(Exception):
+                connection.close()
 
 
 # ---------------------------------------------------------------------------
@@ -323,10 +345,15 @@ class Launcher:
         self._use_monitor_base_url = False
         if self.llm_monitor_enabled:
             monitor_host = "127.0.0.1"
-            monitor_running = is_tcp_listening(monitor_host, self.llm_monitor_port)
+            monitor_running = _is_llm_monitor_healthy(monitor_host, self.llm_monitor_port)
             if monitor_running:
                 print(f"[launcher] monitor LLM ja ativo em {monitor_host}:{self.llm_monitor_port}; reutilizando.")
                 self._use_monitor_base_url = True
+            elif is_tcp_listening(monitor_host, self.llm_monitor_port):
+                print(
+                    f"[launcher] porta do monitor em uso ({monitor_host}:{self.llm_monitor_port}), "
+                    "mas nao respondeu como monitor LLM; backend vai usar LLM direto."
+                )
             elif is_port_bindable(monitor_host, self.llm_monitor_port):
                 self.start_llm_monitor_async()
                 self._use_monitor_base_url = True
@@ -408,9 +435,69 @@ if __name__ == "__main__":
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatible aliases (tests import these from launcher.*)
+# Backward-compatible wrappers (tests and old scripts import/patch these from launcher.*)
 # ---------------------------------------------------------------------------
-_ensure_typescript_frontend_ready = ensure_typescript_frontend_ready
+
+def _frontend_ts_dist_dir():
+    return FRONTEND_TS_DIR / "dist"
+
+
+def _ts_build_inputs():
+    return (
+        FRONTEND_TS_DIR / "index.html",
+        FRONTEND_TS_DIR / "package.json",
+        FRONTEND_TS_DIR / "package-lock.json",
+        FRONTEND_TS_DIR / "tsconfig.json",
+        FRONTEND_TS_DIR / "tsconfig.app.json",
+        FRONTEND_TS_DIR / "vite.config.ts",
+        FRONTEND_TS_DIR / "src",
+    )
+
+
+def _typescript_frontend_needs_build() -> bool:
+    dist_dir = _frontend_ts_dist_dir()
+    if not FRONTEND_TS_DIR.exists():
+        return False
+    if not dist_dir.exists():
+        return True
+    return _latest_mtime(_ts_build_inputs()) > _latest_mtime((dist_dir,))
+
+
+def _ensure_typescript_frontend_ready(force_build: bool = False, skip_build: bool = False) -> None:
+    if skip_build or not FRONTEND_TS_DIR.exists():
+        return
+
+    npm_cmd = _locate_npm_command()
+    if not npm_cmd:
+        if force_build:
+            raise RuntimeError("npm nao encontrado no PATH; nao foi possivel preparar o frontend TypeScript.")
+        print(
+            "[launcher] npm nao encontrado no PATH; pulando preparacao do frontend-ts. "
+            "O frontend principal continua disponivel, mas /ts pode ficar indisponivel ou desatualizado."
+        )
+        return
+
+    package_lock = FRONTEND_TS_DIR / "package-lock.json"
+    package_json = FRONTEND_TS_DIR / "package.json"
+    node_modules = FRONTEND_TS_DIR / "node_modules"
+    install_cmd = [npm_cmd, "ci"] if package_lock.exists() else [npm_cmd, "install"]
+
+    needs_install = not node_modules.exists()
+    if not needs_install and package_lock.exists():
+        needs_install = _latest_mtime((node_modules,)) < package_lock.stat().st_mtime
+    elif not needs_install and package_json.exists():
+        needs_install = _latest_mtime((node_modules,)) < package_json.stat().st_mtime
+
+    if needs_install:
+        subprocess.run(install_cmd, cwd=str(FRONTEND_TS_DIR), check=True, env=npm_environment(npm_cmd))
+
+    if force_build or _typescript_frontend_needs_build():
+        subprocess.run([npm_cmd, "run", "build"], cwd=str(FRONTEND_TS_DIR), check=True, env=npm_environment(npm_cmd))
+    else:
+        print("[launcher] frontend-ts/dist ja esta atualizado; pulando build.")
+
+
 _locate_npm_command = locate_npm_command
 _make_http_server = make_http_server
-_typescript_frontend_needs_build = typescript_frontend_is_available
+_is_tcp_listening = is_tcp_listening
+_is_port_bindable = is_port_bindable

@@ -75,6 +75,57 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
         response = client.post("/auth/bootstrap", json={"password": "senha-forte-123"})
         self.assertEqual(response.status_code, 200)
 
+    def test_product_routes_reject_invalid_create_prices(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                base_payload = {
+                    "nome": "Produto Invalido",
+                    "codigo": "INV-1",
+                    "quantidade": 1,
+                    "categoria": "",
+                    "marca": "",
+                }
+                for price in ["12,34abc", "-1,00"]:
+                    with self.subTest(price=price):
+                        response = client.post("/products", json={**base_payload, "preco": price})
+                        self.assertEqual(response.status_code, 422)
+
+                self.assertEqual(client.get("/products").json()["items"], [])
+
+    def test_product_routes_reject_invalid_patch_prices(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = client.post(
+                    "/products",
+                    json={
+                        "nome": "Produto Base",
+                        "codigo": "BASE-1",
+                        "quantidade": 1,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                ).json()["item"]
+
+                for payload in [{"preco": "12,34abc"}, {"preco": "-1,00"}, {"preco_final": "-5,00"}]:
+                    with self.subTest(payload=payload):
+                        response = client.patch(f"/products/{created['ordering_key']}", json=payload)
+                        self.assertEqual(response.status_code, 422)
+
+                listed = client.get("/products").json()["items"]
+                self.assertEqual(len(listed), 1)
+                self.assertEqual(listed[0]["preco"], "10,00")
+
     def test_reorder_route_changes_only_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

@@ -223,6 +223,12 @@ export type AuthSessionResponse = {
   expires_at: number | null;
 };
 
+export type RuntimeHealthResponse = {
+  status: string;
+  version?: string | null;
+  timestamp?: number | null;
+};
+
 export type UiConnectedEvent = {
   type: "ui.connected";
   ts: number;

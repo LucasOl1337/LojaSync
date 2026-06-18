@@ -360,7 +360,7 @@ class ImportParsingTests(unittest.TestCase):
                     {
                         "documents": [{"name": "parte_1", "content": _sample_invoice_rows()}],
                         "images": [],
-                        "errors": [],
+                        "errors": ["PDF renderer unavailable"],
                     }
                 )
                 with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
@@ -387,6 +387,15 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertTrue(result.metrics["llm_chat_used"])
                 self.assertEqual(result.metrics["local_structured_candidates"], 8)
                 self.assertEqual(result.metrics["upload_structured_candidates"], 8)
+                self.assertIn("PDF renderer unavailable", result.warnings)
+                self.assertTrue(
+                    any(
+                        event.get("source") == "llm"
+                        and event.get("level") == "warning"
+                        and event.get("message") == "PDF renderer unavailable"
+                        for event in result.metrics["process_log"]
+                    )
+                )
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 1)
                 joggers = [item for item in service.created if item.codigo == "1000108790"]
@@ -551,6 +560,59 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertIn("did not match the invoice validation checks", str(status.error))
                 self.assertIsNone(result)
                 self.assertEqual(len(service.created), 0)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_uses_vertical_image_fallback_when_full_page_returns_no_items(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [],
+                        "images": [{"name": "page#p1", "data": "not-a-real-image"}],
+                        "errors": [],
+                    }
+                )
+                with patch.dict(
+                    os.environ,
+                    {
+                        "LLM_IMAGE_BATCH_SIZE": "1",
+                        "LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES": "2",
+                        "LLM_PDF_PAGE_VERTICAL_SLICES": "2",
+                    },
+                ):
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            side_effect=[("", None), (_sample_invoice_rows(), None)],
+                        ) as mocked_chat:
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=b"raw image upload",
+                                filename="romaneio.png",
+                                content_type="image/png",
+                                service=service,
+                                data_dir=data_dir,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["selected_source"], "llm")
+                self.assertEqual(result.total_itens, 8)
+                self.assertEqual(mocked_chat.call_count, 2)
+                self.assertEqual(result.metrics["llm_chunk_count"], 2)
+                self.assertEqual(
+                    [item["attempt"] for item in result.metrics["llm_chat_calls_details"]],
+                    ["full_page", "vertical_slices"],
+                )
+                self.assertIn("recortes verticais", " ".join(result.warnings).lower())
+                self.assertEqual(len(service.created), 8)
         finally:
             remove_import_job(job.job_id)
 

@@ -7,9 +7,13 @@ import subprocess
 import tempfile
 import unicodedata
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
+
+from app.application.imports.pdf_text import extract_pdf_text_candidates
+from app.domain.products.grade_utils import invoice_grade_sort_key, normalize_grade_label
+from app.domain.products.money import normalize_decimal_price, parse_price_decimal
 
 
 _INVOICE_QTY_PATTERN = r"\d+(?:\.\d{3})*,\d{2,4}"
@@ -41,24 +45,6 @@ _CONCAT_PREFIX_REGEX = re.compile(
     r"(?P<tail>.+)$"
 )
 
-_MONTH_SIZE_ORDER = {"RN": 0, "0M": 0, "1M": 1, "3M": 3, "6M": 6, "9M": 9, "12M": 12, "18M": 18, "24M": 24}
-_ALPHA_SIZE_ORDER = {
-    "RN": 0,
-    "U": 1,
-    "UN": 1,
-    "PP": 2,
-    "P": 3,
-    "M": 4,
-    "G": 5,
-    "GG": 6,
-    "XG": 7,
-    "XXG": 8,
-    "G1": 9,
-    "G2": 10,
-    "G3": 11,
-    "G4": 12,
-    "E": 13,
-}
 _SIZE_REGEX = re.compile(
     r"(?i)\btam(?:anho)?\.?\s*[:\-]?\s*"
     r"(?P<size>\d{1,3}M|\d{1,3}|PP|P|M|G|GG|XG|XXG|G[1-4]|U|UN|RN|E)\b"
@@ -189,42 +175,32 @@ class OcrPagePayload:
     lines: list[dict[str, Any]]
 
 
+@dataclass(frozen=True, slots=True)
+class LocalImportDocumentAnchors:
+    remessa_quantity: int | None
+    document_total_products: Decimal | None
+    document_total_note: Decimal | None
+    document_discount_total: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class LocalImportTotals:
+    total_quantity: int
+    extracted_total_products: Decimal
+    extracted_discount_total: Decimal
+    document_discount_total: Decimal | None
+    quantity_matches_remessa: bool
+    products_value_matches_document: bool
+    discount_matches_document: bool | None
+    warnings: list[str]
+
+
 def _parse_decimal(raw: str | Decimal | None) -> Decimal | None:
-    if raw is None:
-        return None
-    if isinstance(raw, Decimal):
-        return raw
-    text = str(raw or "").strip()
-    if not text:
-        return None
-    normalized = text.replace(" ", "")
-    if "." in normalized and "," in normalized:
-        if normalized.rfind(",") > normalized.rfind("."):
-            normalized = normalized.replace(".", "").replace(",", ".")
-        else:
-            normalized = normalized.replace(",", "")
-    elif "," in normalized:
-        normalized = normalized.replace(",", ".")
-    elif normalized.count(".") == 1:
-        left, right = normalized.split(".", 1)
-        if len(right) in {2, 3, 4}:
-            normalized = f"{left}.{right}"
-        else:
-            normalized = normalized.replace(".", "")
-    else:
-        normalized = normalized.replace(".", "")
-    try:
-        return Decimal(normalized)
-    except (InvalidOperation, ValueError):
-        return None
+    return parse_price_decimal(raw)
 
 
 def _format_price(raw: str | Decimal | None, *, digits: int = 2) -> str:
-    value = _parse_decimal(raw)
-    if value is None:
-        return str(raw or "").strip()
-    quantizer = Decimal("1").scaleb(-digits)
-    return format(value.quantize(quantizer, rounding=ROUND_HALF_UP), "f").replace(".", ",")
+    return normalize_decimal_price(raw, digits=digits)
 
 
 def _parse_quantity(raw: str | Decimal | None) -> int:
@@ -237,49 +213,18 @@ def _parse_quantity(raw: str | Decimal | None) -> int:
         return 0
 
 
-def _normalize_size(value: str | None) -> str | None:
-    label = str(value or "").strip().upper()
-    if not label:
-        return None
-    label = re.sub(r"[^A-Z0-9]+", "", label)
-    if not label:
-        return None
-    if label in _MONTH_SIZE_ORDER:
-        return label
-    if label in _ALPHA_SIZE_ORDER:
-        return label
-    if label.isdigit():
-        number = int(label)
-        return str(number) if number > 0 else None
-    return label
-
-
-def _size_sort_key(size: str) -> tuple[int, int | str]:
-    normalized = _normalize_size(size) or str(size or "").strip().upper()
-    if normalized in _MONTH_SIZE_ORDER:
-        return (0, _MONTH_SIZE_ORDER[normalized])
-    if normalized in _ALPHA_SIZE_ORDER:
-        return (1, _ALPHA_SIZE_ORDER[normalized])
-    if normalized.isdigit():
-        return (2, int(normalized))
-    return (3, normalized)
-
-
 def _extract_pdf_text(contents: bytes) -> tuple[str, int]:
     if not contents:
         return "", 0
-    try:
-        from PyPDF2 import PdfReader  # type: ignore
-
-        reader = PdfReader(io.BytesIO(contents))
-        parts: list[str] = []
-        for page in reader.pages:
-            text = page.extract_text() or ""
-            if text.strip():
-                parts.append(text)
-        return "\n\n".join(parts).strip(), len(reader.pages)
-    except Exception:
-        return "", 0
+    best_text = ""
+    best_page_count = 0
+    for candidate in extract_pdf_text_candidates(contents):
+        if _parse_structured_text_rows(candidate.text):
+            return candidate.text, candidate.page_count
+        if not best_text:
+            best_text = candidate.text
+            best_page_count = candidate.page_count
+    return best_text, best_page_count
 
 
 def _normalize_header_cell(value: str) -> str:
@@ -403,14 +348,14 @@ def _extract_cativa_color_and_size(codigo: str) -> tuple[str | None, str | None]
     match = re.match(r"^[A-Z]\d{5}-(?P<cor>[A-Z0-9]{4})-(?P<tamanho>[A-Z0-9]{1,3})$", str(codigo or "").strip().upper())
     if not match:
         return None, None
-    return str(match.group("cor") or "").strip().upper() or None, _normalize_size(match.group("tamanho"))
+    return str(match.group("cor") or "").strip().upper() or None, normalize_grade_label(match.group("tamanho")) or None
 
 
 def _extract_size(description: str) -> str | None:
     match = _SIZE_REGEX.search(str(description or ""))
     if not match:
         return None
-    return _normalize_size(match.group("size"))
+    return normalize_grade_label(match.group("size")) or None
 
 
 def _extract_color(description: str) -> str | None:
@@ -648,7 +593,7 @@ def _parse_sisplan_rows(text: str) -> list[ParsedInvoiceRow]:
         quantidade = _parse_quantity(row_match.group("quantidade"))
         if quantidade <= 0:
             continue
-        tamanho = _normalize_size(row_match.group("tamanho"))
+        tamanho = normalize_grade_label(row_match.group("tamanho")) or None
         rows.append(
             ParsedInvoiceRow(
                 codigo=current_codigo,
@@ -1214,27 +1159,11 @@ def _extract_special_document_totals(text: str) -> tuple[Decimal | None, Decimal
     return None, None, None
 
 
-def parse_local_romaneio_experiment(
-    *,
-    contents: bytes,
-    filename: str,
-    content_type: str | None,
-) -> dict[str, Any]:
-    text, page_count, ocr_pages = _extract_text(contents, filename, content_type)
+def resolve_local_import_document_anchors(text: str) -> LocalImportDocumentAnchors:
     remessa_quantity = _extract_remessa_quantity(text)
     document_total_products = _extract_document_money(_TOTAL_PRODUCTS_REGEX, text)
     document_total_note = _extract_document_money(_TOTAL_NOTE_REGEX, text)
     document_discount_total = _extract_document_money(_TOTAL_DISCOUNT_REGEX, text)
-    warnings: list[str] = []
-
-    lower_name = (filename or "").lower()
-    lower_type = (content_type or "").lower()
-    table_rows = _parse_pdf_table_rows(contents) if lower_name.endswith(".pdf") or "pdf" in lower_type else []
-    rows = table_rows or _parse_structured_text_rows(text)
-    if not rows and ocr_pages:
-        rows = _rows_from_ocr_pages(ocr_pages)
-    if not rows and ocr_pages:
-        rows = _rows_from_simple_receipts(ocr_pages)
 
     if remessa_quantity is None:
         remessa_quantity = _extract_special_remessa_quantity(text)
@@ -1247,6 +1176,15 @@ def parse_local_romaneio_experiment(
         if document_discount_total is None:
             document_discount_total = fallback_discount
 
+    return LocalImportDocumentAnchors(
+        remessa_quantity=remessa_quantity,
+        document_total_products=document_total_products,
+        document_total_note=document_total_note,
+        document_discount_total=document_discount_total,
+    )
+
+
+def build_local_import_items(rows: list[ParsedInvoiceRow]) -> list[dict[str, Any]]:
     grouped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     ordered_keys: list[tuple[str, str, str, str]] = []
     for row in rows:
@@ -1291,7 +1229,7 @@ def parse_local_romaneio_experiment(
         grades = entry.get("grades") or {}
         grade_items = [
             {"tamanho": size, "quantidade": int(qty)}
-            for size, qty in sorted(grades.items(), key=lambda item: _size_sort_key(item[0]))
+            for size, qty in sorted(grades.items(), key=lambda item: invoice_grade_sort_key(item[0]))
             if int(qty or 0) > 0
         ]
         items.append(
@@ -1305,28 +1243,46 @@ def parse_local_romaneio_experiment(
                 "unidade": entry["unidade"],
                 "grades": grade_items,
                 "linhas_originais": int(entry["linhas_originais"] or 0),
-                "valor_total": _format_price(entry["valor_total"]) if entry["valor_total"] else _format_price((_parse_decimal(entry["preco"]) or Decimal("0")) * int(entry["quantidade"] or 0)),
+                "valor_total": _format_price(entry["valor_total"])
+                if entry["valor_total"]
+                else _format_price((_parse_decimal(entry["preco"]) or Decimal("0")) * int(entry["quantidade"] or 0)),
                 "desconto_total": _format_price(entry["desconto_total"]) if entry["desconto_total"] else None,
             }
         )
+    return items
 
+
+def build_local_import_totals(
+    *,
+    items: list[dict[str, Any]],
+    row_count: int,
+    remessa_quantity: int | None,
+    document_total_products: Decimal | None,
+    document_total_note: Decimal | None,
+    document_discount_total: Decimal | None,
+) -> LocalImportTotals:
+    warnings: list[str] = []
     total_quantity = sum(int(item["quantidade"]) for item in items)
     extracted_total_products = sum((_parse_decimal(str(item.get("valor_total") or "")) or Decimal("0")) for item in items)
     extracted_discount_total = sum((_parse_decimal(str(item.get("desconto_total") or "")) or Decimal("0")) for item in items)
 
+    effective_document_discount_total = document_discount_total
     if (
-        document_discount_total is not None
+        effective_document_discount_total is not None
         and extracted_discount_total
-        and document_discount_total < (extracted_discount_total * Decimal("0.25"))
+        and effective_document_discount_total < (extracted_discount_total * Decimal("0.25"))
     ):
-        document_discount_total = None
+        effective_document_discount_total = None
 
     quantity_matches_remessa = remessa_quantity is not None and total_quantity == remessa_quantity
     products_value_matches = (
         (document_total_products is not None and abs(extracted_total_products - document_total_products) <= Decimal("0.05"))
         or (document_total_note is not None and abs(extracted_total_products - document_total_note) <= Decimal("0.05"))
     )
-    discount_matches = document_discount_total is not None and abs(extracted_discount_total - document_discount_total) <= Decimal("0.05")
+    discount_matches = (
+        effective_document_discount_total is not None
+        and abs(extracted_discount_total - effective_document_discount_total) <= Decimal("0.05")
+    )
 
     if remessa_quantity is not None and not quantity_matches_remessa:
         warnings.append(
@@ -1338,40 +1294,154 @@ def parse_local_romaneio_experiment(
             "Extracted product total does not match the printed 'Valor total dos produtos' in the document."
         )
 
-    if document_discount_total is not None and extracted_discount_total and not discount_matches:
+    if effective_document_discount_total is not None and extracted_discount_total and not discount_matches:
         warnings.append("Extracted discount total does not match the printed discount value in the document.")
 
-    if not rows:
+    if row_count <= 0:
         warnings.append("No structured invoice rows were detected by the isolated local parser.")
 
+    return LocalImportTotals(
+        total_quantity=total_quantity,
+        extracted_total_products=extracted_total_products,
+        extracted_discount_total=extracted_discount_total,
+        document_discount_total=effective_document_discount_total,
+        quantity_matches_remessa=quantity_matches_remessa,
+        products_value_matches_document=products_value_matches,
+        discount_matches_document=discount_matches if effective_document_discount_total is not None else None,
+        warnings=warnings,
+    )
+
+
+def build_local_import_metrics(
+    *,
+    page_count: int,
+    text: str,
+    row_count: int,
+    items: list[dict[str, Any]],
+    ocr_page_count: int,
+) -> dict[str, Any]:
     return {
-        "status": "ok" if rows else "partial",
-        "filename": filename or "romaneio",
-        "warnings": warnings,
-        "total_rows": len(rows),
-        "total_itens": len(items),
-        "total_quantity": total_quantity,
-        "remessa_quantity": remessa_quantity,
-        "quantity_matches_remessa": quantity_matches_remessa,
-        "document_total_products": _format_price(document_total_products) if document_total_products is not None else None,
-        "document_total_note": _format_price(document_total_note) if document_total_note is not None else None,
-        "document_discount_total": _format_price(document_discount_total) if document_discount_total is not None else None,
-        "extracted_total_products": _format_price(extracted_total_products),
-        "extracted_discount_total": _format_price(extracted_discount_total) if extracted_discount_total else None,
-        "products_value_matches_document": products_value_matches,
-        "discount_matches_document": discount_matches if document_discount_total is not None else None,
-        "items": items,
-        "metrics": {
-            "page_count": page_count,
-            "text_chars": len(text),
-            "matched_invoice_rows": len(rows),
-            "grouped_items": len(items),
-            "colors_detected": len({str(item.get("cor") or "").strip() for item in items if str(item.get("cor") or "").strip()}),
-            "items_with_grades": sum(1 for item in items if item.get("grades")),
-            "ocr_pages_used": len(ocr_pages),
-            "extraction_mode": "isolated_local_parser",
-        },
+        "page_count": page_count,
+        "text_chars": len(text),
+        "matched_invoice_rows": row_count,
+        "grouped_items": len(items),
+        "colors_detected": len({str(item.get("cor") or "").strip() for item in items if str(item.get("cor") or "").strip()}),
+        "items_with_grades": sum(1 for item in items if item.get("grades")),
+        "ocr_pages_used": ocr_page_count,
+        "extraction_mode": "isolated_local_parser",
     }
 
 
-__all__ = ["parse_local_romaneio_experiment"]
+def build_local_import_result_payload(
+    *,
+    filename: str,
+    row_count: int,
+    items: list[dict[str, Any]],
+    anchors: LocalImportDocumentAnchors,
+    totals: LocalImportTotals,
+    metrics: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": "ok" if row_count > 0 else "partial",
+        "filename": filename or "romaneio",
+        "warnings": totals.warnings,
+        "total_rows": row_count,
+        "total_itens": len(items),
+        "total_quantity": totals.total_quantity,
+        "remessa_quantity": anchors.remessa_quantity,
+        "quantity_matches_remessa": totals.quantity_matches_remessa,
+        "document_total_products": _format_price(anchors.document_total_products)
+        if anchors.document_total_products is not None
+        else None,
+        "document_total_note": _format_price(anchors.document_total_note)
+        if anchors.document_total_note is not None
+        else None,
+        "document_discount_total": _format_price(totals.document_discount_total)
+        if totals.document_discount_total is not None
+        else None,
+        "extracted_total_products": _format_price(totals.extracted_total_products),
+        "extracted_discount_total": _format_price(totals.extracted_discount_total)
+        if totals.extracted_discount_total
+        else None,
+        "products_value_matches_document": totals.products_value_matches_document,
+        "discount_matches_document": totals.discount_matches_document,
+        "items": items,
+        "metrics": metrics,
+    }
+
+
+def select_local_import_rows(
+    *,
+    contents: bytes,
+    filename: str,
+    content_type: str | None,
+    text: str,
+    ocr_pages: list[OcrPagePayload],
+) -> list[ParsedInvoiceRow]:
+    lower_name = (filename or "").lower()
+    lower_type = (content_type or "").lower()
+    table_rows = _parse_pdf_table_rows(contents) if lower_name.endswith(".pdf") or "pdf" in lower_type else []
+    rows = table_rows or _parse_structured_text_rows(text)
+    if not rows and ocr_pages:
+        rows = _rows_from_ocr_pages(ocr_pages)
+    if not rows and ocr_pages:
+        rows = _rows_from_simple_receipts(ocr_pages)
+    return rows
+
+
+def parse_local_romaneio_experiment(
+    *,
+    contents: bytes,
+    filename: str,
+    content_type: str | None,
+) -> dict[str, Any]:
+    text, page_count, ocr_pages = _extract_text(contents, filename, content_type)
+    anchors = resolve_local_import_document_anchors(text)
+
+    rows = select_local_import_rows(
+        contents=contents,
+        filename=filename,
+        content_type=content_type,
+        text=text,
+        ocr_pages=ocr_pages,
+    )
+
+    items = build_local_import_items(rows)
+    totals = build_local_import_totals(
+        items=items,
+        row_count=len(rows),
+        remessa_quantity=anchors.remessa_quantity,
+        document_total_products=anchors.document_total_products,
+        document_total_note=anchors.document_total_note,
+        document_discount_total=anchors.document_discount_total,
+    )
+    metrics = build_local_import_metrics(
+        page_count=page_count,
+        text=text,
+        row_count=len(rows),
+        items=items,
+        ocr_page_count=len(ocr_pages),
+    )
+
+    return build_local_import_result_payload(
+        filename=filename,
+        row_count=len(rows),
+        items=items,
+        anchors=anchors,
+        totals=totals,
+        metrics=metrics,
+    )
+
+
+__all__ = [
+    "LocalImportDocumentAnchors",
+    "LocalImportTotals",
+    "ParsedInvoiceRow",
+    "build_local_import_items",
+    "build_local_import_metrics",
+    "build_local_import_result_payload",
+    "build_local_import_totals",
+    "parse_local_romaneio_experiment",
+    "resolve_local_import_document_anchors",
+    "select_local_import_rows",
+]

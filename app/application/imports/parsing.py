@@ -5,12 +5,14 @@ import io
 import json
 import re
 import string
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.application.imports.pdf_text import extract_pdf_text_candidates
 from app.domain.products.entities import Product
+from app.domain.products.money import normalize_decimal_price, normalize_raw_price, parse_price_decimal
 
 ROMANEIO_IMAGE_MESSAGE = (
     "The attached image is a scanned invoice product table. "
@@ -43,22 +45,19 @@ _CONSISTENCY_TOLERANCE = Decimal("0.05")
 
 
 def _extract_text_from_pdf(contents: bytes) -> tuple[str, list[str]]:
-    warnings: list[str] = []
+    warning_messages: list[str] = []
     if not contents:
-        return "", warnings
-    try:
-        from PyPDF2 import PdfReader  # type: ignore
-
-        reader = PdfReader(io.BytesIO(contents))
-        parts: list[str] = []
-        for page in reader.pages:
-            text = page.extract_text() or ""
-            if text.strip():
-                parts.append(text)
-        return "\n\n".join(parts).strip(), warnings
-    except Exception as exc:
-        warnings.append(f"Falha ao extrair texto do PDF: {exc}")
-        return "", warnings
+        return "", warning_messages
+    best_text = ""
+    for candidate in extract_pdf_text_candidates(contents):
+        if parse_candidate_content(candidate.text):
+            return candidate.text, warning_messages
+        if not best_text:
+            best_text = candidate.text
+    if best_text:
+        return best_text, warning_messages
+    warning_messages.append("Falha ao extrair texto do PDF.")
+    return "", warning_messages
 
 
 def decode_text_content(
@@ -116,40 +115,6 @@ def _parse_qty(raw: Any) -> int:
     return qty
 
 
-def _normalize_price(raw: Any) -> str:
-    if raw is None:
-        return ""
-    if isinstance(raw, (int, float)):
-        return _normalize_decimal_price(raw)
-    text = str(raw).strip()
-    if len(text) > 40:
-        text = text[:40]
-    return text
-
-
-def _parse_decimal_value(raw: Any) -> Decimal | None:
-    text = str(raw or "").strip()
-    if not text:
-        return None
-    if "," in text and "." in text:
-        text = text.replace(".", "").replace(",", ".")
-    else:
-        text = text.replace(",", ".")
-    try:
-        return Decimal(text)
-    except (InvalidOperation, ValueError):
-        return None
-
-
-def _normalize_decimal_price(raw: Any, *, digits: int = 2) -> str:
-    value = _parse_decimal_value(raw)
-    if value is None:
-        return _normalize_price(raw)
-    quantizer = Decimal("1").scaleb(-digits)
-    normalized = value.quantize(quantizer, rounding=ROUND_HALF_UP)
-    return format(normalized, "f").replace(".", ",")
-
-
 def _normalize_product_grades(raw: Any) -> list[dict[str, Any]] | None:
     if not raw:
         return None
@@ -202,7 +167,7 @@ def _extract_document_money(pattern: re.Pattern[str], text: str) -> Decimal | No
     match = pattern.search(str(text or ""))
     if not match:
         return None
-    return _parse_decimal_value(match.group("value"))
+    return parse_price_decimal(match.group("value"))
 
 
 def _extract_remessa_quantity(text: str) -> int | None:
@@ -224,7 +189,7 @@ def analyze_parsed_document(text: str, records: list[Product]) -> dict[str, Any]
     extracted_quantity = sum(max(int(item.quantidade or 0), 0) for item in (records or []))
     extracted_total_products = Decimal("0")
     for item in records or []:
-        unit_price = _parse_decimal_value(item.preco)
+        unit_price = parse_price_decimal(item.preco)
         if unit_price is None:
             continue
         extracted_total_products += unit_price * Decimal(max(int(item.quantidade or 0), 0))
@@ -256,21 +221,21 @@ def analyze_parsed_document(text: str, records: list[Product]) -> dict[str, Any]
     if (document_total_products is not None or document_total_note is not None) and not products_value_matches_document:
         printed_totals: list[str] = []
         if document_total_products is not None:
-            printed_totals.append(f"produtos: R$ {_normalize_decimal_price(document_total_products)}")
+            printed_totals.append(f"produtos: R$ {normalize_decimal_price(document_total_products)}")
         if document_total_note is not None:
-            printed_totals.append(f"nota: R$ {_normalize_decimal_price(document_total_note)}")
+            printed_totals.append(f"nota: R$ {normalize_decimal_price(document_total_note)}")
         warnings.append(
             "O total extraido dos itens nao bate com a nota. "
-            f"Extraido: R$ {_normalize_decimal_price(extracted_total_products)}. "
+            f"Extraido: R$ {normalize_decimal_price(extracted_total_products)}. "
             f"Documento: {' | '.join(printed_totals)}."
         )
 
     metrics: dict[str, Any] = {
         "remessa_quantity": remessa_quantity,
         "quantity_matches_remessa": quantity_matches_remessa if remessa_quantity is not None else None,
-        "document_total_products": _normalize_decimal_price(document_total_products) if document_total_products is not None else None,
-        "document_total_note": _normalize_decimal_price(document_total_note) if document_total_note is not None else None,
-        "extracted_total_products": _normalize_decimal_price(extracted_total_products),
+        "document_total_products": normalize_decimal_price(document_total_products) if document_total_products is not None else None,
+        "document_total_note": normalize_decimal_price(document_total_note) if document_total_note is not None else None,
+        "extracted_total_products": normalize_decimal_price(extracted_total_products),
         "products_value_matches_document": products_value_matches_document if (document_total_products is not None or document_total_note is not None) else None,
         "products_value_match_reference": matched_reference or None,
     }
@@ -388,7 +353,7 @@ def _build_product(
         codigo=code,
         codigo_original=code,
         quantidade=parsed_qty,
-        preco=_normalize_price(preco),
+        preco=normalize_raw_price(preco),
         categoria="",
         marca="",
         preco_final=None,
@@ -914,7 +879,7 @@ def _parse_structured_invoice_lines(text: str) -> list[Product]:
         descricao_original = str(match.group("descricao") or "").strip()
         nome = _normalize_invoice_name(descricao_original) or descricao_original
         quantidade = _parse_qty(match.group("quantidade"))
-        preco = _normalize_decimal_price(match.group("unitario"))
+        preco = normalize_decimal_price(match.group("unitario"))
         tamanho = _extract_invoice_size(descricao_original)
         grades = [{"tamanho": tamanho, "quantidade": quantidade}] if tamanho else None
 

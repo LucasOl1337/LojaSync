@@ -127,7 +127,7 @@ export default function AuthShell() {
   }
 
   if (mode === "app" && session && !session.auth_enabled) {
-    return <App />;
+    return <App authSession={session} />;
   }
 
   if (mode === "loading") {
@@ -250,7 +250,7 @@ export default function AuthShell() {
       {error ? <div className="authInlineMessage message error">{error}</div> : null}
       {message ? <div className="authInlineMessage message success">{message}</div> : null}
 
-      <App />
+      <App authSession={session} />
     </div>
   );
 }

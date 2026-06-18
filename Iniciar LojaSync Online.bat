@@ -28,7 +28,34 @@ echo [1/2] Iniciando LojaSync (backend na porta 8800)...
 if exist "%VENV_PY%" (
     start "LojaSync Backend" /min "%VENV_PY%" "%SCRIPT_DIR%launcher.py" --no-browser
 ) else (
-    start "LojaSync Backend" /min python "%SCRIPT_DIR%launcher.py" --no-browser
+    pushd "%SCRIPT_DIR%" >nul
+    python -c "import fastapi, uvicorn, PyPDF2, pdfplumber, fitz, PIL" >nul 2>nul
+    if errorlevel 1 (
+        echo     Preparando ambiente virtual local...
+        python -m venv ".venv"
+        if errorlevel 1 (
+            echo [ERRO] Nao foi possivel criar a .venv do projeto.
+            popd >nul
+            pause & exit /b 1
+        )
+        call "%VENV_PY%" -m pip install --upgrade pip
+        if errorlevel 1 (
+            echo [ERRO] Falha ao atualizar o pip da .venv.
+            popd >nul
+            pause & exit /b 1
+        )
+        call "%VENV_PY%" -m pip install -r requirements.txt
+        if errorlevel 1 (
+            echo [ERRO] Falha ao instalar as dependencias do projeto.
+            popd >nul
+            pause & exit /b 1
+        )
+        popd >nul
+        start "LojaSync Backend" /min "%VENV_PY%" "%SCRIPT_DIR%launcher.py" --no-browser
+    ) else (
+        popd >nul
+        start "LojaSync Backend" /min python "%SCRIPT_DIR%launcher.py" --no-browser
+    )
 )
 
 REM ── Aguarda o backend subir ───────────────────────────────────

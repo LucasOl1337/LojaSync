@@ -49,7 +49,7 @@ if not defined PYTHON_CMD (
   exit /b 9009
 )
 
-call %PYTHON_CMD% -c "import fastapi, uvicorn" >nul 2>nul
+call %PYTHON_CMD% -c "import fastapi, uvicorn, PyPDF2, pdfplumber, fitz, PIL" >nul 2>nul
 if not errorlevel 1 (
   set "RUNNER_CMD=%PYTHON_CMD%"
 )
@@ -86,7 +86,7 @@ if not defined RUNNER_CMD (
     )
   )
 
-  call "%VENV_PY%" -c "import fastapi, uvicorn" >nul 2>nul
+  call "%VENV_PY%" -c "import fastapi, uvicorn, PyPDF2, pdfplumber, fitz, PIL" >nul 2>nul
   if errorlevel 1 (
     echo Instalando dependencias do LojaSync...
     call "%VENV_PY%" -m pip install --upgrade pip

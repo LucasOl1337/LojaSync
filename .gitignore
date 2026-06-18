@@ -45,14 +45,17 @@ htmlcov/
 # Node / frontend
 node_modules/
 *.tsbuildinfo
+frontend-ts/.tmp-tests/
 
 # Local runtime artifacts
+.codex-runtime/
 EnterviewArtifacts/
 data/romaneios/*.txt
 data/lojasync.db
 data/auth.json
 .claire/
 .claude/
+.codegraph/
 tmp*_text.txt
 
 # OS files

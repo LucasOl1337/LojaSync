@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.client
 import io
+import socket
 import tempfile
 import threading
 import time
@@ -63,6 +64,15 @@ class LauncherFrontendServerTests(unittest.TestCase):
         self.assertEqual(response.getheader("Location"), "http://127.0.0.1:8800/")
         self.assertEqual(body, b"")
 
+    def test_port_bindable_rejects_wildcard_when_loopback_port_is_taken(self) -> None:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.addCleanup(server.close)
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        port = server.getsockname()[1]
+
+        self.assertFalse(launcher._is_port_bindable("0.0.0.0", port))
+
 
 class LauncherMainTests(unittest.TestCase):
     def test_main_exits_cleanly_with_actionable_message_when_force_build_has_no_npm(self) -> None:
@@ -86,12 +96,18 @@ class LauncherMainTests(unittest.TestCase):
         def record_auth_start() -> None:
             started.append("auth")
 
-        instance = launcher.Launcher(open_browser=False, prepare_ts_frontend=False, auth_enabled=False)
+        instance = launcher.Launcher(
+            open_browser=False,
+            prepare_ts_frontend=False,
+            auth_enabled=False,
+            llm_monitor_enabled=False,
+        )
 
         with (
             patch.object(launcher, "_is_tcp_listening", return_value=False),
             patch.object(launcher, "_is_port_bindable", return_value=True),
             patch.object(instance, "start_auth_async", side_effect=record_auth_start),
+            patch.object(instance, "start_llm_async"),
             patch.object(instance, "start_backend_async", side_effect=KeyboardInterrupt),
             patch.object(instance, "start_frontend_async"),
             patch.object(instance, "shutdown"),
@@ -100,6 +116,33 @@ class LauncherMainTests(unittest.TestCase):
                 instance.run()
 
         self.assertEqual(started, [])
+
+    def test_launcher_does_not_reuse_non_monitor_service_on_monitor_port(self) -> None:
+        instance = launcher.Launcher(
+            open_browser=False,
+            prepare_ts_frontend=False,
+            auth_enabled=False,
+            llm_monitor_enabled=True,
+        )
+
+        def tcp_listening(_host: str, port: int) -> bool:
+            return port in {instance.llm_port, instance.llm_monitor_port}
+
+        with (
+            patch.object(launcher, "_is_tcp_listening", side_effect=tcp_listening),
+            patch.object(launcher, "_is_llm_monitor_healthy", return_value=False),
+            patch.object(launcher, "_is_port_bindable", return_value=False),
+            patch.object(instance, "start_llm_async"),
+            patch.object(instance, "start_llm_monitor_async") as start_monitor,
+            patch.object(instance, "start_backend_async", side_effect=KeyboardInterrupt),
+            patch.object(instance, "start_frontend_async"),
+            patch.object(instance, "shutdown"),
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                instance.run()
+
+        self.assertFalse(instance._use_monitor_base_url)
+        start_monitor.assert_not_called()
 
 
 if __name__ == "__main__":

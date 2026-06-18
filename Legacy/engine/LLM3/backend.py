@@ -87,16 +87,81 @@ def _truncate_text(value: str, max_chars: int) -> str:
     return value[:max_chars].rstrip()
 
 
+def _unique_model_names(names: List[str]) -> List[str]:
+    selected: List[str] = []
+    seen = set()
+    for name in names:
+        clean = (name or "").strip()
+        if not clean or clean in seen:
+            continue
+        seen.add(clean)
+        selected.append(clean)
+    return selected
+
+
+def _candidate_model_names(*, has_images: bool) -> List[str]:
+    if has_images:
+        return _unique_model_names([VISION_MODEL_NAME, *VISION_FALLBACK_MODEL_NAMES])
+    return _unique_model_names([TEXT_MODEL_NAME, *TEXT_FALLBACK_MODEL_NAMES])
+
+
+def _is_model_fallback_error(status_code: int, response_text: str) -> bool:
+    if status_code not in LLM3_MODEL_FALLBACK_STATUS_CODES:
+        return False
+    lowered = (response_text or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "requires a subscription",
+            "upgrade for access",
+            "model not found",
+            "not found",
+            "does not support images",
+            "doesn't support images",
+            "unsupported image",
+        )
+    )
+
+
+def _summarize_model_errors(errors: List[str]) -> str:
+    if not errors:
+        return "nenhum detalhe retornado pelo provedor"
+    return "; ".join(errors)[-1200:]
+
+
 if _has_configured_api_key() and not _OLLAMA_BASE_URL_ENV:
     OLLAMA_BASE_URL = "https://ollama.com"
 
 
 OLLAMA_URL = _join_url(OLLAMA_BASE_URL, OLLAMA_API_CHAT_PATH)
 OLLAMA_STATUS_URL = _join_url(OLLAMA_BASE_URL, OLLAMA_API_STATUS_PATH)
-MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen3.5:cloud")
+DEFAULT_TEXT_MODEL_NAME = "minimax-m3"
+DEFAULT_VISION_MODEL_NAME = "minimax-m3"
+_CONFIGURED_MODEL_NAME = (os.getenv("LLM_MODEL_NAME") or "").strip()
+MODEL_NAME = _CONFIGURED_MODEL_NAME or DEFAULT_TEXT_MODEL_NAME
+TEXT_MODEL_NAME = (os.getenv("LLM_TEXT_MODEL_NAME") or "").strip() or MODEL_NAME
+VISION_MODEL_NAME = (os.getenv("LLM_VISION_MODEL_NAME") or "").strip() or _CONFIGURED_MODEL_NAME or DEFAULT_VISION_MODEL_NAME
+
+
+def _parse_model_names(raw: Optional[str], default: List[str]) -> List[str]:
+    if raw is None:
+        return list(default)
+    names = [part.strip() for part in raw.split(",") if part.strip()]
+    return names or list(default)
+
+
+TEXT_FALLBACK_MODEL_NAMES = _parse_model_names(
+    os.getenv("LLM_TEXT_FALLBACK_MODEL_NAMES"),
+    [DEFAULT_TEXT_MODEL_NAME, "kimi-k2.7-code", "gemma4:31b", "gemma3:27b", "gemma3:12b", "gemma3:4b"],
+)
+VISION_FALLBACK_MODEL_NAMES = _parse_model_names(
+    os.getenv("LLM_VISION_FALLBACK_MODEL_NAMES"),
+    [DEFAULT_VISION_MODEL_NAME, "kimi-k2.7-code", "gemma4:31b", "gemma3:27b", "gemma3:12b", "gemma3:4b"],
+)
 LLM3_MAX_DOC_CHARS = int(os.getenv("LLM3_MAX_DOC_CHARS", "14000"))
 LLM3_MAX_PROMPT_CHARS = int(os.getenv("LLM3_MAX_PROMPT_CHARS", "20000"))
 LLM3_RETRY_STATUS_CODES = {500, 502, 503, 504}
+LLM3_MODEL_FALLBACK_STATUS_CODES = {400, 403, 404}
 ROMANEIO_PROMPT = (
     "You are an information extraction assistant for shipment manifests (romaneios). "
     "Return ONLY JSON in the form {\"items\": [...]}."
@@ -199,15 +264,24 @@ async def get_status():
             response.raise_for_status()
             data = response.json()
             models = data.get("models", [])
-            model_exists = any(m.get("name") == MODEL_NAME for m in models)
+            model_names = {
+                str(m.get("name") or "").strip()
+                for m in models
+                if isinstance(m, dict) and str(m.get("name") or "").strip()
+            }
+            text_model_exists = TEXT_MODEL_NAME in model_names
+            vision_model_exists = VISION_MODEL_NAME in model_names
+            connected = text_model_exists and vision_model_exists
             return {
-                "model": MODEL_NAME,
-                "connected": model_exists,
+                "model": TEXT_MODEL_NAME,
+                "vision_model": VISION_MODEL_NAME,
+                "connected": connected,
                 "ollama_running": True,
             }
     except Exception:
         return {
-            "model": MODEL_NAME,
+            "model": TEXT_MODEL_NAME,
+            "vision_model": VISION_MODEL_NAME,
             "connected": False,
             "ollama_running": False,
         }
@@ -410,52 +484,70 @@ async def chat(request: ChatRequest, http_request: Request):
 
     content_string = message_text
 
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [
-            {
-                "role": "user",
-                "content": content_string,
-                **({"images": images_payload} if images_payload else {}),
-            }
-        ],
-        "stream": False,
-    }
-    if request.mode in {Mode.ROMANEIO, Mode.GRADE}:
-        payload["format"] = "json"
-        payload["think"] = False
-    attempt = 0
+    response: Optional[httpx.Response] = None
+    selected_model_name: Optional[str] = None
+    model_errors: List[str] = []
     last_error: Optional[Exception] = None
-    while attempt < 3:
-        try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(OLLAMA_TIMEOUT_SECONDS, connect=10.0)
-            ) as client:
-                response = await client.post(
-                    OLLAMA_URL,
-                    json=payload,
-                    headers=_build_llm_headers(job_id=job_id),
-                )
-                response.raise_for_status()
-                break
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in LLM3_RETRY_STATUS_CODES and attempt < 2:
-                await asyncio.sleep(1.5 * (attempt + 1))
-                attempt += 1
-                last_error = exc
-                continue
-            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text) from exc
-        except httpx.RequestError as exc:
-            if attempt < 2:
-                await asyncio.sleep(1.5 * (attempt + 1))
-                attempt += 1
-                last_error = exc
-                continue
-            raise HTTPException(status_code=502, detail=f"Falha ao conectar ao serviço LLM: {exc}") from exc
-    else:
+
+    for model_name in _candidate_model_names(has_images=bool(images_payload)):
+        payload = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": content_string,
+                    **({"images": images_payload} if images_payload else {}),
+                }
+            ],
+            "stream": False,
+        }
+        if request.mode in {Mode.ROMANEIO, Mode.GRADE}:
+            payload["format"] = "json"
+            payload["think"] = False
+
+        attempt = 0
+        while attempt < 3:
+            try:
+                async with httpx.AsyncClient(
+                    timeout=httpx.Timeout(OLLAMA_TIMEOUT_SECONDS, connect=10.0)
+                ) as client:
+                    candidate_response = await client.post(
+                        OLLAMA_URL,
+                        json=payload,
+                        headers=_build_llm_headers(job_id=job_id),
+                    )
+                    candidate_response.raise_for_status()
+                    response = candidate_response
+                    selected_model_name = model_name
+                    break
+            except httpx.HTTPStatusError as exc:
+                response_text = exc.response.text
+                if _is_model_fallback_error(exc.response.status_code, response_text):
+                    model_errors.append(f"{model_name}: HTTP {exc.response.status_code} {response_text[:240]}")
+                    last_error = exc
+                    break
+                if exc.response.status_code in LLM3_RETRY_STATUS_CODES and attempt < 2:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    attempt += 1
+                    last_error = exc
+                    continue
+                raise HTTPException(status_code=exc.response.status_code, detail=response_text) from exc
+            except httpx.RequestError as exc:
+                if attempt < 2:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    attempt += 1
+                    last_error = exc
+                    continue
+                raise HTTPException(status_code=502, detail=f"Falha ao conectar ao serviço LLM: {exc}") from exc
+
+        if response is not None:
+            break
+
+    if response is None:
+        details = _summarize_model_errors(model_errors)
         if last_error:
-            raise HTTPException(status_code=503, detail=f"Serviço LLM indisponível: {last_error}") from last_error
-        raise HTTPException(status_code=503, detail="Serviço LLM indisponível")
+            raise HTTPException(status_code=503, detail=f"Nenhum modelo LLM disponivel: {details}") from last_error
+        raise HTTPException(status_code=503, detail=f"Nenhum modelo LLM disponivel: {details}")
     data = response.json()
     message = data.get("message", {})
     content = await _extract_text(message)
@@ -473,6 +565,6 @@ async def chat(request: ChatRequest, http_request: Request):
         saved_file=saved_file,
         llm_prompt=content_string,
         llm_prompt_len=len(content_string),
-        llm_model=MODEL_NAME,
+        llm_model=selected_model_name or MODEL_NAME,
         llm_images=len(images_payload),
     )

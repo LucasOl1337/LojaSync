@@ -22,6 +22,7 @@ import {
   fetchGradeConfig,
   fetchImportResult,
   fetchImportStatus,
+  fetchRuntimeHealth,
   importRomaneioLocalExperiment,
   fetchMargin,
   fetchPostProcessResult,
@@ -48,10 +49,9 @@ import {
   stopGradesExecution,
 } from "./api";
 import type {
-  AutomationStatus,
+  AuthSessionResponse,
   AutomationTargets,
   GradeConfig,
-  GradeItem,
   ImportResult,
   ImportStatus,
   PostProcessResult,
@@ -62,476 +62,201 @@ import type {
   UiEvent,
   UiGradeFamily,
 } from "./types";
+import {
+  APP_STAGE_HEIGHT,
+  APP_STAGE_PADDING,
+  APP_STAGE_WIDTH,
+  AUTOMATION_TARGET_FIELDS,
+  MAX_UNDO_HISTORY,
+  initialState,
+} from "./appConfig";
+import type { AutomationTargetKey, EditingCellState, GradeCaptureKey, LoadState, Scope } from "./appConfig";
+import {
+  buildInlineEditPayload,
+  buildProductPreview,
+  getInlineEditInitialValue,
+} from "./productEditing";
+import type { EditableField } from "./productEditing";
+import {
+  buildCreateProductPayload,
+  findFirstMissingProductField,
+  getNextProductFormField,
+} from "./productForm";
+import type { ProductFormField } from "./productForm";
+import {
+  buildProductQuickFilterEmptyState,
+  buildProductSearchEmptyState,
+  buildProductQuickFilterOptions,
+  coerceProductQuickFilter,
+  filterProductsByQuickFilter,
+  filterProductsBySearch,
+  resolveStaleProductQuickFilter,
+} from "./productFilters";
+import type { ProductQuickFilter } from "./productFilters";
+import {
+  GRADE_UI_VERSION,
+  LAST_ACTIVE_GRADE_FAMILY_KEY,
+  buildDefaultUiFamilies,
+  buildGradeProductStatus,
+  buildVisualSizeOrder,
+  compareGradeSizeLabels,
+  findNextPendingGradeKey,
+  getIncompleteGradeProducts,
+  gradeItemsToMap,
+  normalizeGradeConfigState,
+  normalizeGradeSizeLabel,
+  normalizeUiFamiliesDraft,
+  sumGradeDraftValues,
+} from "./gradeLogic";
+import { computeCurrentTotals, parsePositivePercentInput } from "./productPricing";
+import {
+  buildImportHistoryEntry,
+  buildOperationDiaryEntry,
+  buildOperationalHealthChips,
+  buildExecutionReadiness,
+  buildImportDiagnosticsChips,
+  buildImportGradesAvailableMessage,
+  buildImportProgressMessage,
+  buildProductOperationDiaryEntry,
+  buildUndoRedoHistoryState,
+  buildPostProcessCompletionMessage,
+  cloneSnapshotProducts,
+  coerceImportHistoryEntries,
+  coerceOperationDiaryEntries,
+  coerceImportProcessLog,
+  coerceStringList,
+  formatCaughtErrorMessage,
+  formatCurrency,
+  formatDuration,
+  formatJsonBlock,
+  formatTargetPoint,
+  formatTimestamp,
+  normalizeTargetPoint,
+  parsePromptInteger,
+  updateOperationDiaryEntries,
+  updateRecentImportHistory,
+} from "./uiFormatting";
+import type { ImportHistoryEntry, OperationDiaryEntry, OperationDiaryEntryInput, ProductOperationDiaryInput, UiSocketStatus } from "./uiFormatting";
+import { ImportStagePanel } from "./importStagePanel";
+import { ProductEntryPanel } from "./productEntryPanel";
+import { OperationalSummaryPanel } from "./operationalSummaryPanel";
+import { ExecutionCenterPanel } from "./executionCenterPanel";
+import { GradeModal } from "./gradeModal";
+import { ProductListControls } from "./productListControls";
+import { ProductTable } from "./productTable";
+import { SettingsModal } from "./settingsModal";
+import { ConfirmationDialog } from "./confirmationDialog";
+import { MarginDialog } from "./marginDialog";
+import { TextInputDialog } from "./textInputDialog";
+import { NoticeDialog, type NoticeTone } from "./noticeDialog";
+import { NoticeToastStack, type NoticeToast } from "./noticeToastStack";
+import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
+import {
+  buildDisplayedProducts,
+  buildFinalOrderingKeys,
+  buildOrderingKeys,
+  buildOrderingSelectionIndex,
+  moveOrderingKey,
+  sanitizeOrderingDraft,
+  toggleOrderingKey,
+} from "./productOrdering";
 
-const CATEGORIES = ["Masculino", "Feminino", "Infantil", "Acessorios"];
-const MAX_UNDO_HISTORY = 10;
-const AUTOMATION_TARGET_FIELDS = [
-  { key: "byte_empresa_posicao", label: "Posicao Byte Empresa" },
-  { key: "campo_descricao", label: "Campo Descricao" },
-  { key: "tres_pontinhos", label: "Botao 3 pontinhos" },
-  { key: "cadastro_completo_passo_1", label: "Cadastro completo passo 1" },
-  { key: "cadastro_completo_passo_2", label: "Cadastro completo passo 2" },
-  { key: "cadastro_completo_passo_3", label: "Cadastro completo passo 3" },
-  { key: "cadastro_completo_passo_4", label: "Cadastro completo passo 4" },
-] as const;
-const GRADE_CAPTURE_FIELDS = [
-  { key: "focus_app", label: "Focar aplicativo" },
-  { key: "alterar_grade", label: "Botao Alterar/Definir Grade" },
-  { key: "modelos", label: "Botao Modelos" },
-  { key: "model_select", label: "Linha do modelo" },
-  { key: "model_ok", label: "Botao OK do modelo" },
-  { key: "confirm_sim", label: "Botao Sim da confirmacao" },
-  { key: "close_after_import", label: "Fechar intermediario" },
-  { key: "save_grade", label: "Salvar grade" },
-  { key: "close_grade", label: "Fechar grade" },
-] as const;
+type RuntimeHealthState = {
+  status: "checking" | "ok" | "error";
+  message: string | null;
+  version: string | null;
+  checkedAt: number | null;
+};
 
-type Scope = "products" | "totals" | "brands" | "margin" | "automation";
-type EditableField = "nome" | "marca" | "codigo" | "quantidade" | "preco" | "preco_final" | "categoria";
-type ProductFormField = "nome" | "codigo" | "quantidade" | "preco";
-type EditingCellState = { orderingKey: string; field: EditableField; value: string };
-type AutomationTargetKey = typeof AUTOMATION_TARGET_FIELDS[number]["key"];
-type GradeCaptureKey = typeof GRADE_CAPTURE_FIELDS[number]["key"];
-type ImportProcessEntry = {
-  index: number;
-  source: string;
-  level: string;
+type AppProps = {
+  authSession?: AuthSessionResponse | null;
+};
+
+type ConfirmationDialogState = {
+  title: string;
   message: string;
+  detail?: string;
+  confirmLabel: string;
+  onCancel?: () => void;
+  onConfirm: () => Promise<void>;
 };
 
-type LoadState = {
-  products: Product[];
-  brands: string[];
-  totalsText: {
-    atualCusto: string;
-    atualVenda: string;
-    historicoCusto: string;
-    historicoVenda: string;
-    tempo: string;
-  };
-  totalsRaw: {
-    atualQuantidade: number;
-    historicoQuantidade: number;
-    caracteres: number;
-  };
-  marginPercentual: number;
-  automation: AutomationStatus;
+type TextInputDialogState = {
+  title: string;
+  description: string;
+  label: string;
+  value: string;
+  confirmLabel: string;
+  sectionTag?: string;
+  placeholder?: string;
+  validate?: (value: string) => string | null;
+  onConfirm: (value: string) => Promise<void>;
 };
 
-const initialState: LoadState = {
-  products: [],
-  brands: [],
-  totalsText: {
-    atualCusto: "R$ 0,00",
-    atualVenda: "R$ 0,00",
-    historicoCusto: "R$ 0,00",
-    historicoVenda: "R$ 0,00",
-    tempo: "0s",
-  },
-  totalsRaw: {
-    atualQuantidade: 0,
-    historicoQuantidade: 0,
-    caracteres: 0,
-  },
-  marginPercentual: 0,
-  automation: {},
+type NoticeDialogState = {
+  title: string;
+  message: string;
+  tone?: NoticeTone;
+  confirmLabel?: string;
 };
 
-const APP_STAGE_WIDTH = 1720;
-const APP_STAGE_HEIGHT = 980;
-const APP_STAGE_PADDING = 8;
+const RECENT_IMPORT_HISTORY_KEY = "lojasync:recent-import-history";
+const RECENT_IMPORT_HISTORY_LIMIT = 3;
+const OPERATION_DIARY_KEY = "lojasync:operation-diary";
+const OPERATION_DIARY_LIMIT = 6;
+const PRODUCT_QUICK_FILTER_KEY = "lojasync:product-quick-filter";
+const NOTICE_TOAST_LIMIT = 4;
+const NOTICE_TOAST_TIMEOUT_MS = 9000;
+const INLINE_EDIT_FIELD_LABELS: Record<EditableField, string> = {
+  nome: "Nome",
+  marca: "Marca",
+  codigo: "Codigo",
+  quantidade: "Quantidade",
+  preco: "Preco",
+  preco_final: "Preco final",
+  categoria: "Categoria",
+};
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value || 0);
-}
-
-function formatDuration(seconds: number) {
-  if (!seconds) return "0s";
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remaining = seconds % 60;
-  const parts: string[] = [];
-  if (hours) parts.push(`${hours}h`);
-  if (minutes) parts.push(`${minutes}min`);
-  if (remaining || !parts.length) parts.push(`${remaining}s`);
-  return parts.join(" ");
-}
-
-function formatTimestamp(value?: number | null) {
-  if (!value) return "agora";
-  return new Date(value * 1000).toLocaleTimeString("pt-BR");
-}
-
-function parsePromptInteger(raw: string | null) {
-  if (!raw || !raw.trim()) return null;
-  const value = Number.parseInt(raw.trim(), 10);
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function cloneSnapshotProducts(items: Product[]) {
-  return JSON.parse(JSON.stringify(items || [])) as Product[];
-}
-
-function formatTargetPoint(point?: TargetPoint | null) {
-  if (!point) return "Nao calibrado";
-  return `X: ${point.x} | Y: ${point.y}`;
-}
-
-function normalizeTargetPoint(value: unknown): TargetPoint | null {
-  if (value && typeof value === "object" && "x" in (value as Record<string, unknown>) && "y" in (value as Record<string, unknown>)) {
-    return {
-      x: Number((value as Record<string, unknown>).x) || 0,
-      y: Number((value as Record<string, unknown>).y) || 0,
-    };
+function readInitialImportHistory() {
+  try {
+    return coerceImportHistoryEntries(JSON.parse(window.localStorage.getItem(RECENT_IMPORT_HISTORY_KEY) || "[]"), RECENT_IMPORT_HISTORY_LIMIT);
+  } catch {
+    return [];
   }
-  return null;
 }
 
-function normalizeGradeConfigState(value?: GradeConfig | null): GradeConfig {
-  const normalizeSizeList = (items: string[] | null | undefined) => {
-    const seen = new Set<string>();
-    const normalized: string[] = [];
-    for (const item of items || []) {
-      const label = normalizeGradeSizeLabel(item);
-      if (!label || seen.has(label)) continue;
-      seen.add(label);
-      normalized.push(label);
-    }
-    return normalized;
-  };
-  const normalizeFamilies = (families: UiGradeFamily[] | null | undefined) =>
-    Array.isArray(families)
-      ? families
-          .map((family, index) => ({
-            id: String(family?.id || `family-${index + 1}`).trim().toLowerCase() || `family-${index + 1}`,
-            label: String(family?.label || `Familia ${index + 1}`).trim() || `Familia ${index + 1}`,
-            sizes: normalizeSizeList(family?.sizes || []),
-          }))
-          .filter((family) => family.sizes.length || family.label.trim())
-      : [];
-  const buttonsEntries = Object.entries(value?.buttons || {})
-    .map(([key, point]) => {
-      const normalized = normalizeTargetPoint(point);
-      return normalized ? ([key, normalized] as const) : null;
-    })
-    .filter((entry): entry is readonly [string, TargetPoint] => Boolean(entry));
-  return {
-    ...(value || {}),
-    buttons: Object.fromEntries(buttonsEntries),
-    first_quant_cell: normalizeTargetPoint(value?.first_quant_cell),
-    second_quant_cell: normalizeTargetPoint(value?.second_quant_cell),
-    row_height: Number(value?.row_height || 0) || null,
-    model_index: Number(value?.model_index || 0) || null,
-    model_hotkey: value?.model_hotkey || "",
-    erp_size_order: normalizeSizeList(value?.erp_size_order || []),
-    ui_size_order: normalizeSizeList(value?.ui_size_order || []),
-    ui_families: normalizeFamilies(value?.ui_families || []),
-    ui_family_version: Number(value?.ui_family_version || 0) || null,
-  };
-}
-
-function formatJsonBlock(value: unknown) {
-  return JSON.stringify(value, null, 2);
-}
-
-function coerceImportProcessLog(metrics: Record<string, unknown> | null | undefined): ImportProcessEntry[] {
-  const raw = metrics?.["process_log"];
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((item) => item && typeof item === "object")
-    .map((item, index) => {
-      const entry = item as Record<string, unknown>;
-      return {
-        index: Number(entry.index || index + 1) || index + 1,
-        source: String(entry.source || "system").trim() || "system",
-        level: String(entry.level || "info").trim() || "info",
-        message: String(entry.message || "").trim(),
-      };
-    })
-    .filter((entry) => entry.message);
-}
-
-function coerceStringList(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => String(item || "").trim()).filter(Boolean);
-}
-
-function parseSizeOrderText(value: string) {
-  return value
-    .split(/[\n,;]+/g)
-    .map((item) => normalizeGradeSizeLabel(item))
-    .filter(Boolean);
-}
-
-function parsePriceInput(value: string | null | undefined) {
-  if (!value) return null;
-  const text = String(value).trim().replace("R$", "").replace(/\s+/g, "").replace(/\u00a0/g, "");
-  if (!text) return null;
-  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
-  const parsed = Number.parseFloat(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function formatPriceInput(value: number | null) {
-  if (value == null || !Number.isFinite(value)) return "";
-  return value.toFixed(2).replace(".", ",");
-}
-
-function calculateSalePricePreview(costPrice: string, marginPercentual: number) {
-  const parsed = parsePriceInput(costPrice);
-  if (parsed == null) return null;
-  const safeMargin = 1 + Math.max(marginPercentual, 0) / 100;
-  const gross = parsed * safeMargin;
-  const whole = Math.floor(gross);
-  let target = whole + 0.9;
-  if (target < gross) {
-    target = whole + 1.9;
+function readInitialOperationDiary() {
+  try {
+    return coerceOperationDiaryEntries(JSON.parse(window.localStorage.getItem(OPERATION_DIARY_KEY) || "[]"), OPERATION_DIARY_LIMIT);
+  } catch {
+    return [];
   }
-  return formatPriceInput(target);
 }
 
-function computeCurrentTotals(products: Product[], marginPercentual: number) {
-  let quantidade = 0;
-  let custo = 0;
-  let venda = 0;
-  for (const product of products) {
-    const quantity = Number(product.quantidade || 0);
-    const cost = parsePriceInput(product.preco) || 0;
-    const sale = parsePriceInput(product.preco_final || calculateSalePricePreview(product.preco || "", marginPercentual)) || 0;
-    quantidade += quantity;
-    custo += cost * quantity;
-    venda += sale * quantity;
+function readInitialProductQuickFilter() {
+  try {
+    return coerceProductQuickFilter(window.localStorage.getItem(PRODUCT_QUICK_FILTER_KEY));
+  } catch {
+    return "all";
   }
-  return { quantidade, custo, venda };
 }
 
-const GRADE_SIZE_PRIORITY = [
-  "P",
-  "M",
-  "G",
-  "GG",
-  "U",
-  "PP",
-  "P/M",
-  "M/G",
-  "XG",
-  "XXG",
-  "XGG",
-  "G1",
-  "G2",
-  "G3",
-  "G4",
-  "G5",
-  "G6",
-  "1",
-  "2",
-  "3",
-  "4",
-  "6",
-  "8",
-  "10",
-  "12",
-  "14",
-  "16",
-  "18",
-  "20",
-  "22",
-  "3M",
-  "6M",
-  "9M",
-  "12M",
-  "18M",
-  "34",
-  "36",
-  "38",
-  "40",
-  "42",
-  "44",
-  "46",
-  "48",
-  "50",
-  "52",
-  "54",
-  "56",
-  "58",
-  "UN",
-];
-
-const GRADE_UI_VERSION = 2;
-const LAST_ACTIVE_GRADE_FAMILY_KEY = "lojasync:last-active-grade-family";
-const GRADE_FAMILY_PRESET = [
-  { id: "common", label: "Mais usadas", order: ["P", "M", "G", "GG", "U", "PP", "P/M", "M/G"] },
-  { id: "letters", label: "Familia letras", order: ["XG", "XXG", "XGG", "G1", "G2", "G3", "G4", "G5", "G6"] },
-  { id: "infantil", label: "Familia infantil", order: ["1", "2", "3", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "3M", "6M", "9M", "12M", "18M"] },
-  { id: "adulto", label: "Familia adulto", order: ["32", "34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "58"] },
-];
-
-const GRADE_SIZE_PRIORITY_INDEX = new Map(GRADE_SIZE_PRIORITY.map((size, index) => [size, index]));
-
-function normalizeGradeSizeLabel(value: string) {
-  const label = String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "");
-  if (!label) return "";
-  if (/^\d+$/.test(label)) {
-    const number = Number.parseInt(label, 10);
-    return Number.isFinite(number) && number > 0 ? String(number) : "";
-  }
-  return label;
-}
-
-function compareGradeSizeLabels(left: string, right: string) {
-  const leftLabel = normalizeGradeSizeLabel(left);
-  const rightLabel = normalizeGradeSizeLabel(right);
-  const leftRank = GRADE_SIZE_PRIORITY_INDEX.get(leftLabel) ?? Number.POSITIVE_INFINITY;
-  const rightRank = GRADE_SIZE_PRIORITY_INDEX.get(rightLabel) ?? Number.POSITIVE_INFINITY;
-  if (leftRank !== rightRank) {
-    return leftRank - rightRank;
-  }
-  return leftLabel.localeCompare(rightLabel, "pt-BR");
-}
-
-function gradeItemsToMap(items: GradeItem[] | null | undefined) {
-  const map: Record<string, string> = {};
-  for (const item of items || []) {
-    const label = normalizeGradeSizeLabel(item.tamanho);
-    if (!label) continue;
-    map[label] = String(item.quantidade ?? 0);
-  }
-  return map;
-}
-
-function sumGradeDraftValues(draft: Record<string, string>) {
-  return Object.values(draft).reduce((sum, item) => sum + (Number.parseInt(item, 10) || 0), 0);
-}
-
-function sumSavedGradeValues(product: Product) {
-  return (product.grades || []).reduce((sum, item) => sum + (Number(item.quantidade || 0) || 0), 0);
-}
-
-function getIncompleteGradeProducts(products: Product[]) {
-  return products
-    .map((product) => {
-      const total = sumSavedGradeValues(product);
-      const expected = Number(product.quantidade || 0);
-      const hasSavedGrade = (product.grades || []).length > 0 || total > 0;
-      if (!hasSavedGrade || total === expected) {
-        return null;
-      }
-      return { product, total, expected };
-    })
-    .filter((item): item is { product: Product; total: number; expected: number } => Boolean(item));
-}
-
-function buildVisualSizeOrder(config: GradeConfig | null, catalogSizes: string[], products: Product[]) {
-  const merged = new Set<string>();
-  for (const size of config?.ui_size_order || []) {
-    const label = normalizeGradeSizeLabel(size);
-    if (label) merged.add(label);
-  }
-  for (const size of config?.erp_size_order || []) {
-    const label = normalizeGradeSizeLabel(size);
-    if (label) merged.add(label);
-  }
-  for (const size of catalogSizes) {
-    const label = normalizeGradeSizeLabel(size);
-    if (label) merged.add(label);
-  }
-  for (const product of products) {
-    for (const item of product.grades || []) {
-      const label = normalizeGradeSizeLabel(item.tamanho);
-      if (label) merged.add(label);
-    }
-  }
-  return Array.from(merged).sort(compareGradeSizeLabels);
-}
-
-function classifyGradeFamily(size: string) {
-  const label = normalizeGradeSizeLabel(size);
-  const commonAlpha = ["UN", "U", "PP", "P", "M", "G", "GG"];
-  if (commonAlpha.includes(label)) {
-    return "common";
-  }
-  if (/^(XG|XXG|G1|G2|G3|G4|EG|EXG|XGG)$/.test(label) || /^[A-Z]+$/.test(label)) {
-    return "letters";
-  }
-  if (/^\d+$/.test(label)) {
-    return "numbers";
-  }
-  return "special";
-}
-
-function buildDefaultUiFamilies(sizes: string[]): UiGradeFamily[] {
-  const remaining = [...sizes];
-  const takeMatchingSize = (wanted: string) => {
-    const wantedLabel = normalizeGradeSizeLabel(wanted);
-    const wantedNumeric = /^\d+$/.test(wantedLabel) ? Number.parseInt(wantedLabel, 10) : null;
-    const index = remaining.findIndex((candidate) => {
-      const normalized = normalizeGradeSizeLabel(candidate);
-      if (normalized === wantedLabel) return true;
-      if (wantedNumeric !== null && /^\d+$/.test(normalized)) {
-        return Number.parseInt(normalized, 10) === wantedNumeric;
-      }
-      return false;
-    });
-    if (index < 0) return null;
-    const [matched] = remaining.splice(index, 1);
-    return matched;
-  };
-
-  const families = GRADE_FAMILY_PRESET.map((preset) => ({
-    id: preset.id,
-    label: preset.label,
-    sizes: preset.order.map((item) => takeMatchingSize(item)).filter((item): item is string => Boolean(item)),
-  })).filter((family) => family.sizes.length);
-
-  if (remaining.length) {
-    families.push({
-      id: "extras",
-      label: "Extras",
-      sizes: remaining,
-    });
-  }
-  return families;
-}
-
-function normalizeUiFamiliesDraft(families: UiGradeFamily[], fallbackSizes: string[]) {
-  const seen = new Set<string>();
-  const normalizedFamilies = families
-    .map((family, index) => {
-      const id = String(family.id || `family-${index + 1}`).trim().toLowerCase() || `family-${index + 1}`;
-      const label = String(family.label || `Familia ${index + 1}`).trim() || `Familia ${index + 1}`;
-      const sizes: string[] = [];
-      for (const size of family.sizes || []) {
-        const normalized = normalizeGradeSizeLabel(size);
-        if (!normalized || seen.has(normalized)) continue;
-        seen.add(normalized);
-        sizes.push(normalized);
-      }
-      return { id, label, sizes };
-    })
-    .filter((family) => family.sizes.length || family.label.trim());
-
-  const unassigned = fallbackSizes.filter((size) => !seen.has(normalizeGradeSizeLabel(size)));
-  if (unassigned.length) {
-    const special = normalizedFamilies.find((family) => family.id === "special");
-    if (special) {
-      special.sizes.push(...unassigned);
-    } else {
-      normalizedFamilies.push({ id: "special", label: "Especiais", sizes: unassigned });
-    }
-  }
-  return normalizedFamilies;
-}
-
-export default function App() {
+export default function App({ authSession = null }: AppProps) {
   const [state, setState] = useState<LoadState>(initialState);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== "undefined" ? window.innerWidth : APP_STAGE_WIDTH,
     height: typeof window !== "undefined" ? window.innerHeight : APP_STAGE_HEIGHT,
   }));
   const [loading, setLoading] = useState(true);
+  const [runtimeHealth, setRuntimeHealth] = useState<RuntimeHealthState>({
+    status: "checking",
+    message: null,
+    version: null,
+    checkedAt: null,
+  });
+  const [uiSocketStatus, setUiSocketStatus] = useState<UiSocketStatus>("connecting");
+  const [recentImports, setRecentImports] = useState<ImportHistoryEntry[]>(readInitialImportHistory);
+  const [operationDiary, setOperationDiary] = useState<OperationDiaryEntry[]>(readInitialOperationDiary);
   const [form, setForm] = useState<ProductPayload>({
     nome: "",
     codigo: "",
@@ -549,6 +274,10 @@ export default function App() {
   const [bulkCategoryValue, setBulkCategoryValue] = useState("");
   const [bulkBrandValue, setBulkBrandValue] = useState("");
   const [simpleModeEnabled, setSimpleModeEnabled] = useState(false);
+  const [productQuickFilter, setProductQuickFilter] = useState<ProductQuickFilter>(readInitialProductQuickFilter);
+  const productQuickFilterTouchedRef = useRef(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [undoRedoRevision, setUndoRedoRevision] = useState(0);
   const [globalEditMode, setGlobalEditMode] = useState(false);
   const [orderingMode, setOrderingMode] = useState(false);
   const [orderingDraftKeys, setOrderingDraftKeys] = useState<string[]>([]);
@@ -601,6 +330,7 @@ export default function App() {
   const isRestoringSnapshotRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importModeRef = useRef<"llm" | "local">("llm");
+  const importFileNameRef = useRef<string | null>(null);
   const bulkCategoryMenuRef = useRef<HTMLDivElement | null>(null);
   const bulkBrandMenuRef = useRef<HTMLDivElement | null>(null);
   const visitedProductFields = useRef<Set<ProductFormField>>(new Set());
@@ -619,26 +349,79 @@ export default function App() {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsTargets, setSettingsTargets] = useState<AutomationTargets>({});
+  const [automationTargetsLoaded, setAutomationTargetsLoaded] = useState(false);
   const [settingsGradeConfig, setSettingsGradeConfig] = useState<GradeConfig>({});
   const [settingsContextText, setSettingsContextText] = useState("");
   const [settingsCaptureLabel, setSettingsCaptureLabel] = useState<string | null>(null);
   const [settingsCaptureCountdown, setSettingsCaptureCountdown] = useState<number | null>(null);
+  const [confirmationDialog, setConfirmationDialog] = useState<ConfirmationDialogState | null>(null);
+  const [confirmationBusy, setConfirmationBusy] = useState(false);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const [marginDialogOpen, setMarginDialogOpen] = useState(false);
+  const [marginDraft, setMarginDraft] = useState("");
+  const [marginBusy, setMarginBusy] = useState(false);
+  const [marginError, setMarginError] = useState<string | null>(null);
+  const [textInputDialog, setTextInputDialog] = useState<TextInputDialogState | null>(null);
+  const [textInputBusy, setTextInputBusy] = useState(false);
+  const [textInputError, setTextInputError] = useState<string | null>(null);
+  const [noticeDialog, setNoticeDialog] = useState<NoticeDialogState | null>(null);
+  const [noticeToasts, setNoticeToasts] = useState<NoticeToast[]>([]);
+  const noticeToastSeq = useRef(0);
 
   const sortedBrands = useMemo(() => [...state.brands].sort((a, b) => a.localeCompare(b, "pt-BR")), [state.brands]);
   const productsByKey = useMemo(() => new Map(state.products.map((product) => [product.ordering_key, product])), [state.products]);
-  const originalOrderingKeys = useMemo(() => state.products.map((product) => product.ordering_key), [state.products]);
+  const originalOrderingKeys = useMemo(() => buildOrderingKeys(state.products), [state.products]);
   const incompleteGradeProducts = useMemo(() => getIncompleteGradeProducts(state.products), [state.products]);
-  const displayedProducts = useMemo(() => {
-    if (!orderingMode) {
-      return state.products;
+  const orderedProducts = useMemo(
+    () => buildDisplayedProducts(state.products, orderingDraftKeys, orderingMode),
+    [orderingDraftKeys, orderingMode, state.products],
+  );
+  const quickFilteredProducts = useMemo(
+    () => filterProductsByQuickFilter(orderedProducts, productQuickFilter),
+    [orderedProducts, productQuickFilter],
+  );
+  const displayedProducts = useMemo(
+    () => filterProductsBySearch(quickFilteredProducts, productSearchQuery),
+    [productSearchQuery, quickFilteredProducts],
+  );
+  const productQuickFilterOptions = useMemo(() => buildProductQuickFilterOptions(state.products), [state.products]);
+  useEffect(() => {
+    if (!noticeToasts.length) return;
+
+    const timerId = window.setTimeout(() => {
+      setNoticeToasts((current) => current.slice(1));
+    }, NOTICE_TOAST_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timerId);
+  }, [noticeToasts]);
+
+  useEffect(() => {
+    if (productQuickFilterTouchedRef.current) return;
+
+    const nextFilter = resolveStaleProductQuickFilter(productQuickFilter, productQuickFilterOptions, state.products.length);
+    if (nextFilter === productQuickFilter) return;
+
+    setProductQuickFilter(nextFilter);
+    try {
+      window.localStorage.setItem(PRODUCT_QUICK_FILTER_KEY, nextFilter);
+    } catch {
+      // This is only a visual preference; never block list usage.
     }
-    const selectedKeys = orderingDraftKeys.filter((key) => productsByKey.has(key));
-    const remainingKeys = originalOrderingKeys.filter((key) => !selectedKeys.includes(key));
-    return [...selectedKeys, ...remainingKeys].map((key) => productsByKey.get(key)).filter((product): product is Product => Boolean(product));
-  }, [orderingDraftKeys, orderingMode, originalOrderingKeys, productsByKey, state.products]);
+  }, [productQuickFilter, productQuickFilterOptions, state.products.length]);
+
+  const productTableEmptyState = useMemo(
+    () => productSearchQuery.trim()
+      ? buildProductSearchEmptyState(productSearchQuery, quickFilteredProducts.length)
+      : buildProductQuickFilterEmptyState(productQuickFilter, productQuickFilterOptions, displayedProducts.length, state.products.length),
+    [displayedProducts.length, productQuickFilter, productQuickFilterOptions, productSearchQuery, quickFilteredProducts.length, state.products.length],
+  );
+  const undoRedoHistoryState = useMemo(
+    () => buildUndoRedoHistoryState(undoStackRef.current.length, redoStackRef.current.length),
+    [undoRedoRevision],
+  );
   const orderingSelectionIndex = useMemo(
-    () => new Map(orderingDraftKeys.filter((key) => productsByKey.has(key)).map((key, index) => [key, index + 1])),
-    [orderingDraftKeys, productsByKey],
+    () => buildOrderingSelectionIndex(state.products, orderingDraftKeys),
+    [orderingDraftKeys, state.products],
   );
   const selectedGradeProduct = useMemo(
     () => (gradeSelectedKey ? state.products.find((product) => product.ordering_key === gradeSelectedKey) ?? null : null),
@@ -674,6 +457,23 @@ export default function App() {
     [activeGradeFamilyKey, groupedGradeSizes],
   );
   const currentGradeTotal = useMemo(() => sumGradeDraftValues(gradeDraft), [gradeDraft]);
+  const selectedGradeStatus = useMemo(
+    () => (selectedGradeProduct ? buildGradeProductStatus(selectedGradeProduct, currentGradeTotal) : null),
+    [currentGradeTotal, selectedGradeProduct],
+  );
+  const nextPendingGradeKey = useMemo(
+    () => findNextPendingGradeKey(state.products, gradeSelectedKey, gradeSelectedKey),
+    [gradeSelectedKey, state.products],
+  );
+  const missingCompleteTargetLabels = useMemo(
+    () =>
+      automationTargetsLoaded
+        ? AUTOMATION_TARGET_FIELDS
+            .filter((field) => !normalizeTargetPoint(settingsTargets[field.key]))
+            .map((field) => field.label)
+        : null,
+    [automationTargetsLoaded, settingsTargets],
+  );
 
   const applySnapshot = async (scopes: Scope[]) => {
     const tasks = scopes.map(async (scope) => {
@@ -725,7 +525,7 @@ export default function App() {
           if (item.scope === "products") next.products = item.value as Product[];
           if (item.scope === "brands") next.brands = item.value as string[];
           if (item.scope === "margin") next.marginPercentual = item.value as number;
-          if (item.scope === "automation") next.automation = item.value as AutomationStatus;
+          if (item.scope === "automation") next.automation = item.value as LoadState["automation"];
           if (item.scope === "totals") {
             next.totalsText = (item.value as { totalsText: LoadState["totalsText"] }).totalsText;
             next.totalsRaw = (item.value as { totalsRaw: LoadState["totalsRaw"] }).totalsRaw;
@@ -771,6 +571,60 @@ export default function App() {
     }
   };
 
+  const rememberImportHistory = (
+    result: ImportResult,
+    options?: {
+      job?: Pick<ImportStatus, "job_id" | "updated_at" | "completed_at"> | null;
+      mode?: "llm" | "local";
+      selectedFileName?: string | null;
+    },
+  ) => {
+    const entry = buildImportHistoryEntry(result, {
+      job: options?.job,
+      selectedFileName: options?.selectedFileName ?? selectedFile?.name,
+      mode: options?.mode,
+    });
+    setRecentImports((current) => {
+      const next = updateRecentImportHistory(current, entry, RECENT_IMPORT_HISTORY_LIMIT);
+      try {
+        window.localStorage.setItem(RECENT_IMPORT_HISTORY_KEY, JSON.stringify(next));
+      } catch {
+        // Import history is a convenience cache; never block the import flow.
+      }
+      return next;
+    });
+    return entry;
+  };
+
+  const rememberOperationDiary = (input: OperationDiaryEntryInput) => {
+    const entry = buildOperationDiaryEntry(input);
+    setOperationDiary((current) => {
+      const next = updateOperationDiaryEntries(current, entry, OPERATION_DIARY_LIMIT);
+      try {
+        window.localStorage.setItem(OPERATION_DIARY_KEY, JSON.stringify(next));
+      } catch {
+        // Operation diary is a local convenience cache; never block the action.
+      }
+      return next;
+    });
+    return entry;
+  };
+
+  const rememberProductOperation = (input: ProductOperationDiaryInput) => {
+    return rememberOperationDiary(buildProductOperationDiaryEntry(input));
+  };
+
+  const handleProductQuickFilterChange = (filter: ProductQuickFilter) => {
+    productQuickFilterTouchedRef.current = true;
+    const nextFilter = coerceProductQuickFilter(filter);
+    setProductQuickFilter(nextFilter);
+    try {
+      window.localStorage.setItem(PRODUCT_QUICK_FILTER_KEY, nextFilter);
+    } catch {
+      // This is only a visual preference; never block list usage.
+    }
+  };
+
   const applyProductsPreview = (products: Product[]) => {
     const currentTotals = computeCurrentTotals(products, state.marginPercentual);
     startTransition(() => {
@@ -790,29 +644,6 @@ export default function App() {
     });
   };
 
-  const buildProductPreview = (product: Product, field: EditableField, rawValue: string): Product => {
-    const next = { ...product };
-    if (field === "quantidade") {
-      const quantity = Number.parseInt(rawValue, 10);
-      next.quantidade = Number.isFinite(quantity) && quantity >= 0 ? quantity : 0;
-      return next;
-    }
-    if (field === "preco") {
-      next.preco = rawValue;
-      next.preco_final = calculateSalePricePreview(rawValue, state.marginPercentual);
-      return next;
-    }
-    if (field === "preco_final") {
-      next.preco_final = rawValue;
-      return next;
-    }
-    if (field === "nome") next.nome = rawValue;
-    if (field === "marca") next.marca = rawValue;
-    if (field === "codigo") next.codigo = rawValue;
-    if (field === "categoria") next.categoria = rawValue;
-    return next;
-  };
-
   const pushUndoSnapshot = (options?: { clearRedo?: boolean }) => {
     if (isRestoringSnapshotRef.current) {
       return;
@@ -825,6 +656,7 @@ export default function App() {
     if (options?.clearRedo !== false) {
       redoStackRef.current = [];
     }
+    setUndoRedoRevision((current) => current + 1);
   };
 
   const restoreSnapshotState = async (snapshot: Product[]) => {
@@ -849,6 +681,7 @@ export default function App() {
     if (redoStackRef.current.length > MAX_UNDO_HISTORY) {
       redoStackRef.current.shift();
     }
+    setUndoRedoRevision((current) => current + 1);
     await restoreSnapshotState(snapshot);
   };
 
@@ -864,6 +697,7 @@ export default function App() {
     if (undoStackRef.current.length > MAX_UNDO_HISTORY) {
       undoStackRef.current.shift();
     }
+    setUndoRedoRevision((current) => current + 1);
     await restoreSnapshotState(snapshot);
   };
 
@@ -885,6 +719,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let disposed = false;
+    const loadAutomationTargets = async () => {
+      try {
+        const payload = await fetchAutomationTargets();
+        if (disposed) return;
+        setSettingsTargets(payload || {});
+        setAutomationTargetsLoaded(true);
+      } catch {
+        if (!disposed) setAutomationTargetsLoaded(false);
+      }
+    };
+
+    void loadAutomationTargets();
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
     currentProductsSnapshotRef.current = cloneSnapshotProducts(state.products);
   }, [state.products]);
 
@@ -893,7 +746,7 @@ export default function App() {
       setOrderingDraftKeys([]);
       return;
     }
-    setOrderingDraftKeys((current) => current.filter((key) => originalOrderingKeys.includes(key)));
+    setOrderingDraftKeys((current) => sanitizeOrderingDraft(current, originalOrderingKeys));
   }, [orderingMode, originalOrderingKeys]);
 
   useEffect(() => {
@@ -937,13 +790,50 @@ export default function App() {
   }, [globalEditMode]);
 
   useEffect(() => {
+    let disposed = false;
+    let timer: number | null = null;
+
+    const refreshHealth = async () => {
+      try {
+        const payload = await fetchRuntimeHealth();
+        if (disposed) return;
+        setRuntimeHealth({
+          status: String(payload.status || "").toLowerCase() === "ok" ? "ok" : "error",
+          message: null,
+          version: payload.version || null,
+          checkedAt: Date.now(),
+        });
+      } catch (error) {
+        if (disposed) return;
+        setRuntimeHealth({
+          status: "error",
+          message: formatCaughtErrorMessage(error, "Falha ao consultar o backend."),
+          version: null,
+          checkedAt: Date.now(),
+        });
+      }
+    };
+
+    void refreshHealth();
+    timer = window.setInterval(() => void refreshHealth(), 30000);
+    return () => {
+      disposed = true;
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
     const wsUrl = buildWsUrl("/ws/ui");
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
+    let disposed = false;
 
     const connect = () => {
+      if (disposed) return;
+      setUiSocketStatus("connecting");
       socket = new WebSocket(wsUrl);
       socket.addEventListener("open", () => {
+        setUiSocketStatus("connected");
         socket?.send("ping");
       });
       socket.addEventListener("message", (event) => {
@@ -965,13 +855,21 @@ export default function App() {
           );
         }
       });
+      socket.addEventListener("error", () => {
+        setUiSocketStatus("reconnecting");
+      });
       socket.addEventListener("close", () => {
+        if (disposed) {
+          return;
+        }
+        setUiSocketStatus("reconnecting");
         reconnectTimer = window.setTimeout(connect, 3000);
       });
     };
 
     connect();
     return () => {
+      disposed = true;
       if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
       socket?.close();
     };
@@ -1003,27 +901,13 @@ export default function App() {
   }, [state.automation.estado]);
 
   useEffect(() => {
-    const shouldIgnoreUndoEvent = (target: EventTarget | null) => {
-      const node = target as HTMLElement | null;
-      if (!node) return false;
-      if (node.isContentEditable) return true;
-      const tagName = node.tagName;
-      return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
-    };
-
     const handleUndoRedoKeydown = (event: KeyboardEvent) => {
-      const key = String(event.key || "").toLowerCase();
-      if (key !== "z") {
-        return;
-      }
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
-        return;
-      }
-      if (shouldIgnoreUndoEvent(event.target)) {
+      const action = getGlobalUndoRedoAction(event);
+      if (!action) {
         return;
       }
       event.preventDefault();
-      if (event.shiftKey) {
+      if (action === "redo") {
         void redoLastAction();
       } else {
         void undoLastAction();
@@ -1055,11 +939,25 @@ export default function App() {
           try {
             const result = await fetchImportResult(job.job_id);
             setImportResult(result);
+            const historyEntry = rememberImportHistory(result, { job, mode: "llm", selectedFileName: importFileNameRef.current });
+            rememberOperationDiary({
+              kind: "import",
+              title: "Importacao concluida",
+              detail: historyEntry.sourceName,
+              tone: historyEntry.warningCount ? "warning" : "success",
+              occurredAt: historyEntry.completedAt,
+              meta: [
+                historyEntry.mode,
+                `${historyEntry.totalItems} itens`,
+                historyEntry.warningCount ? `${historyEntry.warningCount} avisos` : null,
+                historyEntry.gradesAvailable ? "grades detectadas" : null,
+                historyEntry.validationStatus,
+              ],
+            });
             setImporting(false);
-            if (result.grades_disponiveis) {
-              window.alert(
-                `Grades automaticas disponiveis.\n\nClique em Importar Grades para aplicar.${result.total_grades_disponiveis > 0 ? `\nGrupos detectados: ${result.total_grades_disponiveis}` : ""}`,
-              );
+            const gradesMessage = buildImportGradesAvailableMessage(result);
+            if (gradesMessage) {
+              showNoticeDialog({ title: "Grades detectadas", message: gradesMessage, tone: "info" });
             }
           } finally {
             try {
@@ -1077,11 +975,19 @@ export default function App() {
           }
           if (job.error) {
             setImportError(job.error);
+            rememberOperationDiary({
+              kind: "import",
+              title: "Falha na importacao",
+              detail: job.error,
+              tone: "error",
+              occurredAt: Number(job.updated_at || 0) > 0 ? job.updated_at * 1000 : Date.now(),
+              meta: [importFileNameRef.current || selectedFile?.name || "arquivo selecionado"],
+            });
             setImporting(false);
           }
         }
       } catch (error) {
-        setImportError(error instanceof Error ? error.message : "Falha ao consultar status da importacao.");
+        setImportError(formatCaughtErrorMessage(error, "Falha ao consultar status da importacao."));
       }
     }, 1000);
 
@@ -1115,17 +1021,24 @@ export default function App() {
             const result = await fetchPostProcessResult(job.job_id);
             setPostProcessResult(result);
             setPostProcessing(false);
-            const summaryLines = [
-              `Itens revisados: ${result.total_itens}`,
-              `Alteracoes aplicadas nesta fase: ${result.total_modificados}`,
-            ];
-            if (result.dry_run) {
-              summaryLines.push("Modo inicial ativo: a IA revisou os itens, mas ainda nao aplicamos as sugestoes automaticamente.");
-            }
-            if (result.warnings?.length) {
-              summaryLines.push(`Avisos: ${result.warnings.join(" | ")}`);
-            }
-            window.alert(summaryLines.join("\n"));
+            rememberOperationDiary({
+              kind: "review",
+              title: "Revisao com IA concluida",
+              detail: result.dry_run ? "Modo inicial sem aplicacao automatica" : "Alteracoes aplicadas",
+              tone: result.warnings?.length ? "warning" : "success",
+              occurredAt: Number(job.completed_at || job.updated_at || 0) > 0 ? Number(job.completed_at || job.updated_at) * 1000 : Date.now(),
+              meta: [
+                `${result.total_itens} itens`,
+                `${result.total_modificados} alteracoes`,
+                result.dry_run ? "dry-run" : "aplicado",
+                result.warnings?.length ? `${result.warnings.length} avisos` : null,
+              ],
+            });
+            showNoticeDialog({
+              title: "Revisao com IA concluida",
+              message: buildPostProcessCompletionMessage(result),
+              tone: result.warnings?.length ? "warning" : "success",
+            });
           } finally {
             try {
               await cleanupPostProcessJob(job.job_id);
@@ -1142,11 +1055,19 @@ export default function App() {
           }
           if (job.error) {
             setPostProcessError(job.error);
+            rememberOperationDiary({
+              kind: "review",
+              title: "Falha na revisao com IA",
+              detail: job.error,
+              tone: "error",
+              occurredAt: Number(job.updated_at || 0) > 0 ? job.updated_at * 1000 : Date.now(),
+              meta: [],
+            });
             setPostProcessing(false);
           }
         }
       } catch (error) {
-        setPostProcessError(error instanceof Error ? error.message : "Falha ao consultar a revisao com IA.");
+        setPostProcessError(formatCaughtErrorMessage(error, "Falha ao consultar a revisao com IA."));
       }
     }, 1000);
 
@@ -1201,42 +1122,8 @@ export default function App() {
     target?.select?.();
   };
 
-  const getProductFormFieldOrder = (): ProductFormField[] => {
-    const order: ProductFormField[] = ["nome"];
-    if (!simpleModeEnabled) {
-      order.push("codigo");
-    }
-    order.push("quantidade", "preco");
-    return order;
-  };
-
-  const getNextProductField = (current: ProductFormField | null): ProductFormField | null => {
-    const order = getProductFormFieldOrder();
-    if (!current) {
-      return order[0] ?? null;
-    }
-    const currentIndex = order.indexOf(current);
-    if (currentIndex < 0) {
-      return order[0] ?? null;
-    }
-    return order[currentIndex + 1] ?? null;
-  };
-
   const getFirstMissingProductField = (): ProductFormField | null => {
-    if (!String(form.nome || "").trim()) {
-      return "nome";
-    }
-    if (!simpleModeEnabled && !String(form.codigo || "").trim()) {
-      return "codigo";
-    }
-    const quantityValue = Number(form.quantidade);
-    if (!Number.isFinite(quantityValue) || quantityValue < 1) {
-      return "quantidade";
-    }
-    if (!String(form.preco || "").trim()) {
-      return "preco";
-    }
-    return null;
+    return findFirstMissingProductField(form, simpleModeEnabled);
   };
 
   const handleProductFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
@@ -1257,7 +1144,7 @@ export default function App() {
     const currentField = fieldMap[target.name] ?? null;
     if (currentField) {
       visitedProductFields.current.add(currentField);
-      const nextField = getNextProductField(currentField);
+      const nextField = getNextProductFormField(currentField, simpleModeEnabled);
       if (nextField && !visitedProductFields.current.has(nextField)) {
         focusProductField(nextField);
         return;
@@ -1273,7 +1160,7 @@ export default function App() {
         focusProductField(missing);
         return;
       }
-      const nextField = getNextProductField(currentField);
+      const nextField = getNextProductFormField(currentField, simpleModeEnabled);
       if (nextField) {
         focusProductField(nextField);
         return;
@@ -1292,20 +1179,20 @@ export default function App() {
   };
 
   const submitProduct = async () => {
-    const missing = getFirstMissingProductField();
-    if (missing) {
-      focusProductField(missing);
+    const payloadResult = buildCreateProductPayload(form, simpleModeEnabled);
+    if (!payloadResult.ok) {
+      focusProductField(payloadResult.missing);
       return;
     }
     setSubmitting(true);
     try {
       pushUndoSnapshot();
-      await createProduct({
-        ...form,
-        codigo: simpleModeEnabled ? "" : form.codigo,
-        marca: "",
-        categoria: "",
-        quantidade: Number(form.quantidade) || 0,
+      await createProduct(payloadResult.payload);
+      rememberProductOperation({
+        action: "create",
+        productName: payloadResult.payload.nome,
+        value: payloadResult.payload.codigo,
+        meta: [payloadResult.payload.marca, payloadResult.payload.categoria],
       });
       setForm({
         nome: "",
@@ -1320,7 +1207,7 @@ export default function App() {
       visitedProductFields.current.clear();
       queueRefresh(["products", "totals", "brands"]);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Falha ao criar produto.");
+      showErrorNotice("Falha ao criar produto", formatCaughtErrorMessage(error, "Falha ao criar produto."));
     } finally {
       setSubmitting(false);
     }
@@ -1332,14 +1219,23 @@ export default function App() {
     setImportResult(null);
     setImportJob(null);
     setSelectedFile(file);
+    importFileNameRef.current = file.name;
     try {
       pushUndoSnapshot();
       const started = await importRomaneio(file);
       const status = await fetchImportStatus(started.job_id);
       setImportJob(status);
     } catch (error) {
+      const message = formatCaughtErrorMessage(error, "Falha ao iniciar importacao.");
       setImporting(false);
-      setImportError(error instanceof Error ? error.message : "Falha ao iniciar importacao.");
+      setImportError(message);
+      rememberOperationDiary({
+        kind: "import",
+        title: "Falha ao iniciar importacao",
+        detail: message,
+        tone: "error",
+        meta: [file.name],
+      });
     }
   };
 
@@ -1349,13 +1245,37 @@ export default function App() {
     setImportResult(null);
     setImportJob(null);
     setSelectedFile(file);
+    importFileNameRef.current = file.name;
     try {
       pushUndoSnapshot();
       const result = await importRomaneioLocalExperiment(file);
       setImportResult(result);
+      const historyEntry = rememberImportHistory(result, { mode: "local", selectedFileName: file.name });
+      rememberOperationDiary({
+        kind: "import",
+        title: "Parser local concluido",
+        detail: historyEntry.sourceName,
+        tone: historyEntry.warningCount ? "warning" : "success",
+        occurredAt: historyEntry.completedAt,
+        meta: [
+          historyEntry.mode,
+          `${historyEntry.totalItems} itens`,
+          historyEntry.warningCount ? `${historyEntry.warningCount} avisos` : null,
+          historyEntry.gradesAvailable ? "grades detectadas" : null,
+          historyEntry.validationStatus,
+        ],
+      });
       await refreshAfterLocalImport(result);
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "Failed to import with local parsing.");
+      const message = formatCaughtErrorMessage(error, "Failed to import with local parsing.");
+      setImportError(message);
+      rememberOperationDiary({
+        kind: "import",
+        title: "Falha no parser local",
+        detail: message,
+        tone: "error",
+        meta: [file.name],
+      });
     } finally {
       setLocalExperimentLoading(false);
     }
@@ -1372,8 +1292,16 @@ export default function App() {
       const status = await fetchPostProcessStatus(started.job_id);
       setPostProcessJob(status);
     } catch (error) {
+      const message = formatCaughtErrorMessage(error, "Falha ao iniciar a revisao com IA.");
       setPostProcessing(false);
-      setPostProcessError(error instanceof Error ? error.message : "Falha ao iniciar a revisao com IA.");
+      setPostProcessError(message);
+      rememberOperationDiary({
+        kind: "review",
+        title: "Falha ao iniciar revisao com IA",
+        detail: message,
+        tone: "error",
+        meta: [],
+      });
     }
   };
 
@@ -1389,6 +1317,11 @@ export default function App() {
     importInputRef.current?.click();
   };
 
+  const handleFilePickerClick = () => {
+    if (importing || localExperimentLoading) return;
+    importModeRef.current = "llm";
+  };
+
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -1400,10 +1333,115 @@ export default function App() {
     void submitImport(file);
   };
 
+  const showNoticeDialog = (dialog: NoticeDialogState) => {
+    const tone = dialog.tone ?? "info";
+    if (tone === "info" || tone === "success") {
+      const id = ++noticeToastSeq.current;
+      setNoticeToasts((current) => [
+        ...current,
+        {
+          id,
+          title: dialog.title,
+          message: dialog.message,
+          tone,
+        },
+      ].slice(-NOTICE_TOAST_LIMIT));
+      return;
+    }
+
+    setNoticeDialog(dialog);
+  };
+
+  const showErrorNotice = (title: string, message: string) => {
+    showNoticeDialog({ title, message, tone: "danger" });
+  };
+
+  const openConfirmationDialog = (dialog: ConfirmationDialogState) => {
+    setConfirmationError(null);
+    setConfirmationBusy(false);
+    setConfirmationDialog(dialog);
+  };
+
+  const closeConfirmationDialog = () => {
+    if (confirmationBusy) return;
+    confirmationDialog?.onCancel?.();
+    setConfirmationDialog(null);
+    setConfirmationError(null);
+  };
+
+  const handleConfirmationDialogConfirm = async () => {
+    if (!confirmationDialog || confirmationBusy) return;
+    setConfirmationBusy(true);
+    setConfirmationError(null);
+    try {
+      await confirmationDialog.onConfirm();
+      setConfirmationDialog(null);
+    } catch (error) {
+      setConfirmationError(formatCaughtErrorMessage(error, "Falha ao executar a acao."));
+    } finally {
+      setConfirmationBusy(false);
+    }
+  };
+
+  const confirmWithDialog = (dialog: Omit<ConfirmationDialogState, "onConfirm" | "onCancel">) => {
+    return new Promise<boolean>((resolve) => {
+      openConfirmationDialog({
+        ...dialog,
+        onCancel: () => resolve(false),
+        onConfirm: async () => {
+          resolve(true);
+        },
+      });
+    });
+  };
+
+  const confirmFilteredBulkAction = async (fieldLabel: string, value: string) => {
+    if (displayedProducts.length >= state.products.length) return true;
+    return confirmWithDialog({
+      title: "Aplicar em toda a lista?",
+      message: `O filtro atual mostra ${displayedProducts.length} de ${state.products.length} produtos.`,
+      detail: `Aplicar ${fieldLabel} "${value}" a todos os ${state.products.length} produtos, incluindo itens fora do filtro visivel.`,
+      confirmLabel: "Aplicar a todos",
+    });
+  };
+
+  const openTextInputDialog = (dialog: TextInputDialogState) => {
+    setTextInputError(null);
+    setTextInputBusy(false);
+    setTextInputDialog(dialog);
+  };
+
+  const closeTextInputDialog = () => {
+    if (textInputBusy) return;
+    setTextInputDialog(null);
+    setTextInputError(null);
+  };
+
+  const handleTextInputDialogConfirm = async () => {
+    if (!textInputDialog || textInputBusy) return;
+    const validationError = textInputDialog.validate?.(textInputDialog.value) ?? null;
+    if (validationError) {
+      setTextInputError(validationError);
+      return;
+    }
+
+    setTextInputBusy(true);
+    setTextInputError(null);
+    try {
+      await textInputDialog.onConfirm(textInputDialog.value);
+      setTextInputDialog(null);
+    } catch (error) {
+      setTextInputError(formatCaughtErrorMessage(error, "Falha ao salvar."));
+    } finally {
+      setTextInputBusy(false);
+    }
+  };
+
   const submitBrand = async () => {
     if (!newBrand.trim()) return;
+    const normalized = newBrand.trim();
+    if (!(await confirmFilteredBulkAction("a marca", normalized))) return;
     try {
-      const normalized = newBrand.trim();
       const result = await addBrand(normalized);
       setNewBrand("");
       setShowBrandComposer(false);
@@ -1412,16 +1450,27 @@ export default function App() {
         setState((current) => ({ ...current, brands: result.marcas }));
       });
       pushUndoSnapshot();
-      await applyBrand(normalized);
+      const applied = await applyBrand(normalized);
+      rememberProductOperation({
+        action: "bulk_brand",
+        value: applied.marca || normalized,
+        productCount: applied.total,
+        meta: ["Nova marca"],
+      });
       setShowBulkBrandMenu(false);
       queueRefresh(["products", "totals", "brands"]);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Falha ao adicionar marca.");
+      showErrorNotice("Falha ao adicionar marca", formatCaughtErrorMessage(error, "Falha ao adicionar marca."));
     }
   };
 
   const handleAutomationAction = async (mode: "catalog" | "complete" | "stop") => {
     setAutomationError(null);
+    const actionLabels: Record<typeof mode, { title: string; detail: string; tone: "success" | "warning" }> = {
+      catalog: { title: "Cadastro iniciado", detail: "Execucao de cadastro", tone: "success" },
+      complete: { title: "Cadastro completo iniciado", detail: "Execucao completa", tone: "success" },
+      stop: { title: "Parada solicitada", detail: "Automacao", tone: "warning" },
+    };
     try {
       if (mode === "catalog") {
         await startAutomationCatalog();
@@ -1430,10 +1479,24 @@ export default function App() {
       } else {
         await stopAutomation();
       }
+      rememberOperationDiary({
+        kind: "automation",
+        title: actionLabels[mode].title,
+        detail: actionLabels[mode].detail,
+        tone: actionLabels[mode].tone,
+        meta: [state.automation.estado || "idle"],
+      });
       queueRefresh(["automation"]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha na automacao.";
+      const message = formatCaughtErrorMessage(error, "Falha na automacao.");
       setAutomationError(message);
+      rememberOperationDiary({
+        kind: "automation",
+        title: "Falha na automacao",
+        detail: message,
+        tone: "error",
+        meta: [actionLabels[mode].detail],
+      });
     }
   };
 
@@ -1450,7 +1513,18 @@ export default function App() {
   const handleStartComplete = async () => {
     if (incompleteGradeProducts.length) {
       const firstPendingKey = incompleteGradeProducts[0]?.product.ordering_key || null;
-      window.alert(`${buildIncompleteGradesAlert()}\n\nVou abrir o Inserir Grade no primeiro item pendente.`);
+      rememberOperationDiary({
+        kind: "grade",
+        title: "Cadastro completo pausado",
+        detail: `${incompleteGradeProducts.length} grade${incompleteGradeProducts.length === 1 ? "" : "s"} pendente${incompleteGradeProducts.length === 1 ? "" : "s"}`,
+        tone: "warning",
+        meta: ["Inserir Grade aberto"],
+      });
+      showNoticeDialog({
+        title: "Grades pendentes",
+        message: `${buildIncompleteGradesAlert()}\n\nVou abrir o Inserir Grade no primeiro item pendente.`,
+        tone: "warning",
+      });
       await openGradeModal(firstPendingKey);
       return;
     }
@@ -1458,22 +1532,38 @@ export default function App() {
   };
 
   const handleClearProducts = async () => {
-    const confirmed = window.confirm("Limpar toda a lista ativa?");
-    if (!confirmed) return;
-    pushUndoSnapshot();
-    await clearProducts();
-    queueRefresh(["products", "totals", "brands"]);
+    openConfirmationDialog({
+      title: "Limpar lista ativa?",
+      message: "Todos os itens da lista atual serao removidos da sessao.",
+      detail: `${state.products.length} item${state.products.length === 1 ? "" : "s"} na lista. O historico de desfazer fica disponivel apos a acao.`,
+      confirmLabel: "Limpar lista",
+      onConfirm: async () => {
+        pushUndoSnapshot();
+        const result = await clearProducts();
+        rememberProductOperation({
+          action: "clear",
+          productCount: result.removed || state.products.length,
+        });
+        queueRefresh(["products", "totals", "brands"]);
+      },
+    });
   };
 
   const handleApplyCategory = async (value?: string) => {
     const category = (value ?? bulkCategoryValue).trim();
     if (!category) {
-      window.alert("Selecione uma categoria antes de aplicar.");
+      showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione uma categoria antes de aplicar.", tone: "warning" });
       return;
     }
+    if (!(await confirmFilteredBulkAction("a categoria", category))) return;
     setBulkCategoryValue(category);
     pushUndoSnapshot();
-    await applyCategory(category);
+    const result = await applyCategory(category);
+    rememberProductOperation({
+      action: "bulk_category",
+      value: result.categoria || category,
+      productCount: result.total,
+    });
     setShowBulkCategoryMenu(false);
     queueRefresh(["products", "totals"]);
   };
@@ -1481,12 +1571,18 @@ export default function App() {
   const handleApplyBrand = async (value?: string) => {
     const brand = (value ?? bulkBrandValue).trim();
     if (!brand) {
-      window.alert("Selecione uma marca antes de aplicar.");
+      showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione uma marca antes de aplicar.", tone: "warning" });
       return;
     }
+    if (!(await confirmFilteredBulkAction("a marca", brand))) return;
     setBulkBrandValue(brand);
     pushUndoSnapshot();
-    await applyBrand(brand);
+    const result = await applyBrand(brand);
+    rememberProductOperation({
+      action: "bulk_brand",
+      value: result.marca || brand,
+      productCount: result.total,
+    });
     setShowBulkBrandMenu(false);
     queueRefresh(["products", "totals", "brands"]);
   };
@@ -1495,7 +1591,11 @@ export default function App() {
     pushUndoSnapshot();
     const result = await joinDuplicates();
     queueRefresh(["products", "totals"]);
-    window.alert(`Originais: ${result.originais}\nResultantes: ${result.resultantes}\nRemovidos: ${result.removidos}`);
+    showNoticeDialog({
+      title: "Itens repetidos reunidos",
+      message: `Originais: ${result.originais}\nResultantes: ${result.resultantes}\nRemovidos: ${result.removidos}`,
+      tone: "success",
+    });
   };
 
   const handleJoinGrades = async () => {
@@ -1503,25 +1603,57 @@ export default function App() {
     const result = await joinGrades();
     queueRefresh(["products", "totals"]);
     if (!result.lotes_processados) {
-      window.alert("Nao ha lotes com grades pendentes para importar.");
+      showNoticeDialog({ title: "Sem grades pendentes", message: "Nao ha lotes com grades pendentes para importar.", tone: "info" });
       return;
     }
-    window.alert(`Lotes processados: ${result.lotes_processados}\nProdutos finais: ${result.resultantes}\nGrades importadas: ${result.atualizados_grades}\nLinhas unificadas: ${result.removidos}`);
+    showNoticeDialog({
+      title: "Grades importadas",
+      message: `Lotes processados: ${result.lotes_processados}\nProdutos finais: ${result.resultantes}\nGrades importadas: ${result.atualizados_grades}\nLinhas unificadas: ${result.removidos}`,
+      tone: "success",
+    });
+  };
+
+  const closeMarginDialog = () => {
+    if (marginBusy) return;
+    setMarginDialogOpen(false);
+    setMarginError(null);
   };
 
   const handleMargin = async () => {
-    const raw = window.prompt("Margem percentual para venda:", state.marginPercentual.toFixed(2));
-    if (raw == null) return;
-    const percentual = Number(String(raw).replace(",", "."));
-    if (!Number.isFinite(percentual) || percentual <= 0) {
-      window.alert("Informe um percentual valido.");
+    setMarginDraft(state.marginPercentual.toFixed(2).replace(".", ","));
+    setMarginError(null);
+    setMarginBusy(false);
+    setMarginDialogOpen(true);
+  };
+
+  const handleApplyMarginDialog = async () => {
+    if (marginBusy) {
       return;
     }
-    pushUndoSnapshot();
-    await saveMargin(percentual);
-    const result = await applyMargin(percentual);
-    queueRefresh(["products", "totals", "margin"]);
-    window.alert(`Margem aplicada: ${result.percentual_utilizado.toFixed(2)}%\nProdutos atualizados: ${result.total_atualizados}`);
+    const percentual = parsePositivePercentInput(marginDraft);
+    if (percentual == null) {
+      setMarginError("Informe um percentual maior que zero.");
+      return;
+    }
+
+    setMarginBusy(true);
+    setMarginError(null);
+    try {
+      pushUndoSnapshot();
+      await saveMargin(percentual);
+      const result = await applyMargin(percentual);
+      rememberProductOperation({
+        action: "margin",
+        value: result.percentual_utilizado.toFixed(2),
+        changedCount: result.total_atualizados,
+      });
+      queueRefresh(["products", "totals", "margin"]);
+      setMarginDialogOpen(false);
+    } catch (error) {
+      setMarginError(formatCaughtErrorMessage(error, "Falha ao aplicar margem."));
+    } finally {
+      setMarginBusy(false);
+    }
   };
 
   const handleFormatCodes = async () => {
@@ -1550,20 +1682,30 @@ export default function App() {
       return false;
     });
     if (!hasAnyOption) {
-      window.alert("Escolha pelo menos uma opcao para cortar numeros do codigo.");
+      showNoticeDialog({ title: "Selecao obrigatoria", message: "Escolha pelo menos uma opcao para cortar numeros do codigo.", tone: "warning" });
       return;
     }
     pushUndoSnapshot();
     const result = await formatCodes(payload);
+    rememberProductOperation({
+      action: "format_codes",
+      productCount: result.total,
+      changedCount: result.alterados,
+      value: result.prefixo ? `Prefixo ${result.prefixo}` : null,
+    });
     queueRefresh(["products"]);
     setShowFormatCodesPanel(false);
-    window.alert(`Total analisado: ${result.total}\nAlterados: ${result.alterados}${result.prefixo ? `\nPrefixo removido: ${result.prefixo}` : ""}`);
+    showNoticeDialog({
+      title: "Codigos formatados",
+      message: `Total analisado: ${result.total}\nAlterados: ${result.alterados}${result.prefixo ? `\nPrefixo removido: ${result.prefixo}` : ""}`,
+      tone: "success",
+    });
   };
 
   const handleImproveDescriptions = async () => {
     const termos = Array.from(new Set(descriptionOptions.remover_termos.split(",").map((item) => item.trim()).filter(Boolean)));
     if (!descriptionOptions.remover_numeros && !descriptionOptions.remover_especiais && !descriptionOptions.remover_letras && !termos.length) {
-      window.alert("Selecione ao menos uma regra de limpeza.");
+      showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione ao menos uma regra de limpeza.", tone: "warning" });
       return;
     }
     pushUndoSnapshot();
@@ -1573,9 +1715,18 @@ export default function App() {
       remover_letras: descriptionOptions.remover_letras,
       remover_termos: termos,
     });
+    rememberProductOperation({
+      action: "improve_descriptions",
+      productCount: result.total,
+      changedCount: result.modificados,
+    });
     queueRefresh(["products"]);
     setShowDescriptionPanel(false);
-    window.alert(`Descricoes analisadas: ${result.total}\nDescricoes modificadas: ${result.modificados}`);
+    showNoticeDialog({
+      title: "Descricoes atualizadas",
+      message: `Descricoes analisadas: ${result.total}\nDescricoes modificadas: ${result.modificados}`,
+      tone: "success",
+    });
   };
 
   const handleExecuteGrades = async () => {
@@ -1590,7 +1741,7 @@ export default function App() {
 
   const openGradeModal = async (preferredOrderingKey?: string | null) => {
     if (!state.products.length) {
-      window.alert("Nao ha itens na lista para inserir grades.");
+      showNoticeDialog({ title: "Lista vazia", message: "Nao ha itens na lista para inserir grades.", tone: "warning" });
       return;
     }
     const [sizesPayload, configPayload] = await Promise.all([fetchCatalogSizes(), fetchGradeConfig()]);
@@ -1650,7 +1801,7 @@ export default function App() {
       }
     } catch (error) {
       if (requestSeq === gradeConfigSaveSeq.current) {
-        setGradeModalError(error instanceof Error ? error.message : "Falha ao salvar ordem visual dos tamanhos.");
+        setGradeModalError(formatCaughtErrorMessage(error, "Falha ao salvar ordem visual dos tamanhos."));
       }
     }
   };
@@ -1720,23 +1871,40 @@ export default function App() {
   };
 
   const renameSizeInFamily = async (familyId: string, currentSize: string) => {
-    const raw = window.prompt("Novo nome para o tamanho:", currentSize);
-    if (raw === null) return;
-    const normalized = normalizeGradeSizeLabel(raw);
-    if (!normalized) return;
-    const nextFamilies = gradeFamiliesDraft.map((family) => ({
-      ...family,
-      sizes: family.sizes.map((size) => (family.id === familyId && size === currentSize ? normalized : size)),
-    }));
-    setGradeDraft((current) => {
-      const next = { ...current };
-      if (current[currentSize] !== undefined) {
-        next[normalized] = current[currentSize];
-        delete next[currentSize];
-      }
-      return next;
+    openTextInputDialog({
+      title: "Renomear tamanho",
+      description: "Atualize o nome exibido na grade visual. A ordem do ERP continua separada.",
+      label: "Novo tamanho",
+      value: currentSize,
+      confirmLabel: "Salvar tamanho",
+      sectionTag: "Grade",
+      placeholder: currentSize,
+      validate: (value) => {
+        const normalized = normalizeGradeSizeLabel(value);
+        if (!normalized) return "Informe um tamanho valido.";
+        if (normalized !== currentSize && gradeOrderDraft.includes(normalized)) {
+          return `"${normalized}" ja existe na grade.`;
+        }
+        return null;
+      },
+      onConfirm: async (value) => {
+        const normalized = normalizeGradeSizeLabel(value);
+        if (!normalized || normalized === currentSize) return;
+        const nextFamilies = gradeFamiliesDraft.map((family) => ({
+          ...family,
+          sizes: family.sizes.map((size) => (family.id === familyId && size === currentSize ? normalized : size)),
+        }));
+        setGradeDraft((current) => {
+          const next = { ...current };
+          if (current[currentSize] !== undefined) {
+            next[normalized] = current[currentSize];
+            delete next[currentSize];
+          }
+          return next;
+        });
+        await persistVisualFamilies(nextFamilies);
+      },
     });
-    await persistVisualFamilies(nextFamilies);
   };
 
   const moveSizeBetweenFamilies = async (familyId: string, size: string, direction: -1 | 1) => {
@@ -1788,12 +1956,7 @@ export default function App() {
   };
 
   const getProductGradeStatus = (product: Product) => {
-    const total = product.ordering_key === gradeSelectedKey ? currentGradeTotal : (product.grades || []).reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
-    const expected = Number(product.quantidade || 0);
-    const complete = total === expected && expected > 0;
-    const hasAny = total > 0;
-    const overflow = total > expected;
-    return { total, expected, complete, hasAny, overflow };
+    return buildGradeProductStatus(product, product.ordering_key === gradeSelectedKey ? currentGradeTotal : undefined);
   };
 
   const focusFirstActiveGradeInput = () => {
@@ -1849,14 +2012,23 @@ export default function App() {
     if (!selectedGradeProduct) {
       return;
     }
+    const currentOrderingKey = selectedGradeProduct.ordering_key;
     const saved = await saveSelectedGrade();
     if (!saved) {
       return;
     }
-    const currentIndex = state.products.findIndex((product) => product.ordering_key === selectedGradeProduct.ordering_key);
-    const nextProduct = state.products[currentIndex + 1] ?? state.products[0] ?? null;
+    const nextPendingKey = findNextPendingGradeKey(state.products, currentOrderingKey, currentOrderingKey);
     pendingGradeInputFocus.current = true;
-    setGradeSelectedKey(nextProduct?.ordering_key ?? null);
+    setGradeSelectedKey(nextPendingKey ?? currentOrderingKey);
+  };
+
+  const handleSelectNextPendingGrade = () => {
+    if (!nextPendingGradeKey) {
+      return;
+    }
+    setGradeValidationError(null);
+    pendingGradeInputFocus.current = true;
+    setGradeSelectedKey(nextPendingGradeKey);
   };
 
   const handleClearSelectedGrade = async () => {
@@ -1871,16 +2043,20 @@ export default function App() {
   };
 
   const handleClearAllGrades = async () => {
-    const confirmed = window.confirm("Limpar todas as grades cadastradas?\nClique em OK para confirmar.");
-    if (!confirmed) {
-      return;
-    }
-    pushUndoSnapshot();
     const productsWithGrades = state.products.filter((product) => (product.grades || []).length > 0 || product.ordering_key === gradeSelectedKey);
-    await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
-    setGradeDraft({});
-    setGradeValidationError(null);
-    queueRefresh(["products", "totals"]);
+    openConfirmationDialog({
+      title: "Limpar todas as grades?",
+      message: "As grades preenchidas serao removidas da lista ativa.",
+      detail: `${productsWithGrades.length} itens serao afetados. A lista de produtos e os dados de cadastro permanecem intactos.`,
+      confirmLabel: "Limpar grades",
+      onConfirm: async () => {
+        pushUndoSnapshot();
+        await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
+        setGradeDraft({});
+        setGradeValidationError(null);
+        queueRefresh(["products", "totals"]);
+      },
+    });
   };
 
   useEffect(() => {
@@ -1912,14 +2088,22 @@ export default function App() {
       setOrderingMode(true);
       return;
     }
-    const selectedOrder = orderingDraftKeys.filter((key) => originalOrderingKeys.includes(key));
-    const remainingOrder = originalOrderingKeys.filter((key) => !selectedOrder.includes(key));
-    const finalOrder = [...selectedOrder, ...remainingOrder];
+    const finalOrder = buildFinalOrderingKeys(originalOrderingKeys, orderingDraftKeys);
     if (finalOrder.length) {
       pushUndoSnapshot();
-      await reorderProducts(finalOrder);
+      const result = await reorderProducts(finalOrder);
+      rememberProductOperation({
+        action: "reorder",
+        productCount: result.total || finalOrder.length,
+        meta: [`${orderingDraftKeys.length} selecionados`],
+      });
       queueRefresh(["products"]);
     }
+    setOrderingMode(false);
+    setOrderingDraftKeys([]);
+  };
+
+  const handleCancelOrdering = () => {
     setOrderingMode(false);
     setOrderingDraftKeys([]);
   };
@@ -1927,31 +2111,14 @@ export default function App() {
   const handleOrderingSelection = (orderingKey: string, options?: { allowRemove?: boolean }) => {
     if (!orderingMode) return;
     setOrderingDraftKeys((current) => {
-      if (current.includes(orderingKey)) {
-        if (!options?.allowRemove) {
-          return current;
-        }
-        return current.filter((key) => key !== orderingKey);
-      }
-      return [...current, orderingKey];
+      return toggleOrderingKey(current, orderingKey, options);
     });
   };
 
   const moveOrderingItem = (orderingKey: string, direction: -1 | 1) => {
     if (!orderingMode) return;
     setOrderingDraftKeys((current) => {
-      const index = current.indexOf(orderingKey);
-      if (index < 0) {
-        return current;
-      }
-      const nextIndex = Math.max(0, Math.min(current.length - 1, index + direction));
-      if (nextIndex === index) {
-        return current;
-      }
-      const next = [...current];
-      const [item] = next.splice(index, 1);
-      next.splice(nextIndex, 0, item);
-      return next;
+      return moveOrderingKey(current, orderingKey, direction);
     });
   };
 
@@ -1970,15 +2137,24 @@ export default function App() {
     if (futureKeys.length === 2) {
       pushUndoSnapshot();
       const result = await createSet(futureKeys[0], futureKeys[1]);
+      rememberProductOperation({
+        action: "create_set",
+        value: `${result.created} conjunto${result.created === 1 ? "" : "s"}`,
+        removedCount: result.removed,
+      });
       setCreateSetMode(false);
       setCreateSetKeys([]);
       queueRefresh(["products", "totals"]);
-      window.alert(`Conjunto criado: ${result.created}\nLinhas removidas: ${result.removed}`);
+      showNoticeDialog({
+        title: "Conjunto criado",
+        message: `Conjunto criado: ${result.created}\nLinhas removidas: ${result.removed}`,
+        tone: "success",
+      });
     }
   };
 
   const startInlineEdit = (product: Product, field: EditableField) => {
-    const value = field === "preco_final" ? product.preco_final || "" : String(product[field] || "");
+    const value = getInlineEditInitialValue(product, field);
     setEditingCell({ orderingKey: product.ordering_key, field, value });
   };
 
@@ -1987,7 +2163,9 @@ export default function App() {
       if (!current) return current;
       const next = { ...current, value };
       const nextProducts = state.products.map((product) =>
-        product.ordering_key === current.orderingKey ? buildProductPreview(product, current.field, value) : product,
+        product.ordering_key === current.orderingKey
+          ? buildProductPreview(product, current.field, value, state.marginPercentual)
+          : product,
       );
       applyProductsPreview(nextProducts);
       return next;
@@ -1997,37 +2175,27 @@ export default function App() {
   const commitInlineEdit = async () => {
     if (!editingCell) return;
     const { orderingKey, field, value } = editingCell;
-    let payload: Partial<ProductPayload> = {};
-    if (field === "quantidade") {
-      const quantity = Number.parseInt(value, 10);
-      if (!Number.isFinite(quantity) || quantity < 0) {
-        window.alert("Quantidade invalida.");
-        return;
-      }
-      payload = { quantidade: quantity };
-    } else if (field === "preco_final") {
-      payload = { preco_final: value.trim() || null };
-    } else if (field === "preco") {
-      payload = { preco: value.trim() };
-    } else if (field === "nome") {
-      payload = { nome: value.trim() };
-    } else if (field === "marca") {
-      payload = { marca: value.trim() };
-    } else if (field === "codigo") {
-      payload = { codigo: value.trim() };
-    } else if (field === "categoria") {
-      payload = { categoria: value.trim() };
+    const payloadResult = buildInlineEditPayload(field, value);
+    if (!payloadResult.ok) {
+      showNoticeDialog({ title: "Edicao invalida", message: payloadResult.error, tone: "warning" });
+      return;
     }
 
     try {
       pushUndoSnapshot();
-      await patchProduct(orderingKey, payload);
+      await patchProduct(orderingKey, payloadResult.payload);
+      const product = productsByKey.get(orderingKey);
+      rememberProductOperation({
+        action: "inline_edit",
+        productName: product?.nome || orderingKey,
+        fieldLabel: INLINE_EDIT_FIELD_LABELS[field],
+      });
       setEditingCell(null);
       queueRefresh(["products", "totals", "brands"]);
     } catch (error) {
       setEditingCell(null);
       queueRefresh(["products", "totals", "brands"]);
-      window.alert(error instanceof Error ? error.message : "Falha ao atualizar item.");
+      showErrorNotice("Falha ao atualizar item", formatCaughtErrorMessage(error, "Falha ao atualizar item."));
     }
   };
 
@@ -2054,7 +2222,7 @@ export default function App() {
     try {
       await action();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : `Falha em ${name}.`);
+      showErrorNotice(`Falha em ${name}`, formatCaughtErrorMessage(error, `Falha em ${name}.`));
     } finally {
       setBusyAction(null);
     }
@@ -2067,10 +2235,11 @@ export default function App() {
     try {
       const [targetsPayload, gradeConfigPayload] = await Promise.all([fetchAutomationTargets(), fetchGradeConfig()]);
       setSettingsTargets(targetsPayload || {});
+      setAutomationTargetsLoaded(true);
       setSettingsGradeConfig(normalizeGradeConfigState(gradeConfigPayload));
       setSettingsContextText("");
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "Falha ao carregar configuracoes.");
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao carregar configuracoes."));
     } finally {
       setSettingsLoading(false);
     }
@@ -2117,10 +2286,11 @@ export default function App() {
     try {
       const saved = await saveAutomationTargets(settingsTargets);
       setSettingsTargets(saved);
+      setAutomationTargetsLoaded(true);
       setSettingsMessage("Targets salvos com sucesso.");
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "Falha ao salvar targets.");
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao salvar targets."));
     } finally {
       setSettingsSaving(null);
     }
@@ -2135,7 +2305,7 @@ export default function App() {
       setSettingsMessage("Configuracao de grades salva com sucesso.");
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "Falha ao salvar configuracao de grades.");
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao salvar configuracao de grades."));
     } finally {
       setSettingsSaving(null);
     }
@@ -2148,10 +2318,11 @@ export default function App() {
       const nextTargets = { ...settingsTargets, [key]: point };
       const saved = await saveAutomationTargets(nextTargets);
       setSettingsTargets(saved);
+      setAutomationTargetsLoaded(true);
       setSettingsMessage(`${label} capturado em ${formatTargetPoint(point)}.`);
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : `Falha ao capturar ${label}.`);
+      setSettingsError(formatCaughtErrorMessage(error, `Falha ao capturar ${label}.`));
     } finally {
       setSettingsSaving(null);
     }
@@ -2173,7 +2344,7 @@ export default function App() {
       setSettingsMessage(`${label} capturado em ${formatTargetPoint(point)}.`);
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : `Falha ao capturar ${label}.`);
+      setSettingsError(formatCaughtErrorMessage(error, `Falha ao capturar ${label}.`));
     } finally {
       setSettingsSaving(null);
     }
@@ -2192,7 +2363,7 @@ export default function App() {
       setSettingsMessage(`Primeira celula de quantidade capturada em ${formatTargetPoint(point)}.`);
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "Falha ao capturar a primeira celula.");
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao capturar a primeira celula."));
     } finally {
       setSettingsSaving(null);
     }
@@ -2206,7 +2377,7 @@ export default function App() {
       setSettingsContextText(formatJsonBlock(payload));
       setSettingsMessage("Contexto do ByteEmpresa carregado.");
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "Falha ao consultar contexto do ByteEmpresa.");
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao consultar contexto do ByteEmpresa."));
     } finally {
       setSettingsSaving(null);
     }
@@ -2221,75 +2392,10 @@ export default function App() {
       setSettingsMessage("Preparacao do ByteEmpresa executada.");
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "Falha ao preparar a janela do ByteEmpresa.");
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao preparar a janela do ByteEmpresa."));
     } finally {
       setSettingsSaving(null);
     }
-  };
-
-  const isFieldEditable = (_field: EditableField) => globalEditMode;
-
-  const renderCellContent = (product: Product, field: EditableField, displayValue: string | number) => {
-    if (!isFieldEditable(field)) {
-      return field === "nome" ? <strong>{displayValue || "-"}</strong> : <>{displayValue || "-"}</>;
-    }
-    const isEditing = editingCell?.orderingKey === product.ordering_key && editingCell.field === field;
-    if (isEditing) {
-      if (field === "categoria") {
-        return (
-          <select
-            ref={inlineEditInputRef as React.RefObject<HTMLSelectElement>}
-            className="cellEditInput"
-            value={editingCell.value}
-            onChange={(event) => handleInlineEditChange(event.target.value)}
-            onBlur={() => void commitInlineEdit()}
-            onKeyDown={handleInlineEditKeyDown}
-          >
-            <option value="">Selecionar...</option>
-            {CATEGORIES.map((category) => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-        );
-      }
-      if (field === "marca") {
-        return (
-          <select
-            ref={inlineEditInputRef as React.RefObject<HTMLSelectElement>}
-            className="cellEditInput"
-            value={editingCell.value}
-            onChange={(event) => handleInlineEditChange(event.target.value)}
-            onBlur={() => void commitInlineEdit()}
-            onKeyDown={handleInlineEditKeyDown}
-          >
-            <option value="">Selecionar...</option>
-            {sortedBrands.map((brand) => (
-              <option key={brand} value={brand}>{brand}</option>
-            ))}
-          </select>
-        );
-      }
-      return (
-        <input
-          ref={inlineEditInputRef as React.RefObject<HTMLInputElement>}
-          className={`cellEditInput ${field === "quantidade" || field === "preco" || field === "preco_final" ? "numericCellEditInput" : ""}`}
-          value={editingCell.value}
-          onChange={(event) => handleInlineEditChange(event.target.value)}
-          onBlur={() => void commitInlineEdit()}
-          onKeyDown={handleInlineEditKeyDown}
-          inputMode={field === "quantidade" ? "numeric" : field === "preco" || field === "preco_final" ? "decimal" : "text"}
-        />
-      );
-    }
-    return (
-      <button
-        className={`cellActionButton ${field === "nome" ? "nameCellButton" : ""}`}
-        type="button"
-        onClick={() => startInlineEdit(product, field)}
-      >
-        {field === "nome" ? <strong>{displayValue || "-"}</strong> : displayValue || "-"}
-      </button>
-    );
   };
 
   const automationIsRunning = state.automation.estado === "running";
@@ -2300,7 +2406,7 @@ export default function App() {
     ? state.automation.item_atual && state.automation.total_itens && state.automation.total_itens > 0
       ? `${Math.max(8, Math.min(100, Math.round((state.automation.item_atual / state.automation.total_itens) * 100)))}%`
       : "68%"
-    : "22%";
+    : "0%";
   const importMetrics =
     importJob?.metrics && Object.keys(importJob.metrics).length
       ? importJob.metrics
@@ -2310,940 +2416,412 @@ export default function App() {
   const importProcessLog = coerceImportProcessLog(importMetrics);
   const importWarnings = importResult?.warnings?.length ? importResult.warnings : [];
   const importValidationStatus = String(importMetrics["final_validation_status"] || importMetrics["local_validation_status"] || "").trim();
-  const stageScale = Math.min(
-    1,
-    Math.max(0.72, (viewport.width - APP_STAGE_PADDING * 2) / APP_STAGE_WIDTH),
-    Math.max(0.72, (viewport.height - APP_STAGE_PADDING * 2) / APP_STAGE_HEIGHT),
+  const importProgressMessage = buildImportProgressMessage(importing, importJob?.message);
+  const importDiagnosticsChips = buildImportDiagnosticsChips(importMetrics, importWarnings);
+  const importSuccessMessage = importResult ? `${importResult.total_itens} itens importados as ${formatTimestamp(importJob?.updated_at)}.` : null;
+  const operationalHealthChips = buildOperationalHealthChips({
+    backendStatus: runtimeHealth.status,
+    backendError: runtimeHealth.message,
+    authEnabled: authSession?.auth_enabled ?? false,
+    authenticated: authSession?.authenticated ?? false,
+    bootstrapRequired: authSession?.bootstrap_required ?? false,
+    websocketStatus: uiSocketStatus,
+    automationState: state.automation.estado,
+    automationError,
+    pendingGrades: incompleteGradeProducts.length,
+  });
+  const executionReadiness = buildExecutionReadiness({
+    productCount: state.products.length,
+    pendingGradeCount: incompleteGradeProducts.length,
+    automationState: state.automation.estado,
+    automationError,
+    missingTargetLabels: missingCompleteTargetLabels,
+  });
+  const stageWidth = Math.max(
+    320,
+    Math.min(APP_STAGE_WIDTH, viewport.width - APP_STAGE_PADDING * 2),
   );
-  const stageWidth = APP_STAGE_WIDTH * stageScale;
-  const stageHeight = APP_STAGE_HEIGHT * stageScale;
+  const stageHeight = Math.max(
+    640,
+    Math.min(APP_STAGE_HEIGHT, viewport.height - APP_STAGE_PADDING * 2),
+  );
 
   return (
     <div className="shellViewport">
+      <a
+        className="skipLinkTs"
+        href="#workspace-panel"
+        onClick={(event) => {
+          event.preventDefault();
+          const workspacePanel = document.getElementById("workspace-panel");
+          workspacePanel?.focus({ preventScroll: true });
+          workspacePanel?.scrollIntoView({ block: "nearest", inline: "nearest" });
+        }}
+      >
+        Pular para area de trabalho
+      </a>
       <div className="shellStage" style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}>
         <div
           className="shell"
           style={{
-            width: `${APP_STAGE_WIDTH}px`,
-            height: `${APP_STAGE_HEIGHT}px`,
-            transform: `scale(${stageScale})`,
+            width: "100%",
+            height: "100%",
           }}
         >
-      <main className="appShellTs">
-        <aside className="leftPanelTs">
+      <main className="appShellTs" aria-labelledby="app-title">
+        <aside className="leftPanelTs" aria-label="Fluxo de importacao e resumo operacional">
           <div className="lojasyncBrandHeader">
             <img src="/logo.png" alt="LojaSync" className="lojasyncLogoImg" />
-            <span className="lojasyncBrandName"><b>Loja</b>sync</span>
+            <h1 className="lojasyncBrandName" id="app-title"><b>Loja</b>sync</h1>
           </div>
           <div className="actionsFloatingTs">
             <div className="panelActionCompact">
-              <button className="iconShellButton" type="button" title="Configuracoes" onClick={() => void openSettingsModal()}>
+              <button
+                className="iconShellButton"
+                type="button"
+                title="Configuracoes"
+                aria-label="Configuracoes"
+                onClick={() => void openSettingsModal()}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
-              <button className={`ghostButton compactButton modeToggleButton ${simpleModeEnabled ? "activeToggle" : ""}`} type="button" onClick={handleToggleSimpleMode}>
+              <button
+                className={`ghostButton compactButton modeToggleButton ${simpleModeEnabled ? "activeToggle" : ""}`}
+                type="button"
+                onClick={handleToggleSimpleMode}
+                aria-pressed={simpleModeEnabled}
+              >
                 {simpleModeEnabled ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M4 6h16M4 12h16M4 18h7"/></svg>Modo completo</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M4 6h16M4 12h8"/></svg>Modo simplificado</>}
               </button>
             </div>
 
-            <div className="importStageTs">
-              <div className="stageHeaderTs">
-                <span className="sectionTag">Importacao</span>
-                <strong className="stageTitleTs">Entrada do romaneio</strong>
-              </div>
-              <button className="primaryButton fullButton importButtonTs" disabled={importing || localExperimentLoading} onClick={() => void handleImportPrimaryClick()}>
-                {importing ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Importando...</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar Romaneio</> }
-              </button>
-              <button className="ghostButton fullButton importSecondaryButtonTs" disabled={importing || localExperimentLoading} onClick={() => void handleLocalExperimentClick()}>
-                {localExperimentLoading ? "Running Local Parsing..." : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Import With Local Parsing</>}
-              </button>
-              <label className="fileInput compactFileInput">
-                <span>{selectedFile ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{selectedFile.name}</> : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Selecionar arquivo do romaneio</>}</span>
-                <input
-                  ref={importInputRef}
-                  type="file"
-                  accept=".pdf,.txt,.jpg,.jpeg,.png"
-                  onChange={handleImportFileChange}
-                />
-              </label>
-              {importing ? <div className="message subtle">Importacao em andamento...</div> : null}
-              {localExperimentLoading ? <div className="message subtle">Importing with local parsing...</div> : null}
-              {!importing && importJob?.message ? <div className="message subtle">{importJob.message}</div> : null}
-              {importError ? <div className="message error">{importError}</div> : null}
-              {importResult ? <div className="message success">{importResult.total_itens} itens importados as {formatTimestamp(importJob?.updated_at)}.</div> : null}
-              {importValidationStatus || importProcessLog.length || importWarnings.length ? (
-                <div className="importDiagnosticsTs">
-                  {importValidationStatus ? (
-                    <div className={`importValidationBadge validation-${importValidationStatus}`}>
-                      Validation: {importValidationStatus}
-                    </div>
-                  ) : null}
-                  {importProcessLog.length ? (
-                    <div className="importLogListTs">
-                      {importProcessLog.map((entry) => (
-                        <div key={`${entry.index}-${entry.source}-${entry.message}`} className={`importLogEntryTs log-${entry.level}`}>
-                          <span className="importLogSourceTs">{entry.source}</span>
-                          <span>{entry.message}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {importWarnings.length ? (
-                    <div className="importWarningsTs">
-                      {importWarnings.map((warning, index) => (
-                        <div key={`${index}-${warning}`} className="importWarningEntryTs">
-                          {warning}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+            <ImportStagePanel
+              importing={importing}
+              localExperimentLoading={localExperimentLoading}
+              selectedFile={selectedFile}
+              importProgressMessage={importProgressMessage}
+              importJobMessage={importJob?.message}
+              importError={importError}
+              importSuccessMessage={importSuccessMessage}
+              validationStatus={importValidationStatus}
+              diagnosticsChips={importDiagnosticsChips}
+              processLog={importProcessLog}
+              warnings={importWarnings}
+              recentImports={recentImports}
+              inputRef={importInputRef}
+              onImportPrimaryClick={handleImportPrimaryClick}
+              onLocalExperimentClick={handleLocalExperimentClick}
+              onFilePickerClick={handleFilePickerClick}
+              onFileChange={handleImportFileChange}
+            />
           </div>
 
-          <section className="editorStageTs">
-            <div className="stageHeaderTs">
-              <span className="sectionTag">Cadastro rapido</span>
-              <strong className="stageTitleTs">Entrada manual</strong>
-            </div>
-            <form className="productFormTs" onSubmit={(event) => event.preventDefault()} onKeyDown={handleProductFormKeyDown}>
-              <div className={`formGridTs ${simpleModeEnabled ? "simpleModeGrid" : ""}`}>
-                <label className="inputFieldTs fieldNameTs">
-                  <span>Nome</span>
-                  <input ref={nameInputRef} name="nome" value={form.nome} onChange={(event) => handleInputChange("nome", event.target.value)} placeholder="Ex.: Bolsa Couro" />
-                </label>
-                {!simpleModeEnabled ? (
-                  <label className="inputFieldTs fieldCodeTs">
-                    <span>Codigo</span>
-                    <input ref={codeInputRef} name="codigo" value={form.codigo} onChange={(event) => handleInputChange("codigo", event.target.value)} placeholder="000000" />
-                  </label>
-                ) : null}
-                <label className="inputFieldTs fieldQuantityTs">
-                  <span>Quantidade</span>
-                  <input
-                    ref={quantityInputRef}
-                    name="quantidade"
-                    type="number"
-                    min={0}
-                    value={form.quantidade}
-                    onChange={(event) => handleInputChange("quantidade", Number(event.target.value) || 0)}
-                  />
-                </label>
-                <label className="inputFieldTs fieldPriceTs">
-                  <span>Custo</span>
-                  <input ref={priceInputRef} name="preco" value={form.preco} onChange={(event) => handleInputChange("preco", event.target.value)} placeholder="R$ 0,00" />
-                </label>
-              </div>
-            </form>
-          </section>
+          <ProductEntryPanel
+            form={form}
+            simpleModeEnabled={simpleModeEnabled}
+            marginPercentual={state.marginPercentual}
+            submitting={submitting}
+            nameInputRef={nameInputRef}
+            codeInputRef={codeInputRef}
+            quantityInputRef={quantityInputRef}
+            priceInputRef={priceInputRef}
+            runBusyAction={runBusyAction}
+            onFormKeyDown={handleProductFormKeyDown}
+            onInputChange={handleInputChange}
+            onSubmitProduct={submitProduct}
+            onApplyMargin={handleMargin}
+          />
 
-          <section className="marginStageTs">
-            <div className="stageHeaderTs compactStageHeader">
-              <span className="sectionTag">Financeiro</span>
-              <strong className="stageTitleTs">Margem padrao da sessao</strong>
-            </div>
-            <button className="toolButtonTs warning fullWidthToolButton" type="button" onClick={() => void runBusyAction("margem", handleMargin)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Margem <span className="marginBadgeTs">{state.marginPercentual.toFixed(1)}%</span>
-            </button>
-          </section>
-
-          <section className="summaryStageTs">
-            <div className="stageHeaderTs">
-              <span className="sectionTag">Resumo operacional</span>
-            </div>
-
-            <div className="totalsBoardTs">
-              <article className="totalsSectionTs">
-                <div className="totalsSectionHeadTs">
-                  <span className="totalsGroupTitleTs">Sessao atual</span>
-                  <span className="totalsChipTs live">ao vivo</span>
-                </div>
-                <div className="totalsRowsTs">
-                  <div className="totalsRowTs"><span>Quantidade</span><strong>{state.totalsRaw.atualQuantidade}</strong></div>
-                  <div className="totalsRowTs"><span>Custo total</span><strong>{state.totalsText.atualCusto}</strong></div>
-                  <div className="totalsRowTs"><span>Venda total</span><strong>{state.totalsText.atualVenda}</strong></div>
-                </div>
-              </article>
-
-              <article className="totalsSectionTs">
-                <div className="totalsSectionHeadTs">
-                  <span className="totalsGroupTitleTs">Acumulado global</span>
-                  <span className="totalsChipTs muted">historico</span>
-                </div>
-                <div className="totalsRowsTs">
-                  <div className="totalsRowTs"><span>Quantidade</span><strong>{state.totalsRaw.historicoQuantidade}</strong></div>
-                  <div className="totalsRowTs"><span>Custo total</span><strong>{state.totalsText.historicoCusto}</strong></div>
-                  <div className="totalsRowTs"><span>Venda total</span><strong>{state.totalsText.historicoVenda}</strong></div>
-                  <div className="totalsRowTs"><span>Tempo poupado</span><strong>{state.totalsText.tempo}</strong></div>
-                  <div className="totalsRowTs"><span>Caracteres evitados</span><strong>{state.totalsRaw.caracteres.toLocaleString("pt-BR")}</strong></div>
-                </div>
-              </article>
-            </div>
-          </section>
+          <OperationalSummaryPanel
+            healthChips={operationalHealthChips}
+            checkedAt={runtimeHealth.checkedAt}
+            totalsText={state.totalsText}
+            totalsRaw={state.totalsRaw}
+            operationDiary={operationDiary}
+          />
         </aside>
 
-        <section className="rightPanelTs">
-          <section className="batchControlsTs">
-            <span className="sectionTag">Centro de execucao</span>
-            <div className="batchInlineRowTs">
-              <button className="actionButtonTs highlight completeActionButton large" type="button" onClick={() => void runBusyAction("cadastro-completo", handleStartComplete)}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polygon points="5 3 19 12 5 21 5 3"/></svg>Cadastro Completo
-              </button>
-              <button className="actionButtonTs highlight" type="button" onClick={() => void runBusyAction("executar-grades", handleExecuteGrades)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Executar Grades
-              </button>
-              <button className="actionButtonTs accent large" type="button" onClick={() => void runBusyAction("cadastro-massa", async () => handleAutomationAction("catalog"))}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Executar Cadastro
-              </button>
-              <button className="actionButtonTs danger" type="button" onClick={() => void runBusyAction("parar", async () => handleAutomationAction("stop"))}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>Parar
-              </button>
-              <span className="batchInlineDivider" aria-hidden="true" />
-              <button className="actionButtonTs secondaryInlineAction" type="button" onClick={() => void runBusyAction("importar-grades", handleJoinGrades)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar Grades
-              </button>
-              <button className="actionButtonTs secondaryInlineAction" type="button" onClick={() => void runBusyAction("inserir-grade", openGradeModal)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Inserir Grade
-              </button>
-              <aside className="compactAutomationStatusTs">
-                <strong>{state.automation.estado || "idle"}</strong>
-                <div className="progressBarTs compactProgressBarTs">
-                  <div className="progressFillTs" style={{ width: automationProgressWidth }} />
-                </div>
-                {incompleteGradeProducts.length ? (
-                  <small>{`${incompleteGradeProducts.length} grade pendente`}</small>
-                ) : automationError ? (
-                  <small>{automationError}</small>
-                ) : state.automation.message ? (
-                  <small>{state.automation.message}</small>
-                ) : null}
-              </aside>
-            </div>
-          </section>
+        <section
+          className="rightPanelTs"
+          id="workspace-panel"
+          tabIndex={-1}
+          aria-label="Area de trabalho operacional"
+        >
+          <ExecutionCenterPanel
+            automationState={state.automation.estado}
+            automationMessage={state.automation.message}
+            automationError={automationError}
+            automationProgressWidth={automationProgressWidth}
+            pendingGradeCount={incompleteGradeProducts.length}
+            executionReadiness={executionReadiness}
+            runBusyAction={runBusyAction}
+            onStartComplete={handleStartComplete}
+            onExecuteGrades={handleExecuteGrades}
+            onStartCatalog={async () => handleAutomationAction("catalog")}
+            onStopAutomation={async () => handleAutomationAction("stop")}
+            onJoinGrades={handleJoinGrades}
+            onOpenGradeModal={async () => openGradeModal()}
+          />
 
-          <section className="listControlsTs">
-            <div className="listToolbarTs">
-              <div className="listToolbarIntroTs">
-                <span className="toolsTitleTs">Ferramentas da lista</span>
-                <div className="listToolbarMetaTs">
-                  <span className="contextChipTs">{displayedProducts.length} itens ativos</span>
-                </div>
-              </div>
+          <ProductListControls
+            displayedCount={displayedProducts.length}
+            totalCount={state.products.length}
+            productSearchQuery={productSearchQuery}
+            productQuickFilter={productQuickFilter}
+            productQuickFilterOptions={productQuickFilterOptions}
+            undoRedoHistoryState={undoRedoHistoryState}
+            busyAction={busyAction}
+            globalEditMode={globalEditMode}
+            showFormatCodesPanel={showFormatCodesPanel}
+            showDescriptionPanel={showDescriptionPanel}
+            formatCodesOptions={formatCodesOptions}
+            descriptionOptions={descriptionOptions}
+            postProcessing={postProcessing}
+            postProcessJob={postProcessJob}
+            postProcessError={postProcessError}
+            postProcessResult={postProcessResult}
+            orderingMode={orderingMode}
+            orderingSelectedCount={orderingDraftKeys.length}
+            createSetMode={createSetMode}
+            createSetKeys={createSetKeys}
+            runBusyAction={runBusyAction}
+            onUndo={undoLastAction}
+            onRedo={redoLastAction}
+            onProductSearchChange={setProductSearchQuery}
+            onQuickFilterChange={handleProductQuickFilterChange}
+            onToggleGlobalEdit={handleToggleGlobalEdit}
+            onToggleFormatCodesPanel={() => {
+              setShowFormatCodesPanel((current) => !current);
+              setShowDescriptionPanel(false);
+            }}
+            onToggleDescriptionPanel={() => {
+              setShowDescriptionPanel((current) => !current);
+              setShowFormatCodesPanel(false);
+            }}
+            onStartPostProcess={handleStartPostProcess}
+            onToggleOrdering={handleToggleOrdering}
+            onCancelOrdering={handleCancelOrdering}
+            onToggleCreateSets={handleToggleCreateSets}
+            onJoinDuplicates={handleJoinDuplicates}
+            onClearProducts={handleClearProducts}
+            onFormatCodeOptionChange={(field, value) => setFormatCodesOptions((current) => ({ ...current, [field]: value }))}
+            onRestoreOriginalCodes={async () => {
+              pushUndoSnapshot();
+              const result = await restoreOriginalCodes();
+              rememberProductOperation({
+                action: "format_codes",
+                productCount: result.total,
+                changedCount: result.restaurados,
+                value: "Codigos originais restaurados",
+              });
+              queueRefresh(["products"]);
+              setShowFormatCodesPanel(false);
+              showNoticeDialog({
+                title: "Codigos restaurados",
+                message: `Total analisado: ${result.total}\nCodigos restaurados: ${result.restaurados}`,
+                tone: "success",
+              });
+            }}
+            onCloseFormatCodesPanel={() => setShowFormatCodesPanel(false)}
+            onFormatCodes={handleFormatCodes}
+            onDescriptionOptionChange={(field, value) => setDescriptionOptions((current) => ({ ...current, [field]: value }))}
+            onCloseDescriptionPanel={() => setShowDescriptionPanel(false)}
+            onImproveDescriptions={handleImproveDescriptions}
+          />
 
-              <div className="listContentTs">
-                <div className="listHeadTs">
-                  <span className="listGroupLabelTs">Edicao e estrutura</span>
-                  <div className="listPrimaryActionsTs" role="group" aria-label="Acoes principais">
-                    <button className={`toolButtonTs ${globalEditMode ? "activeToolButton" : ""}`} type="button" onClick={handleToggleGlobalEdit}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{globalEditMode ? "Finalizar Edicoes" : "Permitir Edicoes"}
-                    </button>
-                    <button
-                      className={`toolButtonTs ${showFormatCodesPanel ? "activeToolButton" : ""}`}
-                      type="button"
-                      onClick={() => {
-                        setShowFormatCodesPanel((current) => !current);
-                        setShowDescriptionPanel(false);
-                      }}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Formatar Codigos
-                    </button>
-                    <button
-                      className={`toolButtonTs ${showDescriptionPanel ? "activeToolButton" : ""}`}
-                      type="button"
-                      onClick={() => {
-                        setShowDescriptionPanel((current) => !current);
-                        setShowFormatCodesPanel(false);
-                      }}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Melhorar Descricao
-                    </button>
-                    <button
-                      className="toolButtonTs aiReviewButton"
-                      type="button"
-                      onClick={() => void runBusyAction("revisar-itens-ia", handleStartPostProcess)}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>{postProcessing ? "Revisando com IA..." : "Revisar Itens com IA"}
-                    </button>
-                    <button className={`toolButtonTs accent orderingToolButton ${orderingMode ? "activeToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", handleToggleOrdering)}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>Ordenar Lista
-                    </button>
-                    <button className={`toolButtonTs accent ${createSetMode ? "activeToolButton" : ""}`} type="button" onClick={handleToggleCreateSets}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="2" y="3" width="9" height="9"/><rect x="13" y="3" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><path d="M17.5 17.5 22 22M13 17.5h9M17.5 13v9"/></svg>{createSetMode ? `Selecionar ${Math.max(0, 2 - createSetKeys.length)} item(ns)` : "Criar Conjuntos"}
-                    </button>
-                    <button className="toolButtonTs success" type="button" onClick={() => void runBusyAction("juntar-repetidos", handleJoinDuplicates)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M8 17l4 4 4-4"/><path d="M12 12v9"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Juntar Repetidos</button>
-                    <button className="toolButtonTs danger" type="button" onClick={() => void runBusyAction("limpar-lista", handleClearProducts)}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Limpar Lista
-                    </button>
-                  </div>
-                </div>
-
-                {showFormatCodesPanel ? (
-                  <div className="toolConfigPanel">
-                    <div className="toolConfigIntro">
-                      <strong>Limpar codigos com menos risco</strong>
-                      <p>Use apenas estas opcoes para cortar numeros do comeco ou do fim do codigo. Se precisar voltar atras, use Restaurar Originais.</p>
-                    </div>
-                    <div className="toolConfigGrid">
-                      <label className="toolField">
-                        <span>Quantos numeros apagar do comeco</span>
-                        <input
-                          value={formatCodesOptions.remover_primeiros_numeros}
-                          onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_primeiros_numeros: event.target.value.replace(/[^\d]/g, "") }))}
-                          placeholder="Ex.: 2"
-                        />
-                      </label>
-                      <label className="toolField">
-                        <span>Quantos numeros apagar do final</span>
-                        <input
-                          value={formatCodesOptions.remover_ultimos_numeros}
-                          onChange={(event) => setFormatCodesOptions((current) => ({ ...current, remover_ultimos_numeros: event.target.value.replace(/[^\d]/g, "") }))}
-                          placeholder="Ex.: 2"
-                        />
-                      </label>
-                    </div>
-                    <div className="toolConfigActions">
-                      <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("restaurar-codigos", async () => {
-                        pushUndoSnapshot();
-                        const result = await restoreOriginalCodes();
-                        queueRefresh(["products"]);
-                        setShowFormatCodesPanel(false);
-                        window.alert(`Total analisado: ${result.total}\nCodigos restaurados: ${result.restaurados}`);
-                      })}>
-                        Restaurar Originais
-                      </button>
-                      <button className="ghostButton miniActionButton" type="button" onClick={() => setShowFormatCodesPanel(false)}>
-                        Fechar
-                      </button>
-                      <button className="primaryButton miniPrimaryButton" type="button" onClick={() => void runBusyAction("formatar-codigos", handleFormatCodes)}>
-                        Aplicar
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {showDescriptionPanel ? (
-                  <div className="toolConfigPanel">
-                    <div className="toolConfigGrid">
-                      <label className="toolCheck">
-                        <input
-                          type="checkbox"
-                          checked={descriptionOptions.remover_especiais}
-                          onChange={(event) => setDescriptionOptions((current) => ({ ...current, remover_especiais: event.target.checked }))}
-                        />
-                        <span>Remover caracteres especiais</span>
-                      </label>
-                      <label className="toolCheck">
-                        <input
-                          type="checkbox"
-                          checked={descriptionOptions.remover_numeros}
-                          onChange={(event) => setDescriptionOptions((current) => ({ ...current, remover_numeros: event.target.checked }))}
-                        />
-                        <span>Remover numeros</span>
-                      </label>
-                      <label className="toolCheck">
-                        <input
-                          type="checkbox"
-                          checked={descriptionOptions.remover_letras}
-                          onChange={(event) => setDescriptionOptions((current) => ({ ...current, remover_letras: event.target.checked }))}
-                        />
-                        <span>Remover letras</span>
-                      </label>
-                      <label className="toolField toolFieldWide">
-                        <span>Termos para remover, separados por virgula</span>
-                        <input value={descriptionOptions.remover_termos} onChange={(event) => setDescriptionOptions((current) => ({ ...current, remover_termos: event.target.value }))} />
-                      </label>
-                    </div>
-                    <div className="toolConfigActions">
-                      <button className="ghostButton miniActionButton" type="button" onClick={() => setShowDescriptionPanel(false)}>
-                        Fechar
-                      </button>
-                      <button className="primaryButton miniPrimaryButton" type="button" onClick={() => void runBusyAction("melhorar-descricao", handleImproveDescriptions)}>
-                        Aplicar
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {postProcessing ? <div className="message subtle">Revisao com IA em andamento. {postProcessJob?.message || "Preparando itens da lista..."}</div> : null}
-                {!postProcessing && postProcessJob?.message ? <div className="message subtle">{postProcessJob.message}</div> : null}
-                {postProcessError ? <div className="message error">{postProcessError}</div> : null}
-                {postProcessResult ? (
-                  <div className="message success">
-                    {postProcessResult.total_itens} itens revisados as {formatTimestamp(postProcessJob?.updated_at)}.
-                    {postProcessResult.dry_run ? " Modo inicial: sugestoes capturadas sem aplicar automaticamente." : ""}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </section>
-
-          <section className={`tableWrapperTs ${orderingMode ? "orderingModeActive" : ""}`}>
-            <div className="tableScrollTs">
-              <table className="productsTableTs">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Nome</th>
-                    <th>
-                      <div className="bulkHeaderCell" ref={bulkBrandMenuRef}>
-                        <button className="bulkHeaderButton" type="button" onClick={() => setShowBulkBrandMenu((current) => !current)}>
-                          <span>Marca</span>
-                          <small>{bulkBrandValue || "Aplicar..."}</small>
-                        </button>
-                        {showBulkBrandMenu ? (
-                          <div className="bulkMenuPopover">
-                            <div className="bulkMenuHeader">
-                              <strong>Aplicar marca</strong>
-                              <button className="bulkAddButton" type="button" onClick={() => setShowBrandComposer((current) => !current)}>
-                                +
-                              </button>
-                            </div>
-                            {showBrandComposer ? (
-                              <div className="bulkComposer">
-                                <input value={newBrand} onChange={(event) => setNewBrand(event.target.value)} placeholder="Nova marca" />
-                                <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("nova-marca", submitBrand)} disabled={!newBrand.trim()}>
-                                  Salvar
-                                </button>
-                              </div>
-                            ) : null}
-                            <div className="bulkMenuList">
-                              {sortedBrands.map((brand) => (
-                                <button key={brand} className="bulkMenuItem" type="button" onClick={() => void runBusyAction("aplicar-marca", async () => handleApplyBrand(brand))}>
-                                  {brand}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th>Codigo</th>
-                    <th>Qtd</th>
-                    <th>Custo</th>
-                    <th>Venda</th>
-                    <th>
-                      <div className="bulkHeaderCell" ref={bulkCategoryMenuRef}>
-                        <button className="bulkHeaderButton" type="button" onClick={() => setShowBulkCategoryMenu((current) => !current)}>
-                          <span>Categoria</span>
-                          <small>{bulkCategoryValue || "Aplicar..."}</small>
-                        </button>
-                        {showBulkCategoryMenu ? (
-                          <div className="bulkMenuPopover">
-                            <div className="bulkMenuHeader">
-                              <strong>Aplicar categoria</strong>
-                            </div>
-                            <div className="bulkMenuList">
-                              {CATEGORIES.map((category) => (
-                                <button key={category} className="bulkMenuItem" type="button" onClick={() => void runBusyAction("aplicar-categoria", async () => handleApplyCategory(category))}>
-                                  {category}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={9} className="emptyState">
-                        Carregando dados...
-                      </td>
-                    </tr>
-                  ) : displayedProducts.length ? (
-                    displayedProducts.map((product, index) => {
-                      const selectionPosition = orderingSelectionIndex.get(product.ordering_key);
-                      const isAutomationCurrentRow = automationIsRunning && automationCurrentOrderingKey === product.ordering_key;
-                      return (
-                      <tr
-                        key={product.ordering_key}
-                        className={[
-                          createSetKeys.includes(product.ordering_key) ? "selectedRow" : "",
-                          orderingMode && selectionPosition ? "orderedRow" : "",
-                          isAutomationCurrentRow ? "automationCurrentRow" : "",
-                        ].filter(Boolean).join(" ")}
-                          onClick={(event) => {
-                            if (orderingMode) {
-                              handleOrderingSelection(product.ordering_key, {
-                                allowRemove: event.detail >= 3,
-                              });
-                              return;
-                            }
-                            void handleCreateSetSelection(product.ordering_key);
-                          }}
-                      >
-                        <td>{orderingMode && selectionPosition ? selectionPosition : index + 1}</td>
-                        <td>
-                          <div className="nameCellStack">
-                            {renderCellContent(product, "nome", product.nome)}
-                            {isAutomationCurrentRow && automationTypedDescription && automationTypedDescription.trim() !== product.nome.trim() ? (
-                              <small className="automationPreviewText">{`Texto enviado: ${automationTypedDescription}`}</small>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td>{renderCellContent(product, "marca", product.marca || "-")}</td>
-                        <td>{renderCellContent(product, "codigo", product.codigo || "-")}</td>
-                        <td>{renderCellContent(product, "quantidade", product.quantidade)}</td>
-                        <td>{renderCellContent(product, "preco", product.preco || "-")}</td>
-                        <td>{renderCellContent(product, "preco_final", product.preco_final || product.preco || "-")}</td>
-                        <td>{renderCellContent(product, "categoria", product.categoria || "-")}</td>
-                        <td>
-                          <div className={`rowActionStack ${orderingMode ? "orderingRowActionStack" : ""}`}>
-                            {orderingMode ? (
-                              <span className={`orderingSelectionBadge compactOrderingSelectionBadge ${selectionPosition ? "activeOrderingSelectionBadge" : ""}`}>
-                                {selectionPosition ? `${selectionPosition}` : "•"}
-                              </span>
-                            ) : null}
-                            {isAutomationCurrentRow ? <span className="automationCurrentBadge">Em execucao</span> : null}
-                            {orderingMode ? (
-                              <>
-                                <button className="rowMiniButton" type="button" onClick={(event) => { event.stopPropagation(); moveOrderingItem(product.ordering_key, -1); }}>
-                                  ↑
-                                </button>
-                                <button className="rowMiniButton" type="button" onClick={(event) => { event.stopPropagation(); moveOrderingItem(product.ordering_key, 1); }}>
-                                  ↓
-                                </button>
-                              </>
-                            ) : null}
-                            {!orderingMode ? (
-                              <button
-                                className="rowLink dangerRowLink"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void runBusyAction(`excluir-${product.ordering_key}`, async () => {
-                                    pushUndoSnapshot();
-                                    await deleteProduct(product.ordering_key);
-                                    queueRefresh(["products", "totals"]);
-                                  });
-                                }}
-                              >
-                                Excluir
-                              </button>
-                            ) : null}
-                            {createSetMode ? <span className="selectionHint">{createSetKeys.includes(product.ordering_key) ? "Selecionado" : "Selecionar"}</span> : null}
-                          </div>
-                        </td>
-                      </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={9} className="emptyState">
-                        Nenhum produto ativo neste momento.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <ProductTable
+            loading={loading}
+            products={displayedProducts}
+            totalProductCount={state.products.length}
+            orderingMode={orderingMode}
+            orderingSelectionIndex={orderingSelectionIndex}
+            automationIsRunning={automationIsRunning}
+            automationCurrentOrderingKey={automationCurrentOrderingKey}
+            automationTypedDescription={automationTypedDescription}
+            createSetMode={createSetMode}
+            createSetKeys={createSetKeys}
+            sortedBrands={sortedBrands}
+            newBrand={newBrand}
+            bulkBrandValue={bulkBrandValue}
+            bulkCategoryValue={bulkCategoryValue}
+            showBulkBrandMenu={showBulkBrandMenu}
+            showBulkCategoryMenu={showBulkCategoryMenu}
+            showBrandComposer={showBrandComposer}
+            bulkBrandMenuRef={bulkBrandMenuRef}
+            bulkCategoryMenuRef={bulkCategoryMenuRef}
+            emptyState={productTableEmptyState}
+            globalEditMode={globalEditMode}
+            editingCell={editingCell}
+            inlineEditInputRef={inlineEditInputRef}
+            runBusyAction={runBusyAction}
+            onStartInlineEdit={startInlineEdit}
+            onInlineEditChange={handleInlineEditChange}
+            onCommitInlineEdit={commitInlineEdit}
+            onInlineEditKeyDown={handleInlineEditKeyDown}
+            onToggleBulkBrandMenu={() => setShowBulkBrandMenu((current) => !current)}
+            onToggleBulkCategoryMenu={() => setShowBulkCategoryMenu((current) => !current)}
+            onCloseBulkBrandMenu={() => setShowBulkBrandMenu(false)}
+            onCloseBulkCategoryMenu={() => setShowBulkCategoryMenu(false)}
+            onToggleBrandComposer={() => setShowBrandComposer((current) => !current)}
+            onNewBrandChange={setNewBrand}
+            onSubmitBrand={submitBrand}
+            onApplyBrand={handleApplyBrand}
+            onApplyCategory={handleApplyCategory}
+            onToggleGlobalEdit={handleToggleGlobalEdit}
+            onOrderingSelection={handleOrderingSelection}
+            onCreateSetSelection={handleCreateSetSelection}
+            onMoveOrderingItem={moveOrderingItem}
+            onQuickFilterChange={handleProductQuickFilterChange}
+            onProductSearchChange={setProductSearchQuery}
+            onReviewFilterChange={handleProductQuickFilterChange}
+            onDeleteProduct={async (orderingKey) => {
+              const product = productsByKey.get(orderingKey);
+              const productName = product?.nome || orderingKey;
+              openConfirmationDialog({
+                title: "Excluir item da lista?",
+                message: `"${productName}" sera removido da lista ativa.`,
+                detail: "A remocao afeta apenas este item e pode ser desfeita pelo historico da lista.",
+                confirmLabel: "Excluir item",
+                onConfirm: async () => {
+                  pushUndoSnapshot();
+                  await deleteProduct(orderingKey);
+                  rememberProductOperation({
+                    action: "delete",
+                    productName,
+                  });
+                  queueRefresh(["products", "totals"]);
+                },
+              });
+            }}
+          />
         </section>
       </main>
         </div>
       </div>
+      {confirmationDialog ? (
+        <ConfirmationDialog
+          title={confirmationDialog.title}
+          message={confirmationDialog.message}
+          detail={confirmationDialog.detail}
+          confirmLabel={confirmationDialog.confirmLabel}
+          busy={confirmationBusy}
+          error={confirmationError}
+          onCancel={closeConfirmationDialog}
+          onConfirm={handleConfirmationDialogConfirm}
+        />
+      ) : null}
+      {marginDialogOpen ? (
+        <MarginDialog
+          currentPercent={state.marginPercentual}
+          value={marginDraft}
+          busy={marginBusy}
+          error={marginError}
+          onChange={(value) => {
+            setMarginDraft(value);
+            if (marginError) setMarginError(null);
+          }}
+          onCancel={closeMarginDialog}
+          onConfirm={handleApplyMarginDialog}
+        />
+      ) : null}
+      {textInputDialog ? (
+        <TextInputDialog
+          title={textInputDialog.title}
+          description={textInputDialog.description}
+          label={textInputDialog.label}
+          value={textInputDialog.value}
+          confirmLabel={textInputDialog.confirmLabel}
+          sectionTag={textInputDialog.sectionTag}
+          placeholder={textInputDialog.placeholder}
+          busy={textInputBusy}
+          error={textInputError}
+          onChange={(value) => {
+            setTextInputDialog((current) => current ? { ...current, value } : current);
+            if (textInputError) setTextInputError(null);
+          }}
+          onCancel={closeTextInputDialog}
+          onConfirm={handleTextInputDialogConfirm}
+        />
+      ) : null}
+      {noticeDialog ? (
+        <NoticeDialog
+          title={noticeDialog.title}
+          message={noticeDialog.message}
+          tone={noticeDialog.tone}
+          confirmLabel={noticeDialog.confirmLabel}
+          onClose={() => setNoticeDialog(null)}
+        />
+      ) : null}
+      <NoticeToastStack
+        toasts={noticeToasts}
+        onDismiss={(id) => setNoticeToasts((current) => current.filter((toast) => toast.id !== id))}
+      />
       {settingsOpen ? (
-        <div className="settingsModalBackdrop" onClick={closeSettingsModal}>
-          <section className="settingsModalShell" onClick={(event) => event.stopPropagation()}>
-            <header className="settingsModalHeader">
-              <div>
-                <span className="sectionTag">Configuracoes</span>
-                <h3>Targets, gradebot e diagnostico</h3>
-              </div>
-              <div className="settingsModalHeaderActions">
-                <button className="ghostButton miniActionButton" type="button" onClick={() => void handleSettingsContextRefresh()} disabled={Boolean(settingsSaving)}>
-                  Ver contexto
-                </button>
-                <button className="ghostButton miniActionButton" type="button" onClick={() => void handleSettingsPrepare()} disabled={Boolean(settingsSaving)}>
-                  Preparar ByteEmpresa
-                </button>
-              </div>
-            </header>
-
-            <div className="settingsModalBody">
-              <section className="settingsPanel">
-                <div className="settingsPanelHead">
-                  <div>
-                    <span className="sectionTag">Cadastro</span>
-                    <strong>Targets do PyAutoGUI</strong>
-                  </div>
-                  <button className="ghostButton miniActionButton" type="button" onClick={() => void handleSaveSettingsTargets()} disabled={settingsSaving === "targets"}>
-                    {settingsSaving === "targets" ? "Salvando..." : "Salvar targets"}
-                  </button>
-                </div>
-                <label className="settingsField">
-                  <span>Titulo da janela</span>
-                  <input
-                    value={settingsTargets.title || ""}
-                    onChange={(event) => handleSettingsTargetChange("title", event.target.value)}
-                    placeholder="Byte Empresa - 1 - NAPASSARELA"
-                  />
-                </label>
-                <div className="settingsTargetList">
-                  {AUTOMATION_TARGET_FIELDS.map((field) => (
-                    <div key={field.key} className="settingsTargetRow">
-                      <div>
-                        <strong>{field.label}</strong>
-                        <span>{formatTargetPoint((settingsTargets[field.key] as TargetPoint | null | undefined) || null)}</span>
-                      </div>
-                      <button
-                        className="ghostButton miniActionButton"
-                        type="button"
-                        onClick={() => void handleCaptureSettingsTarget(field.key, field.label)}
-                        disabled={Boolean(settingsSaving)}
-                      >
-                        {settingsSaving === `capture-target-${field.key}` ? "Capturando..." : "Capturar"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="settingsPanel">
-                <div className="settingsPanelHead">
-                  <div>
-                    <span className="sectionTag">Gradebot</span>
-                    <strong>Coordenadas e ordem ERP</strong>
-                  </div>
-                  <button className="ghostButton miniActionButton" type="button" onClick={() => void handleSaveSettingsGradeConfig()} disabled={settingsSaving === "grade-config"}>
-                    {settingsSaving === "grade-config" ? "Salvando..." : "Salvar grades"}
-                  </button>
-                </div>
-                <div className="settingsFormGrid">
-                  <label className="settingsField">
-                    <span>Altura da linha</span>
-                    <input
-                      value={settingsGradeConfig.row_height ?? ""}
-                      onChange={(event) => handleSettingsGradeConfigChange((current) => ({
-                        ...current,
-                        row_height: Number.parseInt(event.target.value.replace(/[^\d]/g, ""), 10) || null,
-                      }))}
-                      placeholder="44"
-                    />
-                  </label>
-                  <label className="settingsField">
-                    <span>Indice do modelo</span>
-                    <input
-                      value={settingsGradeConfig.model_index ?? ""}
-                      onChange={(event) => handleSettingsGradeConfigChange((current) => ({
-                        ...current,
-                        model_index: Number.parseInt(event.target.value.replace(/[^\d]/g, ""), 10) || null,
-                      }))}
-                      placeholder="1"
-                    />
-                  </label>
-                  <label className="settingsField">
-                    <span>Hotkey do modelo</span>
-                    <input
-                      value={settingsGradeConfig.model_hotkey || ""}
-                      onChange={(event) => handleSettingsGradeConfigChange((current) => ({ ...current, model_hotkey: event.target.value }))}
-                      placeholder="f6"
-                    />
-                  </label>
-                  <div className="settingsTargetRow compact">
-                    <div>
-                      <strong>Primeira celula da grade</strong>
-                      <span>{formatTargetPoint(settingsGradeConfig.first_quant_cell)}</span>
-                    </div>
-                    <button className="ghostButton miniActionButton" type="button" onClick={() => void handleCaptureFirstQuantCell()} disabled={Boolean(settingsSaving)}>
-                      {settingsSaving === "capture-first-quant" ? "Capturando..." : "Capturar"}
-                    </button>
-                  </div>
-                </div>
-                <div className="settingsTargetList">
-                  {GRADE_CAPTURE_FIELDS.map((field) => (
-                    <div key={field.key} className="settingsTargetRow">
-                      <div>
-                        <strong>{field.label}</strong>
-                        <span>{formatTargetPoint(normalizeTargetPoint(settingsGradeConfig.buttons?.[field.key]))}</span>
-                      </div>
-                      <button
-                        className="ghostButton miniActionButton"
-                        type="button"
-                        onClick={() => void handleCaptureSettingsGradeButton(field.key, field.label)}
-                        disabled={Boolean(settingsSaving)}
-                      >
-                        {settingsSaving === `capture-grade-${field.key}` ? "Capturando..." : "Capturar"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <label className="settingsField">
-                  <span>Ordem ERP usada pela automacao</span>
-                  <textarea
-                    value={(settingsGradeConfig.erp_size_order || []).join(", ")}
-                    onChange={(event) => handleSettingsGradeConfigChange((current) => ({
-                      ...current,
-                      erp_size_order: parseSizeOrderText(event.target.value),
-                    }))}
-                    placeholder="P, M, G, GG, 34, 36, 38"
-                  />
-                </label>
-              </section>
-
-              <section className="settingsPanel settingsPanelWide">
-                <div className="settingsPanelHead">
-                  <div>
-                    <span className="sectionTag">Diagnostico</span>
-                    <strong>Contexto atual do ByteEmpresa</strong>
-                  </div>
-                  <button className="ghostButton miniActionButton" type="button" onClick={() => void loadSettingsModal()} disabled={settingsLoading || Boolean(settingsSaving)}>
-                    {settingsLoading ? "Atualizando..." : "Recarregar tudo"}
-                  </button>
-                </div>
-                {settingsCaptureCountdown ? (
-                  <div className="message subtle">
-                    Capturando <strong>{settingsCaptureLabel}</strong> em {settingsCaptureCountdown}s...
-                  </div>
-                ) : null}
-                {settingsMessage ? <div className="message success">{settingsMessage}</div> : null}
-                {settingsError ? <div className="message error">{settingsError}</div> : null}
-                <pre className="settingsContextBlock">{settingsContextText || "Use 'Ver contexto' ou 'Preparar ByteEmpresa' para carregar diagnostico."}</pre>
-              </section>
-            </div>
-
-            <footer className="settingsModalFooter">
-              <button className="ghostButton miniActionButton" type="button" onClick={closeSettingsModal}>
-                Fechar
-              </button>
-            </footer>
-          </section>
-        </div>
+        <SettingsModal
+          loading={settingsLoading}
+          saving={settingsSaving}
+          error={settingsError}
+          message={settingsMessage}
+          targets={settingsTargets}
+          gradeConfig={settingsGradeConfig}
+          contextText={settingsContextText}
+          captureLabel={settingsCaptureLabel}
+          captureCountdown={settingsCaptureCountdown}
+          onClose={closeSettingsModal}
+          onContextRefresh={handleSettingsContextRefresh}
+          onPrepare={handleSettingsPrepare}
+          onReloadAll={loadSettingsModal}
+          onSaveTargets={handleSaveSettingsTargets}
+          onSaveGradeConfig={handleSaveSettingsGradeConfig}
+          onTargetChange={handleSettingsTargetChange}
+          onGradeConfigChange={handleSettingsGradeConfigChange}
+          onCaptureTarget={handleCaptureSettingsTarget}
+          onCaptureGradeButton={handleCaptureSettingsGradeButton}
+          onCaptureFirstQuantCell={handleCaptureFirstQuantCell}
+        />
       ) : null}
       {gradeModalOpen ? (
-        <div className="gradeModalBackdrop" onClick={closeGradeModal}>
-          <section className="gradeModalShell" onClick={(event) => event.stopPropagation()}>
-            <header className="gradeModalHeader">
-              <div>
-                <span className="sectionTag">Inserir grade</span>
-                <h3>{selectedGradeProduct ? `${selectedGradeProduct.nome} (${selectedGradeProduct.codigo || "sem codigo"})` : "Selecione um item"}</h3>
-              </div>
-              <div className="gradeModalHeaderActions">
-                <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("executar-grades", handleExecuteGrades)}>
-                  Executar Grades
-                </button>
-                <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("parar-grades", handleStopGrades)}>
-                  Parar
-                </button>
-              </div>
-            </header>
-
-            <div className="gradeModalBody">
-              <aside className="gradeModalProductList">
-                {state.products.map((product) => {
-                  const gradeStatus = getProductGradeStatus(product);
-                  return (
-                    <button
-                      key={product.ordering_key}
-                      className={`gradeProductRow ${product.ordering_key === gradeSelectedKey ? "activeGradeProductRow" : ""}`}
-                      type="button"
-                      tabIndex={0}
-                      onClick={() => setGradeSelectedKey(product.ordering_key)}
-                      onKeyDown={handleGradeStartTab}
-                    >
-                      <div className="gradeProductRowHead">
-                        <strong>{product.nome}</strong>
-                        {gradeStatus.complete ? <span className="gradeStatusBadge success">✓</span> : null}
-                        {!gradeStatus.complete && gradeStatus.overflow ? <span className="gradeStatusBadge danger">!</span> : null}
-                      </div>
-                      <span>{product.codigo || "Sem codigo"}</span>
-                      <small className={gradeStatus.overflow ? "gradeStatusTextDanger" : gradeStatus.complete ? "gradeStatusTextSuccess" : ""}>
-                        {gradeStatus.hasAny ? `${gradeStatus.total}/${gradeStatus.expected} pecas em grade` : "Sem grade salva"}
-                      </small>
-                    </button>
-                  );
-                })}
-              </aside>
-
-              <div className="gradeModalEditor">
-                {selectedGradeProduct ? (
-                  <>
-                    <div className="gradeModalMeta">
-                      <div><span>Quantidade do item</span><strong>{selectedGradeProduct.quantidade}</strong></div>
-                      <div><span>Categoria</span><strong>{selectedGradeProduct.categoria || "-"}</strong></div>
-                      <div><span>Marca</span><strong>{selectedGradeProduct.marca || "-"}</strong></div>
-                    </div>
-
-                    <details className="gradeConfigDetails" onKeyDown={handleGradeStartTab}>
-                      <summary>Personalizar familias e tamanhos</summary>
-                      <div className="gradeSizeManager">
-                        <div className="gradeSectionHead">
-                          <div>
-                            <span className="sectionTag">Ordem visual dos tamanhos</span>
-                            <p>Essa ordem e personalizada para o usuario. A automacao continua respeitando a ordem ERP do ByteEmpresa.</p>
-                          </div>
-                          <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("nova-familia-grade", addFamily)}>
-                            + Familia
-                          </button>
-                        </div>
-
-                        <div className="gradeSizeCreateRow">
-                          <input
-                            value={newGradeSize}
-                            onChange={(event) => setNewGradeSize(event.target.value)}
-                            placeholder="Novo tamanho ou tipo"
-                          />
-                          <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("novo-tamanho-grade", addVisualSize)}>
-                            Adicionar
-                          </button>
-                        </div>
-
-                        <div className="gradeSizeList">
-                          {groupedGradeSizes.map((group) => (
-                            <section key={`manage-${group.key}`} className="gradeSizeFamilyGroup">
-                              <header className="gradeFamilyHeader compact">
-                                <div>
-                                  <input
-                                    className="familyLabelInput"
-                                    value={group.label}
-                                    onChange={(event) => handleFamilyLabelChange(group.key, event.target.value)}
-                                  />
-                                  <p>{group.hint}</p>
-                                </div>
-                                <span className="totalsChipTs muted">{group.items.length}</span>
-                              </header>
-                              <div className="gradeSizeFamilyRows">
-                                {group.items.map((size) => {
-                                  const familySizes = gradeFamiliesDraft.find((family) => family.id === group.key)?.sizes || [];
-                                  const index = familySizes.indexOf(size);
-                                  const familyIndex = gradeFamiliesDraft.findIndex((family) => family.id === group.key);
-                                  return (
-                                    <div key={size} className="gradeSizeRow">
-                                      <strong>{size}</strong>
-                                      <div className="gradeSizeRowMeta">
-                                        {(gradeConfig?.erp_size_order || []).includes(size) ? <span className="totalsChipTs muted">ERP</span> : null}
-                                        <button className="rowMiniButton" type="button" disabled={familyIndex <= 0} onClick={() => void runBusyAction(`mover-esquerda-${size}`, async () => moveSizeBetweenFamilies(group.key, size, -1))}>
-                                          ←
-                                        </button>
-                                        <button className="rowMiniButton" type="button" onClick={() => void runBusyAction(`renomear-${size}`, async () => renameSizeInFamily(group.key, size))}>
-                                          ✎
-                                        </button>
-                                        <button
-                                          className="rowMiniButton dangerMiniButton"
-                                          type="button"
-                                          onClick={() => void runBusyAction(`remover-${size}`, async () => removeSizeFromFamilies(size))}
-                                        >
-                                          ×
-                                        </button>
-                                        <button className="rowMiniButton" type="button" disabled={index <= 0} onClick={() => void runBusyAction(`subir-${size}`, async () => moveVisualSize(group.key, size, -1))}>
-                                          ↑
-                                        </button>
-                                        <button
-                                          className="rowMiniButton"
-                                          type="button"
-                                          disabled={index < 0 || index === familySizes.length - 1}
-                                          onClick={() => void runBusyAction(`descer-${size}`, async () => moveVisualSize(group.key, size, 1))}
-                                        >
-                                          ↓
-                                        </button>
-                                        <button
-                                          className="rowMiniButton"
-                                          type="button"
-                                          disabled={familyIndex < 0 || familyIndex === gradeFamiliesDraft.length - 1}
-                                          onClick={() => void runBusyAction(`mover-direita-${size}`, async () => moveSizeBetweenFamilies(group.key, size, 1))}
-                                        >
-                                          →
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </section>
-                          ))}
-                        </div>
-
-                        <div className="gradeAutomationHint">
-                          <span>Ordem ERP usada pela automacao:</span>
-                          <strong>{(gradeConfig?.erp_size_order || []).join(" • ") || "Nao configurada"}</strong>
-                        </div>
-                      </div>
-                    </details>
-
-                    <div className="gradeTabsShell">
-                      <div className="gradeTabsBar" role="tablist" aria-label="Familias de grade">
-                        {groupedGradeSizes.map((group) => (
-                          <button
-                            key={group.key}
-                            className={`gradeTabButton ${activeGradeFamily?.key === group.key ? "activeGradeTabButton" : ""}`}
-                            type="button"
-                            tabIndex={0}
-                            role="tab"
-                            aria-selected={activeGradeFamily?.key === group.key}
-                            onClick={() => setActiveGradeFamilyKey(group.key)}
-                            onKeyDown={handleGradeStartTab}
-                          >
-                            <span>{group.label}</span>
-                            <small>{group.items.length}</small>
-                          </button>
-                        ))}
-                      </div>
-
-                      {activeGradeFamily ? (
-                        <section className="gradeActiveFamilyPanel">
-                          <header className="gradeFamilyHeader">
-                            <div>
-                              <strong>{activeGradeFamily.label}</strong>
-                              <p>{activeGradeFamily.hint} Use Tab para avancar entre os campos e digite a quantidade de cada tamanho.</p>
-                            </div>
-                          </header>
-                          <div className="gradeGridEditor horizontalGradeGrid">
-                              {activeGradeFamily.items.map((size) => (
-                                <label key={size} className="gradeInputCard">
-                                  <span>{size}</span>
-                                  <input
-                                    ref={(node) => {
-                                      gradeInputRefs.current[size] = node;
-                                    }}
-                                    inputMode="numeric"
-                                    value={gradeDraft[size] ?? ""}
-                                    onChange={(event) => updateGradeDraftValue(size, event.target.value)}
-                                    onKeyDown={handleGradeInputKeyDown}
-                                    placeholder="0"
-                                  />
-                                </label>
-                              ))}
-                          </div>
-                        </section>
-                      ) : (
-                        <div className="message subtle">Nenhum tamanho configurado no catalogo.</div>
-                      )}
-                    </div>
-
-                    <div className="gradeModalFooterInfo">
-                      <span>Total da grade: {currentGradeTotal}</span>
-                      <span>Quantidade do produto: {selectedGradeProduct.quantidade}</span>
-                    </div>
-                    {gradeValidationError ? <div className="message error gradeValidationAlert">{gradeValidationError}</div> : null}
-                    {gradeModalError ? <div className="message error">{gradeModalError}</div> : null}
-                  </>
-                ) : (
-                  <div className="message subtle">Selecione um produto para editar a grade.</div>
-                )}
-              </div>
-            </div>
-
-            <footer className="gradeModalFooter">
-              <button className="ghostButton miniActionButton" type="button" onClick={closeGradeModal}>
-                Fechar
-              </button>
-              <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("limpar-grade", handleClearSelectedGrade)}>
-                Limpar Grade
-              </button>
-              <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("limpar-todas-grades", handleClearAllGrades)}>
-                Limpar Todas as Grades
-              </button>
-              <button className="primaryButton gradeFooterButton" type="button" onClick={() => void runBusyAction("salvar-grade", handleSaveSelectedGrade)}>
-                Salvar
-              </button>
-              <button className="primaryButton gradeFooterButton" type="button" onClick={() => void runBusyAction("salvar-proxima-grade", handleSaveAndNextGrade)}>
-                Salvar e Proximo
-              </button>
-            </footer>
-          </section>
-        </div>
+        <GradeModal
+          products={state.products}
+          selectedProduct={selectedGradeProduct}
+          selectedOrderingKey={gradeSelectedKey}
+          selectedStatus={selectedGradeStatus}
+          nextPendingGradeKey={nextPendingGradeKey}
+          currentGradeTotal={currentGradeTotal}
+          gradeDraft={gradeDraft}
+          gradeFamiliesDraft={gradeFamiliesDraft}
+          groupedGradeSizes={groupedGradeSizes}
+          activeGradeFamily={activeGradeFamily}
+          erpSizes={gradeConfig?.erp_size_order || []}
+          erpOrderText={(gradeConfig?.erp_size_order || []).join(" • ") || "Nao configurada"}
+          newGradeSize={newGradeSize}
+          validationError={gradeValidationError}
+          modalError={gradeModalError}
+          gradeInputRefs={gradeInputRefs}
+          getProductStatus={getProductGradeStatus}
+          runBusyAction={runBusyAction}
+          onClose={closeGradeModal}
+          onExecuteGrades={handleExecuteGrades}
+          onStopGrades={handleStopGrades}
+          onSelectProduct={setGradeSelectedKey}
+          onGradeStartTab={handleGradeStartTab}
+          onSelectNextPendingGrade={handleSelectNextPendingGrade}
+          onAddFamily={addFamily}
+          onNewGradeSizeChange={setNewGradeSize}
+          onAddVisualSize={addVisualSize}
+          onFamilyLabelChange={handleFamilyLabelChange}
+          onMoveSizeBetweenFamilies={moveSizeBetweenFamilies}
+          onRenameSizeInFamily={renameSizeInFamily}
+          onRemoveSizeFromFamilies={removeSizeFromFamilies}
+          onMoveVisualSize={moveVisualSize}
+          onSetActiveGradeFamily={setActiveGradeFamilyKey}
+          onUpdateGradeDraftValue={updateGradeDraftValue}
+          onGradeInputKeyDown={handleGradeInputKeyDown}
+          onClearSelectedGrade={handleClearSelectedGrade}
+          onClearAllGrades={handleClearAllGrades}
+          onSaveSelectedGrade={handleSaveSelectedGrade}
+          onSaveAndNextGrade={handleSaveAndNextGrade}
+        />
       ) : null}
     </div>
   );

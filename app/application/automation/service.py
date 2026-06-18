@@ -20,8 +20,16 @@ from app.application.automation.profiles import (
     normalize_targets,
     save_json_object,
 )
+from app.application.automation.product_payload import (
+    build_catalog_description,
+    build_incomplete_grades_message,
+    find_incomplete_grade_products,
+    prepare_grade_tasks,
+    product_to_payload,
+)
 from app.application.products.service import ProductService
 from app.domain.products.entities import Product
+from app.shared.logging.setup import log_event
 
 logger = logging.getLogger(__name__)
 COMPLETE_TRANSITION_TARGETS = (
@@ -199,6 +207,15 @@ class AutomationService:
             message = "Cancelamento solicitado"
             if grade_stage_active:
                 message = "Parada do GradeBot solicitada"
+            log_event(
+                logger,
+                logging.WARNING,
+                "automation_cancel_requested",
+                "automation cancel requested",
+                job_kind=self._active_job_kind or "unknown",
+                phase=self._active_job_phase or "",
+                grade_stage_active=grade_stage_active,
+            )
             return {"status": "stopping", "message": message}
 
     def status(self) -> dict[str, Any]:
@@ -625,18 +642,7 @@ class AutomationService:
         return completed_keys, failures, metrics
 
     def _prepare_grade_tasks(self, products: list[Product]) -> list[dict[str, Any]]:
-        tasks: list[dict[str, Any]] = []
-        for product in products:
-            if not product.grades:
-                continue
-            grades_map = {
-                str(item.tamanho).strip(): int(item.quantidade)
-                for item in product.grades
-                if str(item.tamanho).strip() and int(item.quantidade or 0) > 0
-            }
-            if grades_map:
-                tasks.append({"grades": grades_map})
-        return tasks
+        return prepare_grade_tasks(products)
 
     def _run_complete_transition_sequence(self, targets: dict[str, Any]) -> None:
         for index, key in enumerate(COMPLETE_TRANSITION_TARGETS, start=1):
@@ -723,8 +729,17 @@ class AutomationService:
                     running_label = "insercao de grades"
                 elif self._active_job_kind == "complete":
                     running_label = "cadastro completo"
+                log_event(
+                    logger,
+                    logging.WARNING,
+                    "automation_operation_rejected",
+                    "automation operation rejected",
+                    requested_job_kind=kind,
+                    running_job_kind=self._active_job_kind or "unknown",
+                )
                 raise RuntimeError(f"Ja existe uma {running_label} em execucao")
 
+            operation_started_at = time.perf_counter()
             self._cancel_event.clear()
             self._cancel_reason = None
             self._running = True
@@ -739,12 +754,29 @@ class AutomationService:
             self._active_product_index = None
             self._active_product_total = None
             self._start_mouse_failsafe_monitor_locked()
+            log_event(
+                logger,
+                logging.INFO,
+                "automation_operation_started",
+                "automation operation started",
+                job_kind=kind,
+                phase=started_phase or "",
+                thread_name=thread_name,
+            )
 
             def _runner() -> None:
                 result: dict[str, str]
                 try:
                     result = worker()
                 except Exception as exc:  # pragma: no cover - defensive fallback
+                    log_event(
+                        logger,
+                        logging.ERROR,
+                        "automation_operation_failed",
+                        "automation operation failed",
+                        job_kind=kind,
+                        exception_type=type(exc).__name__,
+                    )
                     logger.exception("Falha inesperada na automacao em background")
                     result = {
                         "status": "error",
@@ -752,6 +784,19 @@ class AutomationService:
                         "job_kind": kind,
                     }
                 finally:
+                    status = str(result.get("status") or "unknown")
+                    level = logging.INFO if status == "success" else logging.WARNING
+                    if status == "error":
+                        level = logging.ERROR
+                    log_event(
+                        logger,
+                        level,
+                        "automation_operation_completed",
+                        "automation operation completed",
+                        job_kind=kind,
+                        status=status,
+                        duration_ms=int((time.perf_counter() - operation_started_at) * 1000),
+                    )
                     with self._lock:
                         self._stop_mouse_failsafe_monitor_locked()
                         self._running = False
@@ -808,36 +853,11 @@ class AutomationService:
 
     @staticmethod
     def _find_incomplete_grade_products(products: list[Product]) -> list[dict[str, Any]]:
-        pending: list[dict[str, Any]] = []
-        for product in products:
-            if not product.grades:
-                continue
-            total_grades = sum(max(int(item.quantidade or 0), 0) for item in product.grades)
-            expected = max(int(product.quantidade or 0), 0)
-            if total_grades == expected:
-                continue
-            pending.append(
-                {
-                    "nome": str(product.nome or "").strip() or str(product.codigo or "").strip() or "Item sem nome",
-                    "total_grades": total_grades,
-                    "quantidade": expected,
-                }
-            )
-        return pending
+        return find_incomplete_grade_products(products)
 
     @staticmethod
     def _build_incomplete_grades_message(pending: list[dict[str, Any]]) -> str:
-        if not pending:
-            return "Existem grades pendentes."
-        sample = ", ".join(
-            f"{item['nome']} ({item['total_grades']}/{item['quantidade']})" for item in pending[:3]
-        )
-        remaining = len(pending) - min(len(pending), 3)
-        suffix = f" e mais {remaining} item(ns)" if remaining > 0 else ""
-        return (
-            "Nao e possivel executar o Cadastro Completo porque existem grades pendentes: "
-            f"{sample}{suffix}. Abra 'Inserir Grade' e finalize esses itens antes de continuar."
-        )
+        return build_incomplete_grades_message(pending)
 
     def _request_emergency_stop_locked(self, message: str = EMERGENCY_STOP_MESSAGE) -> None:
         if not self._running or self._cancel_event.is_set():
@@ -982,52 +1002,11 @@ class AutomationService:
             )
 
     def _product_to_payload(self, product: Product) -> dict[str, Any]:
-        descricao = self._build_catalog_description(product)
-        return {
-            "nome": product.nome,
-            "codigo": product.codigo,
-            "quantidade": str(product.quantidade),
-            "preco": product.preco,
-            "preco_final": product.preco_final or product.preco,
-            "categoria": product.categoria,
-            "marca": product.marca,
-            "descricao_completa": descricao,
-            "grades": [
-                {"tamanho": item.tamanho, "quantidade": int(item.quantidade)}
-                for item in (product.grades or [])
-            ]
-            if product.grades
-            else None,
-            "cores": [
-                {"cor": item.cor, "quantidade": int(item.quantidade)}
-                for item in (product.cores or [])
-            ]
-            if product.cores
-            else None,
-            "ordering_key": product.ordering_key(),
-        }
+        return product_to_payload(product)
 
     @staticmethod
     def _build_catalog_description(product: Product) -> str:
-        parts: list[str] = []
-
-        base_description = str(product.descricao_completa or product.nome or "").strip()
-        if base_description:
-            parts.append(base_description)
-
-        brand = str(product.marca or "").strip()
-        code = str(product.codigo or "").strip()
-
-        normalized_description = f" {base_description.casefold()} " if base_description else ""
-        if brand and f" {brand.casefold()} " not in normalized_description:
-            parts.append(brand)
-        if code and f" {code.casefold()} " not in normalized_description:
-            parts.append(code)
-
-        description = " ".join(part for part in parts if part).strip()
-        if description:
-            return description
-        return f"{product.nome} {brand} {code}".strip()
+        return build_catalog_description(product)
 
     @staticmethod
     def _native_byte_empresa_supported() -> bool:

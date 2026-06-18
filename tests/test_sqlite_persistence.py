@@ -169,6 +169,53 @@ class SQLitePersistenceTests(unittest.TestCase):
             self.assertEqual(current.codigo, "COD-2")
             self.assertEqual(current.ordering_key(), original_key)
 
+    def test_summary_ignores_negative_prices_from_legacy_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            db_file = root / "lojasync.db"
+            products_repo = SQLiteProductRepository(db_file)
+            brands_repo = SQLiteBrandRepository(db_file, None, ())
+            margin_store = SQLiteMarginSettingsStore(db_file, None, 1.0)
+            metrics_store = SQLiteMetricsStore(db_file, None)
+            service = ProductService(products_repo, brands_repo, margin_store, metrics_store)
+
+            products_repo.replace_active(
+                [
+                    Product(
+                        nome="Legado Negativo",
+                        codigo="NEG-1",
+                        quantidade=2,
+                        preco="-10,00",
+                        categoria="",
+                        marca="",
+                    ),
+                    Product(
+                        nome="Final Negativo",
+                        codigo="NEG-2",
+                        quantidade=1,
+                        preco="10,00",
+                        preco_final="-5,00",
+                        categoria="",
+                        marca="",
+                    ),
+                    Product(
+                        nome="Final Zero",
+                        codigo="ZERO-1",
+                        quantidade=1,
+                        preco="5,00",
+                        preco_final="0,00",
+                        categoria="",
+                        marca="",
+                    ),
+                ]
+            )
+
+            summary = service.get_summary()
+
+            self.assertEqual(summary.atual.quantidade, 4)
+            self.assertEqual(summary.atual.custo, 15.0)
+            self.assertEqual(summary.atual.venda, 10.9)
+
     def test_create_many_keeps_distinct_rows_when_code_and_timestamp_repeat(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

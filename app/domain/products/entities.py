@@ -18,6 +18,14 @@ class CorItem:
     quantidade: int
 
 
+def parse_non_negative_quantity(value: Any) -> int:
+    try:
+        parsed = int(value or 0)
+    except Exception:
+        return 0
+    return max(parsed, 0)
+
+
 def _parse_grades(value: Any) -> list[GradeItem] | None:
     if not value:
         return None
@@ -33,15 +41,15 @@ def _parse_grades(value: Any) -> list[GradeItem] | None:
         try:
             if isinstance(item, dict):
                 tamanho = str(item.get("tamanho", "")).strip()
-                quantidade = int(item.get("quantidade", 0) or 0)
+                quantidade = parse_non_negative_quantity(item.get("quantidade", 0))
             else:
                 tamanho = str(getattr(item, "tamanho", "")).strip()
-                quantidade = int(getattr(item, "quantidade", 0) or 0)
+                quantidade = parse_non_negative_quantity(getattr(item, "quantidade", 0))
         except Exception:
             continue
         if not tamanho:
             continue
-        parsed.append(GradeItem(tamanho=tamanho, quantidade=max(quantidade, 0)))
+        parsed.append(GradeItem(tamanho=tamanho, quantidade=quantidade))
     return parsed or None
 
 
@@ -60,15 +68,15 @@ def _parse_cores(value: Any) -> list[CorItem] | None:
         try:
             if isinstance(item, dict):
                 cor = str(item.get("cor", "")).strip()
-                quantidade = int(item.get("quantidade", 0) or 0)
+                quantidade = parse_non_negative_quantity(item.get("quantidade", 0))
             else:
                 cor = str(getattr(item, "cor", "")).strip()
-                quantidade = int(getattr(item, "quantidade", 0) or 0)
+                quantidade = parse_non_negative_quantity(getattr(item, "quantidade", 0))
         except Exception:
             continue
         if not cor:
             continue
-        parsed.append(CorItem(cor=cor, quantidade=max(quantidade, 0)))
+        parsed.append(CorItem(cor=cor, quantidade=quantidade))
     return parsed or None
 
 
@@ -111,8 +119,7 @@ class Product:
         self.pending_grade_import = bool(self.pending_grade_import)
         self.grades = _parse_grades(self.grades)
         self.cores = _parse_cores(self.cores)
-        if self.quantidade < 0:
-            self.quantidade = 0
+        self.quantidade = parse_non_negative_quantity(self.quantidade)
         if not self.preco_final:
             self.preco_final = calculate_sale_price(self.preco, margin)
         return self
@@ -141,7 +148,7 @@ class Product:
         return cls(
             nome=str(payload.get("nome", "")),
             codigo=str(payload.get("codigo", "")),
-            quantidade=int(payload.get("quantidade", 0) or 0),
+            quantidade=parse_non_negative_quantity(payload.get("quantidade", 0)),
             preco=str(payload.get("preco", "")),
             categoria=str(payload.get("categoria", "")),
             marca=str(payload.get("marca", "")),
@@ -176,6 +183,11 @@ def parse_price(value: str | None) -> float | None:
         return None
 
 
+def parse_non_negative_price(value: str | None) -> float | None:
+    parsed = parse_price(value)
+    return parsed if parsed is not None and parsed >= 0 else None
+
+
 def format_price(value: float | None) -> str | None:
     if value is None:
         return None
@@ -183,7 +195,7 @@ def format_price(value: float | None) -> str | None:
 
 
 def calculate_sale_price(cost_price: str, margin: float) -> str | None:
-    parsed = parse_price(cost_price)
+    parsed = parse_non_negative_price(cost_price)
     if parsed is None:
         return None
     safe_margin = margin if margin > 0 else 1.0

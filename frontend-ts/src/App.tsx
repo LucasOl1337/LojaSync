@@ -87,7 +87,6 @@ import {
   buildProductQuickFilterEmptyState,
   buildProductSearchEmptyState,
   buildProductQuickFilterOptions,
-  coerceProductQuickFilter,
   filterProductsByQuickFilter,
   filterProductsBySearch,
   resolveStaleProductQuickFilter,
@@ -95,7 +94,6 @@ import {
 import type { ProductQuickFilter } from "./productFilters";
 import {
   GRADE_UI_VERSION,
-  LAST_ACTIVE_GRADE_FAMILY_KEY,
   buildDefaultUiFamilies,
   buildGradeProductStatus,
   buildVisualSizeOrder,
@@ -121,8 +119,6 @@ import {
   buildUndoRedoHistoryState,
   buildPostProcessCompletionMessage,
   cloneSnapshotProducts,
-  coerceImportHistoryEntries,
-  coerceOperationDiaryEntries,
   coerceImportProcessLog,
   coerceStringList,
   formatCaughtErrorMessage,
@@ -137,6 +133,27 @@ import {
   updateRecentImportHistory,
 } from "./uiFormatting";
 import type { ImportHistoryEntry, OperationDiaryEntry, OperationDiaryEntryInput, ProductOperationDiaryInput, UiSocketStatus } from "./uiFormatting";
+import {
+  INLINE_EDIT_FIELD_LABELS,
+  NOTICE_TOAST_LIMIT,
+  NOTICE_TOAST_TIMEOUT_MS,
+  OPERATION_DIARY_LIMIT,
+  RECENT_IMPORT_HISTORY_LIMIT,
+  readInitialImportHistory,
+  readInitialOperationDiary,
+  readInitialProductQuickFilter,
+  readLastActiveGradeFamily,
+  saveLastActiveGradeFamily,
+  saveOperationDiary,
+  saveProductQuickFilter,
+  saveRecentImportHistory,
+} from "./appLocalState";
+import type {
+  ConfirmationDialogState,
+  NoticeDialogState,
+  RuntimeHealthState,
+  TextInputDialogState,
+} from "./appLocalState";
 import { ImportStagePanel } from "./importStagePanel";
 import { ProductEntryPanel } from "./productEntryPanel";
 import { OperationalSummaryPanel } from "./operationalSummaryPanel";
@@ -148,7 +165,7 @@ import { SettingsModal } from "./settingsModal";
 import { ConfirmationDialog } from "./confirmationDialog";
 import { MarginDialog } from "./marginDialog";
 import { TextInputDialog } from "./textInputDialog";
-import { NoticeDialog, type NoticeTone } from "./noticeDialog";
+import { NoticeDialog } from "./noticeDialog";
 import { NoticeToastStack, type NoticeToast } from "./noticeToastStack";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
 import {
@@ -161,85 +178,9 @@ import {
   toggleOrderingKey,
 } from "./productOrdering";
 
-type RuntimeHealthState = {
-  status: "checking" | "ok" | "error";
-  message: string | null;
-  version: string | null;
-  checkedAt: number | null;
-};
-
 type AppProps = {
   authSession?: AuthSessionResponse | null;
 };
-
-type ConfirmationDialogState = {
-  title: string;
-  message: string;
-  detail?: string;
-  confirmLabel: string;
-  onCancel?: () => void;
-  onConfirm: () => Promise<void>;
-};
-
-type TextInputDialogState = {
-  title: string;
-  description: string;
-  label: string;
-  value: string;
-  confirmLabel: string;
-  sectionTag?: string;
-  placeholder?: string;
-  validate?: (value: string) => string | null;
-  onConfirm: (value: string) => Promise<void>;
-};
-
-type NoticeDialogState = {
-  title: string;
-  message: string;
-  tone?: NoticeTone;
-  confirmLabel?: string;
-};
-
-const RECENT_IMPORT_HISTORY_KEY = "lojasync:recent-import-history";
-const RECENT_IMPORT_HISTORY_LIMIT = 3;
-const OPERATION_DIARY_KEY = "lojasync:operation-diary";
-const OPERATION_DIARY_LIMIT = 6;
-const PRODUCT_QUICK_FILTER_KEY = "lojasync:product-quick-filter";
-const NOTICE_TOAST_LIMIT = 4;
-const NOTICE_TOAST_TIMEOUT_MS = 9000;
-const INLINE_EDIT_FIELD_LABELS: Record<EditableField, string> = {
-  nome: "Nome",
-  marca: "Marca",
-  codigo: "Codigo",
-  quantidade: "Quantidade",
-  preco: "Preco",
-  preco_final: "Preco final",
-  categoria: "Categoria",
-};
-
-function readInitialImportHistory() {
-  try {
-    return coerceImportHistoryEntries(JSON.parse(window.localStorage.getItem(RECENT_IMPORT_HISTORY_KEY) || "[]"), RECENT_IMPORT_HISTORY_LIMIT);
-  } catch {
-    return [];
-  }
-}
-
-function readInitialOperationDiary() {
-  try {
-    return coerceOperationDiaryEntries(JSON.parse(window.localStorage.getItem(OPERATION_DIARY_KEY) || "[]"), OPERATION_DIARY_LIMIT);
-  } catch {
-    return [];
-  }
-}
-
-function readInitialProductQuickFilter() {
-  try {
-    return coerceProductQuickFilter(window.localStorage.getItem(PRODUCT_QUICK_FILTER_KEY));
-  } catch {
-    return "all";
-  }
-}
 
 export default function App({ authSession = null }: AppProps) {
   const [state, setState] = useState<LoadState>(initialState);
@@ -315,7 +256,7 @@ export default function App({ authSession = null }: AppProps) {
   const [gradeDraft, setGradeDraft] = useState<Record<string, string>>({});
   const [gradeOrderDraft, setGradeOrderDraft] = useState<string[]>([]);
   const [gradeFamiliesDraft, setGradeFamiliesDraft] = useState<UiGradeFamily[]>([]);
-  const [activeGradeFamilyKey, setActiveGradeFamilyKey] = useState<string>(() => window.localStorage.getItem(LAST_ACTIVE_GRADE_FAMILY_KEY) || "common");
+  const [activeGradeFamilyKey, setActiveGradeFamilyKey] = useState<string>(readLastActiveGradeFamily);
   const [newGradeSize, setNewGradeSize] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -402,11 +343,7 @@ export default function App({ authSession = null }: AppProps) {
     if (nextFilter === productQuickFilter) return;
 
     setProductQuickFilter(nextFilter);
-    try {
-      window.localStorage.setItem(PRODUCT_QUICK_FILTER_KEY, nextFilter);
-    } catch {
-      // This is only a visual preference; never block list usage.
-    }
+    saveProductQuickFilter(nextFilter);
   }, [productQuickFilter, productQuickFilterOptions, state.products.length]);
 
   const productTableEmptyState = useMemo(
@@ -586,11 +523,7 @@ export default function App({ authSession = null }: AppProps) {
     });
     setRecentImports((current) => {
       const next = updateRecentImportHistory(current, entry, RECENT_IMPORT_HISTORY_LIMIT);
-      try {
-        window.localStorage.setItem(RECENT_IMPORT_HISTORY_KEY, JSON.stringify(next));
-      } catch {
-        // Import history is a convenience cache; never block the import flow.
-      }
+      saveRecentImportHistory(next);
       return next;
     });
     return entry;
@@ -600,11 +533,7 @@ export default function App({ authSession = null }: AppProps) {
     const entry = buildOperationDiaryEntry(input);
     setOperationDiary((current) => {
       const next = updateOperationDiaryEntries(current, entry, OPERATION_DIARY_LIMIT);
-      try {
-        window.localStorage.setItem(OPERATION_DIARY_KEY, JSON.stringify(next));
-      } catch {
-        // Operation diary is a local convenience cache; never block the action.
-      }
+      saveOperationDiary(next);
       return next;
     });
     return entry;
@@ -616,13 +545,8 @@ export default function App({ authSession = null }: AppProps) {
 
   const handleProductQuickFilterChange = (filter: ProductQuickFilter) => {
     productQuickFilterTouchedRef.current = true;
-    const nextFilter = coerceProductQuickFilter(filter);
+    const nextFilter = saveProductQuickFilter(filter);
     setProductQuickFilter(nextFilter);
-    try {
-      window.localStorage.setItem(PRODUCT_QUICK_FILTER_KEY, nextFilter);
-    } catch {
-      // This is only a visual preference; never block list usage.
-    }
   };
 
   const applyProductsPreview = (products: Product[]) => {
@@ -1100,7 +1024,7 @@ export default function App({ authSession = null }: AppProps) {
 
   useEffect(() => {
     if (activeGradeFamilyKey) {
-      window.localStorage.setItem(LAST_ACTIVE_GRADE_FAMILY_KEY, activeGradeFamilyKey);
+      saveLastActiveGradeFamily(activeGradeFamilyKey);
     }
   }, [activeGradeFamilyKey]);
 

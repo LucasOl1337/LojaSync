@@ -135,8 +135,6 @@ import {
 import type { ImportHistoryEntry, OperationDiaryEntry, OperationDiaryEntryInput, ProductOperationDiaryInput, UiSocketStatus } from "./uiFormatting";
 import {
   INLINE_EDIT_FIELD_LABELS,
-  NOTICE_TOAST_LIMIT,
-  NOTICE_TOAST_TIMEOUT_MS,
   OPERATION_DIARY_LIMIT,
   RECENT_IMPORT_HISTORY_LIMIT,
   readInitialImportHistory,
@@ -150,10 +148,10 @@ import {
 } from "./appLocalState";
 import type {
   ConfirmationDialogState,
-  NoticeDialogState,
   RuntimeHealthState,
   TextInputDialogState,
 } from "./appLocalState";
+import { useNoticeCenter } from "./appNotifications";
 import { ImportStagePanel } from "./importStagePanel";
 import { ProductEntryPanel } from "./productEntryPanel";
 import { OperationalSummaryPanel } from "./operationalSummaryPanel";
@@ -166,7 +164,7 @@ import { ConfirmationDialog } from "./confirmationDialog";
 import { MarginDialog } from "./marginDialog";
 import { TextInputDialog } from "./textInputDialog";
 import { NoticeDialog } from "./noticeDialog";
-import { NoticeToastStack, type NoticeToast } from "./noticeToastStack";
+import { NoticeToastStack } from "./noticeToastStack";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
 import {
   buildDisplayedProducts,
@@ -305,9 +303,14 @@ export default function App({ authSession = null }: AppProps) {
   const [textInputDialog, setTextInputDialog] = useState<TextInputDialogState | null>(null);
   const [textInputBusy, setTextInputBusy] = useState(false);
   const [textInputError, setTextInputError] = useState<string | null>(null);
-  const [noticeDialog, setNoticeDialog] = useState<NoticeDialogState | null>(null);
-  const [noticeToasts, setNoticeToasts] = useState<NoticeToast[]>([]);
-  const noticeToastSeq = useRef(0);
+  const {
+    noticeDialog,
+    noticeToasts,
+    showNoticeDialog,
+    showErrorNotice,
+    closeNoticeDialog,
+    dismissNoticeToast,
+  } = useNoticeCenter();
 
   const sortedBrands = useMemo(() => [...state.brands].sort((a, b) => a.localeCompare(b, "pt-BR")), [state.brands]);
   const productsByKey = useMemo(() => new Map(state.products.map((product) => [product.ordering_key, product])), [state.products]);
@@ -326,16 +329,6 @@ export default function App({ authSession = null }: AppProps) {
     [productSearchQuery, quickFilteredProducts],
   );
   const productQuickFilterOptions = useMemo(() => buildProductQuickFilterOptions(state.products), [state.products]);
-  useEffect(() => {
-    if (!noticeToasts.length) return;
-
-    const timerId = window.setTimeout(() => {
-      setNoticeToasts((current) => current.slice(1));
-    }, NOTICE_TOAST_TIMEOUT_MS);
-
-    return () => window.clearTimeout(timerId);
-  }, [noticeToasts]);
-
   useEffect(() => {
     if (productQuickFilterTouchedRef.current) return;
 
@@ -1255,29 +1248,6 @@ export default function App({ authSession = null }: AppProps) {
       return;
     }
     void submitImport(file);
-  };
-
-  const showNoticeDialog = (dialog: NoticeDialogState) => {
-    const tone = dialog.tone ?? "info";
-    if (tone === "info" || tone === "success") {
-      const id = ++noticeToastSeq.current;
-      setNoticeToasts((current) => [
-        ...current,
-        {
-          id,
-          title: dialog.title,
-          message: dialog.message,
-          tone,
-        },
-      ].slice(-NOTICE_TOAST_LIMIT));
-      return;
-    }
-
-    setNoticeDialog(dialog);
-  };
-
-  const showErrorNotice = (title: string, message: string) => {
-    showNoticeDialog({ title, message, tone: "danger" });
   };
 
   const openConfirmationDialog = (dialog: ConfirmationDialogState) => {
@@ -2673,12 +2643,12 @@ export default function App({ authSession = null }: AppProps) {
           message={noticeDialog.message}
           tone={noticeDialog.tone}
           confirmLabel={noticeDialog.confirmLabel}
-          onClose={() => setNoticeDialog(null)}
+          onClose={closeNoticeDialog}
         />
       ) : null}
       <NoticeToastStack
         toasts={noticeToasts}
-        onDismiss={(id) => setNoticeToasts((current) => current.filter((toast) => toast.id !== id))}
+        onDismiss={dismissNoticeToast}
       />
       {settingsOpen ? (
         <SettingsModal

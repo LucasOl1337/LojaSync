@@ -7,7 +7,6 @@ import {
   coerceOperationDiaryEntries,
 } from "./uiFormatting";
 import type { ImportHistoryEntry, OperationDiaryEntry } from "./uiFormatting";
-import type { NoticeTone } from "./noticeDialog";
 
 type BrowserStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -39,20 +38,11 @@ export type TextInputDialogState = {
   onConfirm: (value: string) => Promise<void>;
 };
 
-export type NoticeDialogState = {
-  title: string;
-  message: string;
-  tone?: NoticeTone;
-  confirmLabel?: string;
-};
-
 export const RECENT_IMPORT_HISTORY_KEY = "lojasync:recent-import-history";
 export const RECENT_IMPORT_HISTORY_LIMIT = 3;
 export const OPERATION_DIARY_KEY = "lojasync:operation-diary";
 export const OPERATION_DIARY_LIMIT = 6;
 export const PRODUCT_QUICK_FILTER_KEY = "lojasync:product-quick-filter";
-export const NOTICE_TOAST_LIMIT = 4;
-export const NOTICE_TOAST_TIMEOUT_MS = 9000;
 export const INLINE_EDIT_FIELD_LABELS: Record<EditableField, string> = {
   nome: "Nome",
   marca: "Marca",

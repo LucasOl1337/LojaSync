@@ -56,7 +56,7 @@ function SettingsTargetsPanel({
   onCaptureTarget,
 }: SettingsTargetsPanelProps) {
   return (
-    <section className="settingsPanel">
+    <section className="settingsPanel settingsTargetsPanel">
       <div className="settingsPanelHead">
         <div>
           <span className="sectionTag">Cadastro</span>
@@ -67,7 +67,7 @@ function SettingsTargetsPanel({
         </button>
       </div>
       <label className="settingsField">
-        <span>Titulo da janela</span>
+        <span>Título da janela</span>
         <input
           value={targets.title || ""}
           onChange={(event) => onTargetChange("title", event.target.value)}
@@ -105,7 +105,7 @@ function SettingsGradeConfigPanel({
   onCaptureFirstQuantCell,
 }: SettingsGradeConfigPanelProps) {
   return (
-    <section className="settingsPanel">
+    <section className="settingsPanel settingsGradePanel">
       <div className="settingsPanelHead">
         <div>
           <span className="sectionTag">Gradebot</span>
@@ -128,7 +128,7 @@ function SettingsGradeConfigPanel({
           />
         </label>
         <label className="settingsField">
-          <span>Indice do modelo</span>
+          <span>Índice do modelo</span>
           <input
             value={gradeConfig.model_index ?? ""}
             onChange={(event) => onGradeConfigChange((current) => ({
@@ -148,7 +148,7 @@ function SettingsGradeConfigPanel({
         </label>
         <div className="settingsTargetRow compact">
           <div>
-            <strong>Primeira celula da grade</strong>
+            <strong>Primeira célula da grade</strong>
             <span>{formatTargetPoint(gradeConfig.first_quant_cell)}</span>
           </div>
           <button className="ghostButton miniActionButton" type="button" onClick={() => void onCaptureFirstQuantCell()} disabled={Boolean(saving)}>
@@ -175,7 +175,7 @@ function SettingsGradeConfigPanel({
         ))}
       </div>
       <label className="settingsField">
-        <span>Ordem ERP usada pela automacao</span>
+        <span>Ordem ERP usada pela automação</span>
         <textarea
           value={(gradeConfig.erp_size_order || []).join(", ")}
           onChange={(event) => onGradeConfigChange((current) => ({
@@ -200,10 +200,10 @@ function SettingsDiagnosticsPanel({
   onReloadAll,
 }: SettingsDiagnosticsPanelProps) {
   return (
-    <section className="settingsPanel settingsPanelWide">
+    <section className="settingsPanel settingsPanelWide settingsDiagnosticsPanel">
       <div className="settingsPanelHead">
         <div>
-          <span className="sectionTag">Diagnostico</span>
+          <span className="sectionTag">Diagnóstico</span>
           <strong>Contexto atual do ByteEmpresa</strong>
         </div>
         <button className="ghostButton miniActionButton" type="button" onClick={() => void onReloadAll()} disabled={loading || Boolean(saving)}>
@@ -217,7 +217,7 @@ function SettingsDiagnosticsPanel({
       ) : null}
       {message ? <div className="message success">{message}</div> : null}
       {error ? <div className="message error">{error}</div> : null}
-      <pre className="settingsContextBlock">{contextText || "Use 'Ver contexto' ou 'Preparar ByteEmpresa' para carregar diagnostico."}</pre>
+      <pre className="settingsContextBlock">{contextText || "Use 'Ver contexto' ou 'Preparar ByteEmpresa' para carregar diagnóstico."}</pre>
     </section>
   );
 }
@@ -302,8 +302,8 @@ export function SettingsModal({
       >
         <header className="settingsModalHeader">
           <div>
-            <span className="sectionTag">Configuracoes</span>
-            <h3 id="settings-modal-title">Targets, gradebot e diagnostico</h3>
+            <span className="sectionTag">Configurações</span>
+            <h3 id="settings-modal-title">Targets, gradebot e diagnóstico</h3>
           </div>
           <div className="settingsModalHeaderActions">
             <button className="ghostButton miniActionButton" type="button" onClick={() => void onContextRefresh()} disabled={Boolean(saving)}>
@@ -317,7 +317,7 @@ export function SettingsModal({
               className="ghostButton miniActionButton settingsModalCloseButton"
               type="button"
               onClick={onClose}
-              aria-label="Fechar configuracoes"
+              aria-label="Fechar configurações"
             >
               Fechar
             </button>

@@ -11,10 +11,11 @@ from fastapi.testclient import TestClient
 
 from app.application.automation.service import AutomationService
 from app.application.auth.service import AuthService
-from app.application.products.service import ProductService
+from app.application.products.service import MAX_UNDO_HISTORY, ProductService
 from app.bootstrap.wiring.container import AppContainer
 from app.domain.products.entities import GradeItem, Product
 from app.infrastructure.persistence.files.auth_store import JsonAuthStore
+from app.infrastructure.persistence.files.undo_history import JsonUndoRedoHistoryStore
 from app.infrastructure.persistence.sqlite import (
     SQLiteBrandRepository,
     SQLiteMarginSettingsStore,
@@ -22,8 +23,6 @@ from app.infrastructure.persistence.sqlite import (
     SQLiteProductRepository,
 )
 from app.interfaces.api.http.app import create_app
-from app.interfaces.api.http.route_jobs import update_post_process_job
-from app.interfaces.api.http.route_models import PostProcessProductsResultResponse
 from app.shared.config.settings import AppSettings
 from tests.auth_test_support import AuthServiceConnectorStub
 
@@ -52,6 +51,7 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
             metrics_file=data_dir / "metrics.json",
             margin_file=data_dir / "margem.json",
             auth_file=data_dir / "auth.json",
+            undo_history_file=data_dir / "undo_redo_history.json",
         )
         settings = AppSettings()
         auth_store = JsonAuthStore(paths.auth_file, settings.auth_session_ttl_minutes)
@@ -61,7 +61,8 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
         brands = SQLiteBrandRepository(paths.database_file, paths.brands_file, settings.default_brands)
         margin = SQLiteMarginSettingsStore(paths.database_file, paths.margin_file, settings.default_margin)
         metrics = SQLiteMetricsStore(paths.database_file, paths.metrics_file)
-        product_service = ProductService(products, brands, margin, metrics)
+        undo_history = JsonUndoRedoHistoryStore(paths.undo_history_file, MAX_UNDO_HISTORY)
+        product_service = ProductService(products, brands, margin, metrics, undo_history)
         automation_service = AutomationService(product_service, data_dir)
         return AppContainer(
             settings=settings,
@@ -73,6 +74,10 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
 
     def _authenticate(self, client: TestClient) -> None:
         response = client.post("/auth/bootstrap", json={"password": "senha-forte-123"})
+        self.assertEqual(response.status_code, 200)
+
+    def _login(self, client: TestClient) -> None:
+        response = client.post("/auth/login", json={"password": "senha-forte-123"})
         self.assertEqual(response.status_code, 200)
 
     def test_product_routes_reject_invalid_create_prices(self) -> None:
@@ -214,6 +219,77 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(listed[0]["ordering_key"], created["ordering_key"])
                 self.assertEqual(listed[0]["codigo"], "COD-ALTERADO")
 
+    def test_undo_history_persists_across_app_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            first_container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=first_container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = client.post(
+                    "/products",
+                    json={
+                        "nome": "Produto Base",
+                        "codigo": "COD-1",
+                        "quantidade": 1,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                ).json()["item"]
+
+                snapshot_response = client.post("/actions/history/snapshot")
+                self.assertEqual(snapshot_response.status_code, 200)
+                self.assertEqual(snapshot_response.json()["undo_count"], 1)
+
+                patch_response = client.patch(f"/products/{created['ordering_key']}", json={"codigo": "COD-2"})
+                self.assertEqual(patch_response.status_code, 200)
+
+            restarted_container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=restarted_container):
+                client = TestClient(create_app())
+                self._login(client)
+
+                history_response = client.get("/actions/history")
+                self.assertEqual(history_response.status_code, 200)
+                self.assertEqual(history_response.json()["undo_count"], 1)
+
+                undo_response = client.post("/actions/history/undo")
+                self.assertEqual(undo_response.status_code, 200)
+                self.assertTrue(undo_response.json()["restored"])
+                self.assertEqual(undo_response.json()["redo_count"], 1)
+
+                listed = client.get("/products").json()["items"]
+                self.assertEqual(len(listed), 1)
+                self.assertEqual(listed[0]["codigo"], "COD-1")
+
+    def test_improve_descriptions_rejects_remove_letters_only_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                client.post(
+                    "/products",
+                    json={
+                        "nome": "CALCA ENT POCKETS SLIM OGPT",
+                        "codigo": "COD-1",
+                        "quantidade": 1,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                )
+
+                response = client.post("/actions/improve-descriptions", json={"remover_letras": True})
+                self.assertEqual(response.status_code, 400)
+
+                listed = client.get("/products").json()["items"]
+                self.assertEqual(listed[0]["nome"], "CALCA ENT POCKETS SLIM OGPT")
+
     def test_join_grades_processes_all_pending_import_batches_without_touching_manual_items(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -307,6 +383,15 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(len(imported), 2)
                 self.assertTrue(all(not item["pending_grade_import"] for item in imported))
                 self.assertEqual({item["import_batch_id"] for item in imported}, {"batch-a", "batch-b"})
+                grade_lookup = {
+                    item["codigo"]: [(grade["tamanho"], grade["quantidade"]) for grade in (item.get("grades") or [])]
+                    for item in imported
+                }
+                quantity_lookup = {item["codigo"]: item["quantidade"] for item in imported}
+                self.assertEqual(grade_lookup["BATCH-A"], [("36", 1), ("38", 1)])
+                self.assertEqual(grade_lookup["BATCH-B"], [("P", 1), ("M", 1)])
+                self.assertEqual(quantity_lookup["BATCH-A"], 2)
+                self.assertEqual(quantity_lookup["BATCH-B"], 2)
 
     def test_export_json_uses_database_contents(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -336,63 +421,6 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 exported = json.loads(lines[0])
                 self.assertEqual(exported["ordering_key"], created["ordering_key"])
                 self.assertEqual(exported["codigo"], "EXP-1")
-
-    def test_post_process_products_route_starts_and_returns_result(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            container = self._build_container(root)
-            with patch("app.interfaces.api.http.app.build_container", return_value=container):
-                client = TestClient(create_app())
-                self._authenticate(client)
-
-                created = client.post(
-                    "/products",
-                    json={
-                        "nome": "Produto OCR",
-                        "codigo": "COD-RAW",
-                        "quantidade": 2,
-                        "preco": "19,90",
-                        "categoria": "Infantil",
-                        "marca": "Marca P",
-                    },
-                ).json()["item"]
-
-                def fake_run_post_process_job(*, job_id: str, service: object) -> None:
-                    update_post_process_job(
-                        job_id,
-                        "completed",
-                        result=PostProcessProductsResultResponse(
-                            status="ok",
-                            total_itens=1,
-                            total_modificados=0,
-                            dry_run=True,
-                            raw_response='{"items":[{"ordering_key":"%s"}]}' % created["ordering_key"],
-                            warnings=["skeleton"],
-                            metrics={"source": "test"},
-                        ),
-                        metrics={"source": "test"},
-                    )
-
-                with patch(
-                    "app.interfaces.api.http.route_products.run_post_process_job",
-                    side_effect=fake_run_post_process_job,
-                ):
-                    response = client.post("/actions/post-process-products")
-
-                self.assertEqual(response.status_code, 200)
-                job_id = response.json()["job_id"]
-
-                status_response = client.get(f"/actions/post-process-products/status/{job_id}")
-                self.assertEqual(status_response.status_code, 200)
-                self.assertEqual(status_response.json()["stage"], "completed")
-
-                result_response = client.get(f"/actions/post-process-products/result/{job_id}")
-                self.assertEqual(result_response.status_code, 200)
-                payload = result_response.json()
-                self.assertTrue(payload["dry_run"])
-                self.assertEqual(payload["total_itens"], 1)
-                self.assertIn(created["ordering_key"], payload["raw_response"])
-
 
 if __name__ == "__main__":
     unittest.main()

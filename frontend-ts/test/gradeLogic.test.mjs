@@ -48,7 +48,7 @@ test("builds grade product status for missing, partial, overflow and complete gr
     overflow: false,
     pending: true,
     status: "missing",
-    label: "Faltam 4 pecas",
+    label: "Faltam 4 peças",
     tone: "warning",
   });
 
@@ -61,7 +61,7 @@ test("builds grade product status for missing, partial, overflow and complete gr
     overflow: false,
     pending: true,
     status: "under",
-    label: "Faltam 2 pecas",
+    label: "Faltam 2 peças",
     tone: "warning",
   });
 
@@ -74,7 +74,7 @@ test("builds grade product status for missing, partial, overflow and complete gr
     overflow: true,
     pending: true,
     status: "over",
-    label: "Sobraram 2 pecas",
+    label: "Sobraram 2 peças",
     tone: "danger",
   });
 
@@ -153,7 +153,7 @@ test("normalizes grade config state and drops invalid capture points", () => {
   assert.deepEqual(config.ui_size_order, ["MG", "GG"]);
   assert.deepEqual(config.ui_families, [
     { id: "principal", label: "Principal", sizes: ["P", "MG"] },
-    { id: "family-2", label: "Familia 2", sizes: [] },
+    { id: "family-2", label: "Família 2", sizes: [] },
   ]);
   assert.equal(config.ui_family_version, 2);
 });

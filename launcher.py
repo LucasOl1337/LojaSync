@@ -317,10 +317,10 @@ class Launcher:
         )
 
         if self.auth_enabled:
-            auth_already_running = is_tcp_listening(self.host, self.auth_port)
+            auth_already_running = _is_tcp_listening(self.host, self.auth_port)
             if auth_already_running:
                 print(f"[launcher] auth ja ativo em {self.host}:{self.auth_port}; reutilizando.")
-            elif is_port_bindable(self.host, self.auth_port):
+            elif _is_port_bindable(self.host, self.auth_port):
                 self.start_auth_async()
                 time.sleep(0.4)
             else:
@@ -331,10 +331,10 @@ class Launcher:
         else:
             print("[launcher] auth remoto permanece desativado ate habilitacao explicita.")
 
-        llm_already_running = is_tcp_listening(self.llm_host, self.llm_port)
+        llm_already_running = _is_tcp_listening(self.llm_host, self.llm_port)
         if llm_already_running:
             print(f"[launcher] LLM ja ativo em {self.llm_host}:{self.llm_port}; reutilizando.")
-        elif is_port_bindable(self.llm_bind_host, self.llm_port):
+        elif _is_port_bindable(self.llm_bind_host, self.llm_port):
             self.start_llm_async()
         else:
             print(
@@ -349,12 +349,12 @@ class Launcher:
             if monitor_running:
                 print(f"[launcher] monitor LLM ja ativo em {monitor_host}:{self.llm_monitor_port}; reutilizando.")
                 self._use_monitor_base_url = True
-            elif is_tcp_listening(monitor_host, self.llm_monitor_port):
+            elif _is_tcp_listening(monitor_host, self.llm_monitor_port):
                 print(
                     f"[launcher] porta do monitor em uso ({monitor_host}:{self.llm_monitor_port}), "
                     "mas nao respondeu como monitor LLM; backend vai usar LLM direto."
                 )
-            elif is_port_bindable(monitor_host, self.llm_monitor_port):
+            elif _is_port_bindable(monitor_host, self.llm_monitor_port):
                 self.start_llm_monitor_async()
                 self._use_monitor_base_url = True
             else:

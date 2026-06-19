@@ -8,22 +8,20 @@ type OperationalHealthPanelProps = {
 function getCompactHealthCopy(chip: StatusChip): { label: string; value: string } {
   const label = chip.label === "Backend"
     ? "API"
-    : chip.label === "Tempo real"
-      ? "Tempo"
-      : chip.label === "Automacao"
+    : chip.label === "Automação"
         ? "Auto"
         : chip.label;
   let value = chip.value;
   if (chip.label === "Backend") {
-    value = chip.value === "Ativo" ? "OK" : chip.value === "Indisponivel" ? "Erro" : chip.value;
+    value = chip.value === "Ativo" ? "OK" : chip.value === "Indisponível" ? "Erro" : chip.value;
   } else if (chip.label === "Auth") {
-    value = chip.value === "Sessao ativa" ? "Ativa" : chip.value === "Login pendente" ? "Login" : chip.value;
+    value = chip.value === "Sessão ativa" ? "Ativa" : chip.value === "Login pendente" ? "Login" : chip.value;
   } else if (chip.label === "Tempo real") {
-    value = chip.value === "Conectado" ? "OK" : chip.value === "Reconectando" ? "Recon." : chip.value;
-  } else if (chip.label === "Automacao") {
+    value = chip.value === "Conectado" ? "OK" : chip.value;
+  } else if (chip.label === "Automação") {
     value = chip.value === "idle" ? "Idle" : chip.value === "running" ? "Run" : chip.value;
   } else if (chip.label === "Grades") {
-    value = chip.value === "Sem pendencias" ? "OK" : chip.value.replace("pendentes", "pend.").replace("pendente", "pend.");
+    value = chip.value === "Sem pendências" ? "OK" : chip.value.replace("pendentes", "pend.").replace("pendente", "pend.");
   }
   return { label, value };
 }
@@ -34,7 +32,7 @@ export function OperationalHealthPanel({ chips, checkedAt }: OperationalHealthPa
   return (
     <div className="operationalHealthPanelTs">
       <div className="operationalHealthPanelHeaderTs">
-        <strong>Saude operacional</strong>
+        <strong>Saúde operacional</strong>
         {updatedAt ? <span>{updatedAt}</span> : null}
       </div>
       <div className="importInsightChipsTs">
@@ -47,7 +45,7 @@ export function OperationalHealthPanel({ chips, checkedAt }: OperationalHealthPa
           return (
             <div
               key={`${chip.label}-${chip.value}`}
-              className={`importInsightChipTs chip-${chip.tone}`}
+              className={`importInsightChipTs chip-${chip.tone} ${chip.label === "Tempo real" ? "healthRealtimeChipTs" : ""}`}
               aria-label={fullText}
               title={fullText}
             >

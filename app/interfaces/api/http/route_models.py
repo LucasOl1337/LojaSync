@@ -41,6 +41,23 @@ class SnapshotRestoreResponse(BaseModel):
     total: int
 
 
+class HistorySnapshotPayload(BaseModel):
+    clear_redo: bool = True
+
+
+class UndoRedoHistoryResponse(BaseModel):
+    undo_count: int
+    redo_count: int
+    limit: int
+    can_undo: bool
+    can_redo: bool
+
+
+class UndoRedoApplyResponse(UndoRedoHistoryResponse):
+    restored: bool
+    total: int = 0
+
+
 class FormatCodesPayload(BaseModel):
     remover_prefixo5: bool = False
     remover_zeros_a_esquerda: bool = False
@@ -141,39 +158,12 @@ class TargetCaptureResponse(BaseModel):
 class ImproveDescriptionPayload(BaseModel):
     remover_numeros: bool = False
     remover_especiais: bool = False
-    remover_letras: bool = False
     remover_termos: list[str] = Field(default_factory=list)
 
 
 class ImproveDescriptionResponse(BaseModel):
     total: int
     modificados: int
-
-
-class PostProcessProductsStartResponse(BaseModel):
-    job_id: str
-
-
-class PostProcessProductsStatusResponse(BaseModel):
-    job_id: str
-    stage: str
-    message: str
-    started_at: float
-    updated_at: float
-    completed_at: float | None = None
-    error: str | None = None
-    metrics: dict[str, Any] = Field(default_factory=dict)
-
-
-class PostProcessProductsResultResponse(BaseModel):
-    status: str
-    total_itens: int = 0
-    total_modificados: int = 0
-    dry_run: bool = True
-    saved_file: str | None = None
-    raw_response: str | None = None
-    warnings: list[str] = Field(default_factory=list)
-    metrics: dict[str, Any] = Field(default_factory=dict)
 
 
 class ImportRomaneioStartResponse(BaseModel):

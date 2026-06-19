@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import json
+import secrets
 import sqlite3
 from pathlib import Path
 
+from app.domain.auth import AuthConfig
 from app.domain.brands.repository import BrandRepository
 from app.domain.metrics.entities import Metrics
 from app.domain.products.entities import Product
@@ -519,3 +521,100 @@ class SQLiteMetricsStore:
             ),
         )
         connection.commit()
+
+
+class SQLiteAuthStore:
+    def __init__(self, db_file: Path, legacy_auth_file: Path | None, session_ttl_minutes: int) -> None:
+        self._db_file = db_file
+        self._legacy_auth_file = legacy_auth_file
+        self._session_ttl_minutes = session_ttl_minutes
+        with _connect(self._db_file) as connection:
+            _bootstrap_database(connection)
+            self._migrate_legacy_data(connection)
+
+    def load(self) -> AuthConfig:
+        with _connect(self._db_file) as connection:
+            row = connection.execute("SELECT value_json FROM app_settings WHERE key = 'auth'").fetchone()
+        payload = self._decode_payload(row["value_json"] if row is not None else None)
+        config = self._config_from_payload(payload)
+        self.save(config)
+        return config
+
+    def save(self, config: AuthConfig) -> None:
+        with _connect(self._db_file) as connection:
+            self._save_config(connection, config)
+            connection.commit()
+
+    def _migrate_legacy_data(self, connection: sqlite3.Connection) -> None:
+        existing = connection.execute("SELECT 1 FROM app_settings WHERE key = 'auth'").fetchone()
+        if existing is not None:
+            return
+        payload: dict[str, object] = {}
+        if self._legacy_auth_file is not None and self._legacy_auth_file.exists():
+            try:
+                raw_payload = json.loads(self._legacy_auth_file.read_text(encoding="utf-8"))
+                if isinstance(raw_payload, dict):
+                    payload = raw_payload
+            except Exception:
+                payload = {}
+        self._save_config(connection, self._config_from_payload(payload))
+        connection.commit()
+
+    def _save_config(self, connection: sqlite3.Connection, config: AuthConfig) -> None:
+        payload = json.dumps(
+            {
+                "password_hash": config.password_hash,
+                "password_salt": config.password_salt,
+                "secret_key": config.secret_key,
+                "session_ttl_minutes": config.session_ttl_minutes,
+                "password_updated_at": config.password_updated_at,
+            },
+            ensure_ascii=False,
+        )
+        connection.execute(
+            """
+            INSERT INTO app_settings (key, value_json) VALUES ('auth', ?)
+            ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json
+            """,
+            (payload,),
+        )
+
+    def _config_from_payload(self, payload: dict[str, object]) -> AuthConfig:
+        return AuthConfig(
+            password_hash=self._normalize_optional_text(payload.get("password_hash")),
+            password_salt=self._normalize_optional_text(payload.get("password_salt")),
+            secret_key=self._normalize_optional_text(payload.get("secret_key")) or secrets.token_urlsafe(32),
+            session_ttl_minutes=self._normalize_positive_int(payload.get("session_ttl_minutes"))
+            or self._session_ttl_minutes,
+            password_updated_at=self._normalize_optional_float(payload.get("password_updated_at")),
+        )
+
+    @staticmethod
+    def _decode_payload(raw: object) -> dict[str, object]:
+        if raw in (None, ""):
+            return {}
+        try:
+            payload = json.loads(str(raw))
+        except Exception:
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    @staticmethod
+    def _normalize_optional_text(value: object) -> str | None:
+        text = str(value).strip() if value is not None else ""
+        return text or None
+
+    @staticmethod
+    def _normalize_positive_int(value: object) -> int | None:
+        try:
+            parsed = int(value)
+        except Exception:
+            return None
+        return parsed if parsed > 0 else None
+
+    @staticmethod
+    def _normalize_optional_float(value: object) -> float | None:
+        try:
+            return float(value) if value is not None else None
+        except Exception:
+            return None

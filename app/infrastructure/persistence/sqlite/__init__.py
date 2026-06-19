@@ -1,4 +1,5 @@
 from app.infrastructure.persistence.sqlite.stores import (
+    SQLiteAuthStore,
     SQLiteBrandRepository,
     SQLiteMarginSettingsStore,
     SQLiteMetricsStore,
@@ -6,6 +7,7 @@ from app.infrastructure.persistence.sqlite.stores import (
 )
 
 __all__ = [
+    "SQLiteAuthStore",
     "SQLiteBrandRepository",
     "SQLiteMarginSettingsStore",
     "SQLiteMetricsStore",

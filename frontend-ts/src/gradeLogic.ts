@@ -58,9 +58,9 @@ export const LAST_ACTIVE_GRADE_FAMILY_KEY = "lojasync:last-active-grade-family";
 
 const GRADE_FAMILY_PRESET = [
   { id: "common", label: "Mais usadas", order: ["P", "M", "G", "GG", "U", "PP", "P/M", "M/G"] },
-  { id: "letters", label: "Familia letras", order: ["XG", "XXG", "XGG", "G1", "G2", "G3", "G4", "G5", "G6"] },
-  { id: "infantil", label: "Familia infantil", order: ["1", "2", "3", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "3M", "6M", "9M", "12M", "18M"] },
-  { id: "adulto", label: "Familia adulto", order: ["32", "34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "58"] },
+  { id: "letters", label: "Família letras", order: ["XG", "XXG", "XGG", "G1", "G2", "G3", "G4", "G5", "G6"] },
+  { id: "infantil", label: "Família infantil", order: ["1", "2", "3", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "3M", "6M", "9M", "12M", "18M"] },
+  { id: "adulto", label: "Família adulto", order: ["32", "34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "58"] },
 ];
 
 export type IncompleteGradeProduct = {
@@ -117,7 +117,7 @@ function normalizeUiFamiliesState(families: unknown): UiGradeFamily[] {
       const raw = family && typeof family === "object" ? (family as Partial<UiGradeFamily>) : {};
       return {
         id: String(raw.id || `family-${index + 1}`).trim().toLowerCase() || `family-${index + 1}`,
-        label: String(raw.label || `Familia ${index + 1}`).trim() || `Familia ${index + 1}`,
+        label: String(raw.label || `Família ${index + 1}`).trim() || `Família ${index + 1}`,
         sizes: normalizeSizeList(raw.sizes || []),
       };
     })
@@ -227,7 +227,7 @@ export function buildGradeProductStatus(product: Pick<Product, "quantidade" | "g
       overflow,
       pending: true,
       status: "over",
-      label: `Sobraram ${Math.abs(difference)} pecas`,
+      label: `Sobraram ${Math.abs(difference)} peças`,
       tone: "danger",
     };
   }
@@ -240,7 +240,7 @@ export function buildGradeProductStatus(product: Pick<Product, "quantidade" | "g
     overflow,
     pending: true,
     status: hasAny ? "under" : "missing",
-    label: `Faltam ${difference} pecas`,
+    label: `Faltam ${difference} peças`,
     tone: "warning",
   };
 }
@@ -351,7 +351,7 @@ export function normalizeUiFamiliesDraft(families: UiGradeFamily[], fallbackSize
   const normalizedFamilies = families
     .map((family, index) => {
       const id = String(family.id || `family-${index + 1}`).trim().toLowerCase() || `family-${index + 1}`;
-      const label = String(family.label || `Familia ${index + 1}`).trim() || `Familia ${index + 1}`;
+      const label = String(family.label || `Família ${index + 1}`).trim() || `Família ${index + 1}`;
       const sizes: string[] = [];
       for (const size of family.sizes || []) {
         const normalized = normalizeGradeSizeLabel(size);

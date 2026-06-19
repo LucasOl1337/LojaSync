@@ -9,15 +9,14 @@ import time
 
 from fastapi import HTTPException, status
 
-from app.domain.auth import AuthConfig, SessionIdentity
-from app.infrastructure.persistence.files.auth_store import JsonAuthStore
+from app.domain.auth import AuthConfig, AuthConfigStore, SessionIdentity
 
 PBKDF2_ITERATIONS = 310_000
 DEFAULT_USERNAME = "admin"
 
 
 class AuthService:
-    def __init__(self, store: JsonAuthStore, password_min_length: int, cookie_name: str) -> None:
+    def __init__(self, store: AuthConfigStore, password_min_length: int, cookie_name: str) -> None:
         self._store = store
         self._password_min_length = password_min_length
         self._cookie_name = cookie_name

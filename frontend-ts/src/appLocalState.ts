@@ -43,6 +43,7 @@ export const RECENT_IMPORT_HISTORY_LIMIT = 3;
 export const OPERATION_DIARY_KEY = "lojasync:operation-diary";
 export const OPERATION_DIARY_LIMIT = 6;
 export const PRODUCT_QUICK_FILTER_KEY = "lojasync:product-quick-filter";
+export const ORDERING_DRAFT_KEY = "lojasync:ordering-draft";
 export const INLINE_EDIT_FIELD_LABELS: Record<EditableField, string> = {
   nome: "Nome",
   marca: "Marca",
@@ -126,6 +127,45 @@ export function saveProductQuickFilter(filter: ProductQuickFilter, storage: Brow
   const nextFilter = coerceProductQuickFilter(filter);
   writeStorageValue(PRODUCT_QUICK_FILTER_KEY, nextFilter, storage);
   return nextFilter;
+}
+
+export function readInitialOrderingDraft(storage: BrowserStorage | null = getBrowserStorage()): string[] {
+  try {
+    const parsed = JSON.parse(readStorageValue(ORDERING_DRAFT_KEY, storage) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    const keys: string[] = [];
+    for (const item of parsed) {
+      const key = String(item || "").trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      keys.push(key);
+    }
+    return keys;
+  } catch {
+    return [];
+  }
+}
+
+export function saveOrderingDraft(keys: string[], storage: BrowserStorage | null = getBrowserStorage()): string[] {
+  const seen = new Set<string>();
+  const nextKeys: string[] = [];
+  for (const item of keys) {
+    const key = String(item || "").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    nextKeys.push(key);
+  }
+  if (!nextKeys.length) {
+    writeStorageValue(ORDERING_DRAFT_KEY, "[]", storage);
+    return [];
+  }
+  writeStorageValue(ORDERING_DRAFT_KEY, JSON.stringify(nextKeys), storage);
+  return nextKeys;
+}
+
+export function clearOrderingDraft(storage: BrowserStorage | null = getBrowserStorage()): void {
+  writeStorageValue(ORDERING_DRAFT_KEY, "[]", storage);
 }
 
 export function readLastActiveGradeFamily(storage: BrowserStorage | null = getBrowserStorage()): string {

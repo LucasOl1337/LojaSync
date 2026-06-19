@@ -5,9 +5,8 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Iterable
+from typing import Iterable
 
-from app.application.products.post_process_apply import apply_post_process_updates, empty_post_process_result
 from app.domain.brands.repository import BrandRepository
 from app.domain.metrics.entities import Metrics
 from app.domain.products.entities import Product, calculate_sale_price, format_price, parse_non_negative_price, parse_price
@@ -21,9 +20,9 @@ from app.domain.products.grade_utils import (
     strip_size_suffix,
 )
 from app.domain.products.money import parse_price_decimal
-from app.domain.products.post_processing import needs_llm_post_review
 from app.domain.products.repository import ProductRepository
 from app.infrastructure.persistence.files.settings_files import MarginSettingsStore, MetricsStore
+from app.infrastructure.persistence.files.undo_history import InMemoryUndoRedoHistoryStore, UndoRedoHistoryState
 from app.shared.logging.setup import log_event
 
 logger = logging.getLogger(__name__)
@@ -48,6 +47,8 @@ MANUAL_MINUTES_PER_INVOICE = 90
 AUTOMATED_MINUTES_PER_INVOICE = 20
 SECONDS_SAVED_PER_INVOICE = (MANUAL_MINUTES_PER_INVOICE - AUTOMATED_MINUTES_PER_INVOICE) * 60
 IMPORT_PRICE_MERGE_TOLERANCE = Decimal("0.01")
+MAX_UNDO_HISTORY = 50
+
 
 class ProductService:
     def __init__(
@@ -56,21 +57,16 @@ class ProductService:
         brands: BrandRepository,
         margin_store: MarginSettingsStore,
         metrics_store: MetricsStore,
+        undo_history_store: InMemoryUndoRedoHistoryStore | None = None,
     ) -> None:
         self._products = products
         self._brands = brands
         self._margin_store = margin_store
         self._metrics_store = metrics_store
+        self._undo_history_store = undo_history_store or InMemoryUndoRedoHistoryStore(MAX_UNDO_HISTORY)
 
     def list_products(self) -> list[Product]:
         return [Product.from_dict(item.to_dict()) for item in self._products.list_active()]
-
-    def get_post_process_review_candidates(self) -> list[Product]:
-        return [
-            Product.from_dict(item.to_dict())
-            for item in self.list_products()
-            if needs_llm_post_review(item)
-        ]
 
     def create_product(self, product: Product) -> Product:
         occupied_keys = {item.ordering_key() for item in self._products.list_active()}
@@ -143,6 +139,26 @@ class ProductService:
             total_quantity=sum(int(item.quantidade or 0) for item in restored),
         )
         return len(restored)
+
+    def get_undo_redo_history_state(self) -> UndoRedoHistoryState:
+        return self._undo_history_store.state()
+
+    def record_undo_snapshot(self, *, clear_redo: bool = True) -> UndoRedoHistoryState:
+        return self._undo_history_store.record_undo_snapshot(self.list_products(), clear_redo=clear_redo)
+
+    def undo_last_snapshot(self) -> tuple[bool, int, UndoRedoHistoryState]:
+        snapshot, state = self._undo_history_store.undo(self.list_products())
+        if snapshot is None:
+            return False, 0, state
+        total = self.restore_snapshot(snapshot)
+        return True, total, state
+
+    def redo_last_snapshot(self) -> tuple[bool, int, UndoRedoHistoryState]:
+        snapshot, state = self._undo_history_store.redo(self.list_products())
+        if snapshot is None:
+            return False, 0, state
+        total = self.restore_snapshot(snapshot)
+        return True, total, state
 
     def delete_product(self, ordering_key: str) -> bool:
         items = self.list_products()
@@ -763,30 +779,6 @@ class ProductService:
             )
         return {"total": len(items), "modificados": changed}
 
-    def apply_post_processing(self, llm_response_text: str | None = None) -> dict[str, Any]:
-        items = self.list_products()
-        if not items:
-            return empty_post_process_result()
-
-        result = apply_post_process_updates(
-            items,
-            llm_response_text=llm_response_text,
-            margin=self.get_default_margin(),
-        )
-        if result["modificados"]:
-            self._products.replace_active(items)
-            log_event(
-                logger,
-                logging.INFO,
-                "products_post_processed",
-                "products post processed",
-                total=int(result["total"]),
-                modified=int(result["modificados"]),
-                llm_suggestions_applied=int(result["llm_suggestions_applied"]),
-                local_adjustments_applied=int(result["local_adjustments_applied"]),
-            )
-        return result
-
     def get_active_file(self):
         return getattr(self._products, "_active_file")
 
@@ -996,8 +988,8 @@ class ProductService:
             code_size_families.setdefault(family_key, set()).add(size)
             code_family_codes.setdefault(family_key, set()).add((current.codigo or "").strip().lower())
 
-        groups: dict[tuple[str, str], dict[str, object]] = {}
-        ordered_group_keys: list[tuple[str, str]] = []
+        groups: dict[tuple[str, str, str], dict[str, object]] = {}
+        ordered_group_keys: list[tuple[str, str, str]] = []
         passthrough: list[Product] = []
 
         for item in products:
@@ -1027,7 +1019,7 @@ class ProductService:
                 passthrough.append(current)
                 continue
 
-            group_key = (codigo, price_bucket)
+            group_key = (codigo, canonical_name.strip().lower(), price_bucket)
             entry = groups.setdefault(
                 group_key,
                 {

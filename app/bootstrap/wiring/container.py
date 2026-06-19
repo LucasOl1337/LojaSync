@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.application.automation.service import AutomationService
-from app.application.products.service import ProductService
+from app.application.products.service import MAX_UNDO_HISTORY, ProductService
 from app.domain.auth import AuthConnector
 from app.infrastructure.auth.http_connector import HttpAuthConnector
+from app.infrastructure.persistence.files.undo_history import JsonUndoRedoHistoryStore
 from app.infrastructure.persistence.sqlite import (
     SQLiteBrandRepository,
     SQLiteMarginSettingsStore,
@@ -40,7 +41,8 @@ def build_container() -> AppContainer:
     brands = SQLiteBrandRepository(paths.database_file, paths.brands_file, settings.default_brands)
     margin_store = SQLiteMarginSettingsStore(paths.database_file, paths.margin_file, settings.default_margin)
     metrics_store = SQLiteMetricsStore(paths.database_file, paths.metrics_file)
-    product_service = ProductService(products, brands, margin_store, metrics_store)
+    undo_history_store = JsonUndoRedoHistoryStore(paths.undo_history_file, MAX_UNDO_HISTORY)
+    product_service = ProductService(products, brands, margin_store, metrics_store, undo_history_store)
     automation_service = AutomationService(product_service, paths.data_dir)
     return AppContainer(
         settings=settings,

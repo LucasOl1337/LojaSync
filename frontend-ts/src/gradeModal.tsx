@@ -99,11 +99,11 @@ export function GradeModal({
         <header className="gradeModalHeader">
           <div>
             <span className="sectionTag">Inserir grade</span>
-            <h3>{selectedProduct ? `${selectedProduct.nome} (${selectedProduct.codigo || "sem codigo"})` : "Selecione um item"}</h3>
+            <h3>{selectedProduct ? `${selectedProduct.nome} (${selectedProduct.codigo || "sem código"})` : "Selecione um item"}</h3>
           </div>
           <div className="gradeModalHeaderActions">
             <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("executar-grades", onExecuteGrades)}>
-              Executar Grades
+              Executar grades
             </button>
             <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("parar-grades", onStopGrades)}>
               Parar
@@ -121,6 +121,7 @@ export function GradeModal({
                   className={`gradeProductRow ${product.ordering_key === selectedOrderingKey ? "activeGradeProductRow" : ""}`}
                   type="button"
                   tabIndex={0}
+                  aria-current={product.ordering_key === selectedOrderingKey ? "true" : undefined}
                   onClick={() => onSelectProduct(product.ordering_key)}
                   onKeyDown={onGradeStartTab}
                 >
@@ -130,10 +131,12 @@ export function GradeModal({
                     {!gradeStatus.complete && gradeStatus.overflow ? <span className="gradeStatusBadge danger">!</span> : null}
                     {!gradeStatus.complete && !gradeStatus.overflow && gradeStatus.pending ? <span className="gradeStatusBadge warning">!</span> : null}
                   </div>
-                  <span>{product.codigo || "Sem codigo"}</span>
-                  <small className={gradeStatus.overflow ? "gradeStatusTextDanger" : gradeStatus.complete ? "gradeStatusTextSuccess" : gradeStatus.pending ? "gradeStatusTextWarning" : ""}>
-                    {`${gradeStatus.total}/${gradeStatus.expected} - ${gradeStatus.label}`}
-                  </small>
+                  <div className="gradeProductRowMeta">
+                    <span>{product.codigo || "Sem código"}</span>
+                    <small className={gradeStatus.overflow ? "gradeStatusTextDanger" : gradeStatus.complete ? "gradeStatusTextSuccess" : gradeStatus.pending ? "gradeStatusTextWarning" : ""}>
+                      {`${gradeStatus.total}/${gradeStatus.expected} - ${gradeStatus.label}`}
+                    </small>
+                  </div>
                 </button>
               );
             })}
@@ -153,7 +156,7 @@ export function GradeModal({
                     <div>
                       <span>Fechamento da grade</span>
                       <strong>{selectedStatus.label}</strong>
-                      <small>{`${selectedStatus.total}/${selectedStatus.expected} pecas em grade`}</small>
+                      <small>{`${selectedStatus.total}/${selectedStatus.expected} peças em grade`}</small>
                     </div>
                     <button
                       className="ghostButton miniActionButton"
@@ -161,21 +164,21 @@ export function GradeModal({
                       onClick={onSelectNextPendingGrade}
                       disabled={!nextPendingGradeKey}
                     >
-                      Proxima Pendencia
+                      Próxima pendência
                     </button>
                   </div>
                 ) : null}
 
                 <details className="gradeConfigDetails" onKeyDown={onGradeStartTab}>
-                  <summary>Personalizar familias e tamanhos</summary>
+                  <summary>Personalizar famílias e tamanhos</summary>
                   <div className="gradeSizeManager">
                     <div className="gradeSectionHead">
                       <div>
                         <span className="sectionTag">Ordem visual dos tamanhos</span>
-                        <p>Essa ordem e personalizada para o usuario. A automacao continua respeitando a ordem ERP do ByteEmpresa.</p>
+                        <p>Essa ordem é personalizada para o usuário. A automação continua respeitando a ordem ERP do ByteEmpresa.</p>
                       </div>
                       <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("nova-familia-grade", onAddFamily)}>
-                        + Familia
+                        + Família
                       </button>
                     </div>
 
@@ -256,14 +259,14 @@ export function GradeModal({
                     </div>
 
                     <div className="gradeAutomationHint">
-                      <span>Ordem ERP usada pela automacao:</span>
+                      <span>Ordem ERP usada pela automação:</span>
                       <strong>{erpOrderText}</strong>
                     </div>
                   </div>
                 </details>
 
                 <div className="gradeTabsShell">
-                  <div className="gradeTabsBar" role="tablist" aria-label="Familias de grade">
+                  <div className="gradeTabsBar" role="tablist" aria-label="Famílias de grade">
                     {groupedGradeSizes.map((group) => (
                       <button
                         key={group.key}
@@ -308,7 +311,7 @@ export function GradeModal({
                       </div>
                     </section>
                   ) : (
-                    <div className="message subtle">Nenhum tamanho configurado no catalogo.</div>
+                    <div className="message subtle">Nenhum tamanho configurado no catálogo.</div>
                   )}
                 </div>
 

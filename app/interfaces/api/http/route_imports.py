@@ -99,6 +99,7 @@ async def import_romaneio(
         content_type=file.content_type,
         service=container.product_service,
         data_dir=container.paths.data_dir,
+        prefer_llm=True,
     )
     return ImportRomaneioStartResponse(job_id=job.job_id)
 

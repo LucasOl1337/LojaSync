@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import {
   addBrand,
@@ -9,7 +10,6 @@ import {
   captureAutomationTarget,
   clearProducts,
   cleanupImportJob,
-  cleanupPostProcessJob,
   createProduct,
   createSet,
   deleteProduct,
@@ -25,10 +25,9 @@ import {
   fetchRuntimeHealth,
   importRomaneioLocalExperiment,
   fetchMargin,
-  fetchPostProcessResult,
-  fetchPostProcessStatus,
   fetchProducts,
   fetchTotals,
+  fetchUndoRedoHistory,
   formatCodes,
   improveDescriptions,
   importRomaneio,
@@ -36,17 +35,18 @@ import {
   joinGrades,
   patchProduct,
   reorderProducts,
+  redoHistorySnapshot,
+  recordUndoSnapshot,
   restoreOriginalCodes,
-  restoreSnapshot,
   saveAutomationTargets,
   saveGradeConfig,
   saveMargin,
-  startPostProcessProducts,
   startAutomationCatalog,
   startAutomationComplete,
   prepareByteEmpresa,
   stopAutomation,
   stopGradesExecution,
+  undoHistorySnapshot,
 } from "./api";
 import type {
   AuthSessionResponse,
@@ -54,20 +54,17 @@ import type {
   GradeConfig,
   ImportResult,
   ImportStatus,
-  PostProcessResult,
-  PostProcessStatus,
   Product,
   ProductPayload,
   TargetPoint,
   UiEvent,
   UiGradeFamily,
+  UndoRedoHistoryResponse,
 } from "./types";
 import {
   APP_STAGE_HEIGHT,
   APP_STAGE_PADDING,
   APP_STAGE_WIDTH,
-  AUTOMATION_TARGET_FIELDS,
-  MAX_UNDO_HISTORY,
   initialState,
 } from "./appConfig";
 import type { AutomationTargetKey, EditingCellState, GradeCaptureKey, LoadState, Scope } from "./appConfig";
@@ -84,14 +81,13 @@ import {
 } from "./productForm";
 import type { ProductFormField } from "./productForm";
 import {
-  buildProductQuickFilterEmptyState,
   buildProductSearchEmptyState,
-  buildProductQuickFilterOptions,
-  filterProductsByQuickFilter,
   filterProductsBySearch,
-  resolveStaleProductQuickFilter,
 } from "./productFilters";
-import type { ProductQuickFilter } from "./productFilters";
+import {
+  buildDescriptionCleanupSuggestions,
+  parseDescriptionRemovalTerms,
+} from "./descriptionCleanup";
 import {
   GRADE_UI_VERSION,
   buildDefaultUiFamilies,
@@ -106,20 +102,16 @@ import {
   normalizeUiFamiliesDraft,
   sumGradeDraftValues,
 } from "./gradeLogic";
-import { computeCurrentTotals, parsePositivePercentInput } from "./productPricing";
+import { computeCurrentTotals, formatPercentDisplay, parsePositivePercentInput } from "./productPricing";
 import {
   buildImportHistoryEntry,
   buildOperationDiaryEntry,
-  buildOperationalHealthChips,
   buildExecutionReadiness,
   buildImportDiagnosticsChips,
   buildImportGradesAvailableMessage,
   buildImportProgressMessage,
   buildProductOperationDiaryEntry,
   buildUndoRedoHistoryState,
-  buildPostProcessCompletionMessage,
-  cloneSnapshotProducts,
-  coerceImportProcessLog,
   coerceStringList,
   formatCaughtErrorMessage,
   formatCurrency,
@@ -127,7 +119,6 @@ import {
   formatJsonBlock,
   formatTargetPoint,
   formatTimestamp,
-  normalizeTargetPoint,
   parsePromptInteger,
   updateOperationDiaryEntries,
   updateRecentImportHistory,
@@ -137,13 +128,14 @@ import {
   INLINE_EDIT_FIELD_LABELS,
   OPERATION_DIARY_LIMIT,
   RECENT_IMPORT_HISTORY_LIMIT,
+  clearOrderingDraft,
   readInitialImportHistory,
   readInitialOperationDiary,
-  readInitialProductQuickFilter,
+  readInitialOrderingDraft,
   readLastActiveGradeFamily,
+  saveOrderingDraft,
   saveLastActiveGradeFamily,
   saveOperationDiary,
-  saveProductQuickFilter,
   saveRecentImportHistory,
 } from "./appLocalState";
 import type {
@@ -186,6 +178,7 @@ export default function App({ authSession = null }: AppProps) {
     width: typeof window !== "undefined" ? window.innerWidth : APP_STAGE_WIDTH,
     height: typeof window !== "undefined" ? window.innerHeight : APP_STAGE_HEIGHT,
   }));
+  const [sidebarClock, setSidebarClock] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [runtimeHealth, setRuntimeHealth] = useState<RuntimeHealthState>({
     status: "checking",
@@ -213,13 +206,11 @@ export default function App({ authSession = null }: AppProps) {
   const [bulkCategoryValue, setBulkCategoryValue] = useState("");
   const [bulkBrandValue, setBulkBrandValue] = useState("");
   const [simpleModeEnabled, setSimpleModeEnabled] = useState(false);
-  const [productQuickFilter, setProductQuickFilter] = useState<ProductQuickFilter>(readInitialProductQuickFilter);
-  const productQuickFilterTouchedRef = useRef(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [undoRedoRevision, setUndoRedoRevision] = useState(0);
   const [globalEditMode, setGlobalEditMode] = useState(false);
-  const [orderingMode, setOrderingMode] = useState(false);
-  const [orderingDraftKeys, setOrderingDraftKeys] = useState<string[]>([]);
+  const [orderingMode, setOrderingMode] = useState(() => readInitialOrderingDraft().length > 0);
+  const [orderingDraftKeys, setOrderingDraftKeys] = useState<string[]>(readInitialOrderingDraft);
   const [createSetMode, setCreateSetMode] = useState(false);
   const [createSetKeys, setCreateSetKeys] = useState<string[]>([]);
   const [showFormatCodesPanel, setShowFormatCodesPanel] = useState(false);
@@ -232,7 +223,6 @@ export default function App({ authSession = null }: AppProps) {
   const [descriptionOptions, setDescriptionOptions] = useState({
     remover_numeros: false,
     remover_especiais: false,
-    remover_letras: false,
     remover_termos: "",
   });
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -241,9 +231,6 @@ export default function App({ authSession = null }: AppProps) {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [localExperimentLoading, setLocalExperimentLoading] = useState(false);
-  const [postProcessJob, setPostProcessJob] = useState<PostProcessStatus | null>(null);
-  const [postProcessResult, setPostProcessResult] = useState<PostProcessResult | null>(null);
-  const [postProcessError, setPostProcessError] = useState<string | null>(null);
   const [automationError, setAutomationError] = useState<string | null>(null);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [gradeModalError, setGradeModalError] = useState<string | null>(null);
@@ -258,14 +245,11 @@ export default function App({ authSession = null }: AppProps) {
   const [newGradeSize, setNewGradeSize] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [postProcessing, setPostProcessing] = useState(false);
   const pendingScopes = useRef<Set<Scope>>(new Set());
   const flushTimer = useRef<number | null>(null);
   const importPollTimer = useRef<number | null>(null);
-  const postProcessPollTimer = useRef<number | null>(null);
   const undoStackRef = useRef<Product[][]>([]);
   const redoStackRef = useRef<Product[][]>([]);
-  const currentProductsSnapshotRef = useRef<Product[]>([]);
   const isRestoringSnapshotRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importModeRef = useRef<"llm" | "local">("llm");
@@ -288,7 +272,6 @@ export default function App({ authSession = null }: AppProps) {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsTargets, setSettingsTargets] = useState<AutomationTargets>({});
-  const [automationTargetsLoaded, setAutomationTargetsLoaded] = useState(false);
   const [settingsGradeConfig, setSettingsGradeConfig] = useState<GradeConfig>({});
   const [settingsContextText, setSettingsContextText] = useState("");
   const [settingsCaptureLabel, setSettingsCaptureLabel] = useState<string | null>(null);
@@ -313,42 +296,56 @@ export default function App({ authSession = null }: AppProps) {
   } = useNoticeCenter();
 
   const sortedBrands = useMemo(() => [...state.brands].sort((a, b) => a.localeCompare(b, "pt-BR")), [state.brands]);
+  const sidebarClockText = useMemo(
+    () => sidebarClock.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    [sidebarClock],
+  );
+  const sidebarDateText = useMemo(
+    () => sidebarClock.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+    [sidebarClock],
+  );
   const productsByKey = useMemo(() => new Map(state.products.map((product) => [product.ordering_key, product])), [state.products]);
   const originalOrderingKeys = useMemo(() => buildOrderingKeys(state.products), [state.products]);
   const incompleteGradeProducts = useMemo(() => getIncompleteGradeProducts(state.products), [state.products]);
+  const pendingGradeImportProducts = useMemo(
+    () => state.products.filter((product) => Boolean(product.pending_grade_import)),
+    [state.products],
+  );
   const orderedProducts = useMemo(
     () => buildDisplayedProducts(state.products, orderingDraftKeys, orderingMode),
     [orderingDraftKeys, orderingMode, state.products],
   );
-  const quickFilteredProducts = useMemo(
-    () => filterProductsByQuickFilter(orderedProducts, productQuickFilter),
-    [orderedProducts, productQuickFilter],
-  );
   const displayedProducts = useMemo(
-    () => filterProductsBySearch(quickFilteredProducts, productSearchQuery),
-    [productSearchQuery, quickFilteredProducts],
+    () => filterProductsBySearch(orderedProducts, productSearchQuery),
+    [orderedProducts, productSearchQuery],
   );
-  const productQuickFilterOptions = useMemo(() => buildProductQuickFilterOptions(state.products), [state.products]);
-  useEffect(() => {
-    if (productQuickFilterTouchedRef.current) return;
-
-    const nextFilter = resolveStaleProductQuickFilter(productQuickFilter, productQuickFilterOptions, state.products.length);
-    if (nextFilter === productQuickFilter) return;
-
-    setProductQuickFilter(nextFilter);
-    saveProductQuickFilter(nextFilter);
-  }, [productQuickFilter, productQuickFilterOptions, state.products.length]);
+  const descriptionCleanupSuggestions = useMemo(
+    () => buildDescriptionCleanupSuggestions(state.products, descriptionOptions.remover_termos),
+    [descriptionOptions.remover_termos, state.products],
+  );
 
   const productTableEmptyState = useMemo(
     () => productSearchQuery.trim()
-      ? buildProductSearchEmptyState(productSearchQuery, quickFilteredProducts.length)
-      : buildProductQuickFilterEmptyState(productQuickFilter, productQuickFilterOptions, displayedProducts.length, state.products.length),
-    [displayedProducts.length, productQuickFilter, productQuickFilterOptions, productSearchQuery, quickFilteredProducts.length, state.products.length],
+      ? buildProductSearchEmptyState(productSearchQuery, orderedProducts.length)
+      : {
+          searchActive: false,
+          title: state.products.length ? "Nenhum item visível" : "Lista vazia",
+          detail: state.products.length
+            ? "A lista atual não tem itens disponíveis no momento."
+            : "Importe um romaneio ou adicione um produto manualmente para preencher a tabela.",
+          actions: [],
+        },
+    [orderedProducts.length, productSearchQuery, state.products.length],
   );
   const undoRedoHistoryState = useMemo(
     () => buildUndoRedoHistoryState(undoStackRef.current.length, redoStackRef.current.length),
     [undoRedoRevision],
   );
+  const syncUndoRedoHistoryRefs = (history: UndoRedoHistoryResponse) => {
+    undoStackRef.current = Array.from({ length: Math.max(0, Math.floor(history.undo_count || 0)) }, () => [] as Product[]);
+    redoStackRef.current = Array.from({ length: Math.max(0, Math.floor(history.redo_count || 0)) }, () => [] as Product[]);
+    setUndoRedoRevision((current) => current + 1);
+  };
   const orderingSelectionIndex = useMemo(
     () => buildOrderingSelectionIndex(state.products, orderingDraftKeys),
     [orderingDraftKeys, state.products],
@@ -367,17 +364,17 @@ export default function App({ authSession = null }: AppProps) {
   }, [gradeConfig, gradeOrderDraft, gradeSizesCatalog, selectedGradeProduct]);
   const groupedGradeSizes = useMemo(() => {
     const familyHints: Record<string, string> = {
-      common: "PMG, tamanho unico e variacoes mais frequentes.",
+      common: "PMG, tamanho único e variações mais frequentes.",
       letters: "Tamanhos por letras expandidas e linhas plus size.",
-      infantil: "Numeracao infantil e medidas em meses.",
-      adulto: "Numeracao adulta em ordem crescente.",
+      infantil: "Numeração infantil e medidas em meses.",
+      adulto: "Numeração adulta em ordem crescente.",
       extras: "Itens extras fora das familias principais.",
     };
     return gradeFamiliesDraft
       .map((family) => ({
         key: family.id,
         label: family.label,
-        hint: familyHints[family.id] || "Familia personalizada para acesso rapido.",
+        hint: familyHints[family.id] || "Família personalizada para acesso rápido.",
         items: family.sizes,
       }))
       .filter((group) => group.items.length);
@@ -395,16 +392,6 @@ export default function App({ authSession = null }: AppProps) {
     () => findNextPendingGradeKey(state.products, gradeSelectedKey, gradeSelectedKey),
     [gradeSelectedKey, state.products],
   );
-  const missingCompleteTargetLabels = useMemo(
-    () =>
-      automationTargetsLoaded
-        ? AUTOMATION_TARGET_FIELDS
-            .filter((field) => !normalizeTargetPoint(settingsTargets[field.key]))
-            .map((field) => field.label)
-        : null,
-    [automationTargetsLoaded, settingsTargets],
-  );
-
   const applySnapshot = async (scopes: Scope[]) => {
     const tasks = scopes.map(async (scope) => {
       switch (scope) {
@@ -444,10 +431,19 @@ export default function App({ authSession = null }: AppProps) {
           const payload = await fetchAutomationStatus();
           return { scope, value: payload };
         }
+        case "history": {
+          const payload = await fetchUndoRedoHistory();
+          return { scope, value: payload };
+        }
       }
     });
 
     const settled = await Promise.all(tasks);
+    for (const item of settled) {
+      if (item.scope === "history") {
+        syncUndoRedoHistoryRefs(item.value as UndoRedoHistoryResponse);
+      }
+    }
     startTransition(() => {
       setState((current) => {
         const next = { ...current };
@@ -474,7 +470,7 @@ export default function App({ authSession = null }: AppProps) {
       flushTimer.current = null;
       const currentScopes = Array.from(pendingScopes.current);
       pendingScopes.current.clear();
-      void applySnapshot(currentScopes.length ? currentScopes : ["products", "totals", "brands", "margin", "automation"]);
+      void applySnapshot(currentScopes.length ? currentScopes : ["products", "totals", "brands", "margin", "automation", "history"]);
     }, 120);
   };
 
@@ -536,12 +532,6 @@ export default function App({ authSession = null }: AppProps) {
     return rememberOperationDiary(buildProductOperationDiaryEntry(input));
   };
 
-  const handleProductQuickFilterChange = (filter: ProductQuickFilter) => {
-    productQuickFilterTouchedRef.current = true;
-    const nextFilter = saveProductQuickFilter(filter);
-    setProductQuickFilter(nextFilter);
-  };
-
   const applyProductsPreview = (products: Product[]) => {
     const currentTotals = computeCurrentTotals(products, state.marginPercentual);
     startTransition(() => {
@@ -561,28 +551,15 @@ export default function App({ authSession = null }: AppProps) {
     });
   };
 
-  const pushUndoSnapshot = (options?: { clearRedo?: boolean }) => {
+  const pushUndoSnapshot = async (options?: { clearRedo?: boolean }) => {
     if (isRestoringSnapshotRef.current) {
       return;
     }
-    const snapshot = cloneSnapshotProducts(currentProductsSnapshotRef.current);
-    undoStackRef.current.push(snapshot);
-    if (undoStackRef.current.length > MAX_UNDO_HISTORY) {
-      undoStackRef.current.shift();
-    }
-    if (options?.clearRedo !== false) {
-      redoStackRef.current = [];
-    }
-    setUndoRedoRevision((current) => current + 1);
-  };
-
-  const restoreSnapshotState = async (snapshot: Product[]) => {
-    isRestoringSnapshotRef.current = true;
     try {
-      await restoreSnapshot(snapshot);
-      await applySnapshot(["products", "totals", "brands", "margin"]);
-    } finally {
-      isRestoringSnapshotRef.current = false;
+      const history = await recordUndoSnapshot(options?.clearRedo !== false);
+      syncUndoRedoHistoryRefs(history);
+    } catch (error) {
+      console.warn("Historico de desfazer indisponivel; seguindo com a acao principal.", error);
     }
   };
 
@@ -590,32 +567,32 @@ export default function App({ authSession = null }: AppProps) {
     if (!undoStackRef.current.length || isRestoringSnapshotRef.current) {
       return;
     }
-    const snapshot = undoStackRef.current.pop();
-    if (!snapshot) {
-      return;
+    isRestoringSnapshotRef.current = true;
+    try {
+      const result = await undoHistorySnapshot();
+      syncUndoRedoHistoryRefs(result);
+      if (result.restored) {
+        await applySnapshot(["products", "totals", "brands", "margin"]);
+      }
+    } finally {
+      isRestoringSnapshotRef.current = false;
     }
-    redoStackRef.current.push(cloneSnapshotProducts(currentProductsSnapshotRef.current));
-    if (redoStackRef.current.length > MAX_UNDO_HISTORY) {
-      redoStackRef.current.shift();
-    }
-    setUndoRedoRevision((current) => current + 1);
-    await restoreSnapshotState(snapshot);
   };
 
   const redoLastAction = async () => {
     if (!redoStackRef.current.length || isRestoringSnapshotRef.current) {
       return;
     }
-    const snapshot = redoStackRef.current.pop();
-    if (!snapshot) {
-      return;
+    isRestoringSnapshotRef.current = true;
+    try {
+      const result = await redoHistorySnapshot();
+      syncUndoRedoHistoryRefs(result);
+      if (result.restored) {
+        await applySnapshot(["products", "totals", "brands", "margin"]);
+      }
+    } finally {
+      isRestoringSnapshotRef.current = false;
     }
-    undoStackRef.current.push(cloneSnapshotProducts(currentProductsSnapshotRef.current));
-    if (undoStackRef.current.length > MAX_UNDO_HISTORY) {
-      undoStackRef.current.shift();
-    }
-    setUndoRedoRevision((current) => current + 1);
-    await restoreSnapshotState(snapshot);
   };
 
   useEffect(() => {
@@ -632,7 +609,12 @@ export default function App({ authSession = null }: AppProps) {
   }, []);
 
   useEffect(() => {
-    queueRefresh(["products", "totals", "brands", "margin", "automation"]);
+    const timer = window.setInterval(() => setSidebarClock(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    queueRefresh(["products", "totals", "brands", "margin", "automation", "history"]);
   }, []);
 
   useEffect(() => {
@@ -642,9 +624,8 @@ export default function App({ authSession = null }: AppProps) {
         const payload = await fetchAutomationTargets();
         if (disposed) return;
         setSettingsTargets(payload || {});
-        setAutomationTargetsLoaded(true);
       } catch {
-        if (!disposed) setAutomationTargetsLoaded(false);
+        // Settings refreshes targets again when the modal opens.
       }
     };
 
@@ -655,16 +636,23 @@ export default function App({ authSession = null }: AppProps) {
   }, []);
 
   useEffect(() => {
-    currentProductsSnapshotRef.current = cloneSnapshotProducts(state.products);
-  }, [state.products]);
-
-  useEffect(() => {
     if (!orderingMode) {
       setOrderingDraftKeys([]);
       return;
     }
+    if (!originalOrderingKeys.length) {
+      return;
+    }
     setOrderingDraftKeys((current) => sanitizeOrderingDraft(current, originalOrderingKeys));
   }, [orderingMode, originalOrderingKeys]);
+
+  useEffect(() => {
+    if (!orderingMode) {
+      clearOrderingDraft();
+      return;
+    }
+    saveOrderingDraft(orderingDraftKeys);
+  }, [orderingDraftKeys, orderingMode]);
 
   useEffect(() => {
     if (!createSetMode) {
@@ -793,6 +781,16 @@ export default function App({ authSession = null }: AppProps) {
   }, []);
 
   useEffect(() => {
+    if (uiSocketStatus === "connected") {
+      return;
+    }
+
+    const pollFallback = () => queueRefresh(["products", "totals", "brands", "margin", "automation", "history"]);
+    const timer = window.setInterval(pollFallback, 15000);
+    return () => window.clearInterval(timer);
+  }, [uiSocketStatus]);
+
+  useEffect(() => {
     if (state.automation.estado !== "running") {
       return;
     }
@@ -859,7 +857,7 @@ export default function App({ authSession = null }: AppProps) {
             const historyEntry = rememberImportHistory(result, { job, mode: "llm", selectedFileName: importFileNameRef.current });
             rememberOperationDiary({
               kind: "import",
-              title: "Importacao concluida",
+              title: "Importação concluída",
               detail: historyEntry.sourceName,
               tone: historyEntry.warningCount ? "warning" : "success",
               occurredAt: historyEntry.completedAt,
@@ -894,7 +892,7 @@ export default function App({ authSession = null }: AppProps) {
             setImportError(job.error);
             rememberOperationDiary({
               kind: "import",
-              title: "Falha na importacao",
+              title: "Falha na importação",
               detail: job.error,
               tone: "error",
               occurredAt: Number(job.updated_at || 0) > 0 ? job.updated_at * 1000 : Date.now(),
@@ -904,7 +902,7 @@ export default function App({ authSession = null }: AppProps) {
           }
         }
       } catch (error) {
-        setImportError(formatCaughtErrorMessage(error, "Falha ao consultar status da importacao."));
+        setImportError(formatCaughtErrorMessage(error, "Falha ao consultar status da importação."));
       }
     }, 1000);
 
@@ -915,86 +913,6 @@ export default function App({ authSession = null }: AppProps) {
       }
     };
   }, [importJob?.job_id]);
-
-  useEffect(() => {
-    if (!postProcessJob?.job_id) {
-      if (postProcessPollTimer.current !== null) {
-        window.clearInterval(postProcessPollTimer.current);
-        postProcessPollTimer.current = null;
-      }
-      return;
-    }
-
-    if (postProcessPollTimer.current !== null) {
-      window.clearInterval(postProcessPollTimer.current);
-    }
-
-    postProcessPollTimer.current = window.setInterval(async () => {
-      try {
-        const job = await fetchPostProcessStatus(postProcessJob.job_id);
-        setPostProcessJob(job);
-        if (job.stage === "completed") {
-          try {
-            const result = await fetchPostProcessResult(job.job_id);
-            setPostProcessResult(result);
-            setPostProcessing(false);
-            rememberOperationDiary({
-              kind: "review",
-              title: "Revisao com IA concluida",
-              detail: result.dry_run ? "Modo inicial sem aplicacao automatica" : "Alteracoes aplicadas",
-              tone: result.warnings?.length ? "warning" : "success",
-              occurredAt: Number(job.completed_at || job.updated_at || 0) > 0 ? Number(job.completed_at || job.updated_at) * 1000 : Date.now(),
-              meta: [
-                `${result.total_itens} itens`,
-                `${result.total_modificados} alteracoes`,
-                result.dry_run ? "dry-run" : "aplicado",
-                result.warnings?.length ? `${result.warnings.length} avisos` : null,
-              ],
-            });
-            showNoticeDialog({
-              title: "Revisao com IA concluida",
-              message: buildPostProcessCompletionMessage(result),
-              tone: result.warnings?.length ? "warning" : "success",
-            });
-          } finally {
-            try {
-              await cleanupPostProcessJob(job.job_id);
-            } catch {
-              // Keep the review flow resilient even if cleanup fails.
-            }
-          }
-          queueRefresh(["products", "totals"]);
-        }
-        if (job.stage === "completed" || job.stage === "error") {
-          if (postProcessPollTimer.current !== null) {
-            window.clearInterval(postProcessPollTimer.current);
-            postProcessPollTimer.current = null;
-          }
-          if (job.error) {
-            setPostProcessError(job.error);
-            rememberOperationDiary({
-              kind: "review",
-              title: "Falha na revisao com IA",
-              detail: job.error,
-              tone: "error",
-              occurredAt: Number(job.updated_at || 0) > 0 ? job.updated_at * 1000 : Date.now(),
-              meta: [],
-            });
-            setPostProcessing(false);
-          }
-        }
-      } catch (error) {
-        setPostProcessError(formatCaughtErrorMessage(error, "Falha ao consultar a revisao com IA."));
-      }
-    }, 1000);
-
-    return () => {
-      if (postProcessPollTimer.current !== null) {
-        window.clearInterval(postProcessPollTimer.current);
-        postProcessPollTimer.current = null;
-      }
-    };
-  }, [postProcessJob?.job_id]);
 
   useEffect(() => {
     if (!gradeModalOpen) return;
@@ -1095,6 +1013,17 @@ export default function App({ authSession = null }: AppProps) {
     if (!keep?.createSet) setCreateSetMode(false);
   };
 
+  const runOrderingDraftTransition = (update: () => void) => {
+    const transitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => void;
+    };
+    if (typeof transitionDocument.startViewTransition === "function") {
+      transitionDocument.startViewTransition(() => flushSync(update));
+      return;
+    }
+    update();
+  };
+
   const submitProduct = async () => {
     const payloadResult = buildCreateProductPayload(form, simpleModeEnabled);
     if (!payloadResult.ok) {
@@ -1103,7 +1032,7 @@ export default function App({ authSession = null }: AppProps) {
     }
     setSubmitting(true);
     try {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       await createProduct(payloadResult.payload);
       rememberProductOperation({
         action: "create",
@@ -1138,17 +1067,17 @@ export default function App({ authSession = null }: AppProps) {
     setSelectedFile(file);
     importFileNameRef.current = file.name;
     try {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       const started = await importRomaneio(file);
       const status = await fetchImportStatus(started.job_id);
       setImportJob(status);
     } catch (error) {
-      const message = formatCaughtErrorMessage(error, "Falha ao iniciar importacao.");
+      const message = formatCaughtErrorMessage(error, "Falha ao iniciar importação.");
       setImporting(false);
       setImportError(message);
       rememberOperationDiary({
         kind: "import",
-        title: "Falha ao iniciar importacao",
+        title: "Falha ao iniciar importação",
         detail: message,
         tone: "error",
         meta: [file.name],
@@ -1164,13 +1093,13 @@ export default function App({ authSession = null }: AppProps) {
     setSelectedFile(file);
     importFileNameRef.current = file.name;
     try {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       const result = await importRomaneioLocalExperiment(file);
       setImportResult(result);
       const historyEntry = rememberImportHistory(result, { mode: "local", selectedFileName: file.name });
       rememberOperationDiary({
         kind: "import",
-        title: "Parser local concluido",
+        title: "Leitura local concluída",
         detail: historyEntry.sourceName,
         tone: historyEntry.warningCount ? "warning" : "success",
         occurredAt: historyEntry.completedAt,
@@ -1184,41 +1113,17 @@ export default function App({ authSession = null }: AppProps) {
       });
       await refreshAfterLocalImport(result);
     } catch (error) {
-      const message = formatCaughtErrorMessage(error, "Failed to import with local parsing.");
+      const message = formatCaughtErrorMessage(error, "Falha ao importar com leitura local.");
       setImportError(message);
       rememberOperationDiary({
         kind: "import",
-        title: "Falha no parser local",
+        title: "Falha na leitura local",
         detail: message,
         tone: "error",
         meta: [file.name],
       });
     } finally {
       setLocalExperimentLoading(false);
-    }
-  };
-
-  const handleStartPostProcess = async () => {
-    setPostProcessing(true);
-    setPostProcessError(null);
-    setPostProcessResult(null);
-    setPostProcessJob(null);
-    try {
-      pushUndoSnapshot();
-      const started = await startPostProcessProducts();
-      const status = await fetchPostProcessStatus(started.job_id);
-      setPostProcessJob(status);
-    } catch (error) {
-      const message = formatCaughtErrorMessage(error, "Falha ao iniciar a revisao com IA.");
-      setPostProcessing(false);
-      setPostProcessError(message);
-      rememberOperationDiary({
-        kind: "review",
-        title: "Falha ao iniciar revisao com IA",
-        detail: message,
-        tone: "error",
-        meta: [],
-      });
     }
   };
 
@@ -1271,7 +1176,7 @@ export default function App({ authSession = null }: AppProps) {
       await confirmationDialog.onConfirm();
       setConfirmationDialog(null);
     } catch (error) {
-      setConfirmationError(formatCaughtErrorMessage(error, "Falha ao executar a acao."));
+      setConfirmationError(formatCaughtErrorMessage(error, "Falha ao executar a ação."));
     } finally {
       setConfirmationBusy(false);
     }
@@ -1293,8 +1198,8 @@ export default function App({ authSession = null }: AppProps) {
     if (displayedProducts.length >= state.products.length) return true;
     return confirmWithDialog({
       title: "Aplicar em toda a lista?",
-      message: `O filtro atual mostra ${displayedProducts.length} de ${state.products.length} produtos.`,
-      detail: `Aplicar ${fieldLabel} "${value}" a todos os ${state.products.length} produtos, incluindo itens fora do filtro visivel.`,
+      message: `A lista visível mostra ${displayedProducts.length} de ${state.products.length} produtos.`,
+      detail: `Aplicar ${fieldLabel} "${value}" a todos os ${state.products.length} produtos, incluindo itens fora da busca atual.`,
       confirmLabel: "Aplicar a todos",
     });
   };
@@ -1343,7 +1248,7 @@ export default function App({ authSession = null }: AppProps) {
       startTransition(() => {
         setState((current) => ({ ...current, brands: result.marcas }));
       });
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       const applied = await applyBrand(normalized);
       rememberProductOperation({
         action: "bulk_brand",
@@ -1361,9 +1266,9 @@ export default function App({ authSession = null }: AppProps) {
   const handleAutomationAction = async (mode: "catalog" | "complete" | "stop") => {
     setAutomationError(null);
     const actionLabels: Record<typeof mode, { title: string; detail: string; tone: "success" | "warning" }> = {
-      catalog: { title: "Cadastro iniciado", detail: "Execucao de cadastro", tone: "success" },
-      complete: { title: "Cadastro completo iniciado", detail: "Execucao completa", tone: "success" },
-      stop: { title: "Parada solicitada", detail: "Automacao", tone: "warning" },
+      catalog: { title: "Cadastro iniciado", detail: "Execução de cadastro", tone: "success" },
+      complete: { title: "Cadastro completo iniciado", detail: "Execução completa", tone: "success" },
+      stop: { title: "Parada solicitada", detail: "Automação", tone: "warning" },
     };
     try {
       if (mode === "catalog") {
@@ -1382,11 +1287,11 @@ export default function App({ authSession = null }: AppProps) {
       });
       queueRefresh(["automation"]);
     } catch (error) {
-      const message = formatCaughtErrorMessage(error, "Falha na automacao.");
+      const message = formatCaughtErrorMessage(error, "Falha na automação.");
       setAutomationError(message);
       rememberOperationDiary({
         kind: "automation",
-        title: "Falha na automacao",
+        title: "Falha na automação",
         detail: message,
         tone: "error",
         meta: [actionLabels[mode].detail],
@@ -1401,10 +1306,36 @@ export default function App({ authSession = null }: AppProps) {
       .join("\n");
     const remaining = incompleteGradeProducts.length - Math.min(incompleteGradeProducts.length, 3);
     const more = remaining > 0 ? `\nE mais ${remaining} item(ns).` : "";
-    return `Ainda existem grades pendentes.\n\nCorrija antes de usar o Cadastro Completo:\n${sample}${more}`;
+    return `Ainda existem grades pendentes.\n\nCorrija antes de usar o cadastro completo:\n${sample}${more}`;
+  };
+
+  const buildPendingGradeImportAlert = () => {
+    const sample = pendingGradeImportProducts
+      .slice(0, 3)
+      .map((product) => product.nome)
+      .join("\n");
+    const remaining = pendingGradeImportProducts.length - Math.min(pendingGradeImportProducts.length, 3);
+    const more = remaining > 0 ? `\nE mais ${remaining} item(ns).` : "";
+    return `Existem grades detectadas que ainda nao foram aplicadas.\n\nImporte as grades antes do cadastro completo:\n${sample}${more}`;
   };
 
   const handleStartComplete = async () => {
+    if (pendingGradeImportProducts.length) {
+      rememberOperationDiary({
+        kind: "grade",
+        title: "Cadastro completo pausado",
+        detail: `${pendingGradeImportProducts.length} grade${pendingGradeImportProducts.length === 1 ? "" : "s"} para importar`,
+        tone: "warning",
+        meta: ["Importar grades pendente"],
+      });
+      showNoticeDialog({
+        title: "Grades para importar",
+        message: `${buildPendingGradeImportAlert()}\n\nUse Importar grades no centro de execução para aplicar as grades detectadas.`,
+        tone: "warning",
+      });
+      return;
+    }
+
     if (incompleteGradeProducts.length) {
       const firstPendingKey = incompleteGradeProducts[0]?.product.ordering_key || null;
       rememberOperationDiary({
@@ -1412,11 +1343,11 @@ export default function App({ authSession = null }: AppProps) {
         title: "Cadastro completo pausado",
         detail: `${incompleteGradeProducts.length} grade${incompleteGradeProducts.length === 1 ? "" : "s"} pendente${incompleteGradeProducts.length === 1 ? "" : "s"}`,
         tone: "warning",
-        meta: ["Inserir Grade aberto"],
+        meta: ["Inserir grade aberto"],
       });
       showNoticeDialog({
         title: "Grades pendentes",
-        message: `${buildIncompleteGradesAlert()}\n\nVou abrir o Inserir Grade no primeiro item pendente.`,
+        message: `${buildIncompleteGradesAlert()}\n\nVou abrir o Inserir grade no primeiro item pendente.`,
         tone: "warning",
       });
       await openGradeModal(firstPendingKey);
@@ -1426,32 +1357,25 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleClearProducts = async () => {
-    openConfirmationDialog({
-      title: "Limpar lista ativa?",
-      message: "Todos os itens da lista atual serao removidos da sessao.",
-      detail: `${state.products.length} item${state.products.length === 1 ? "" : "s"} na lista. O historico de desfazer fica disponivel apos a acao.`,
-      confirmLabel: "Limpar lista",
-      onConfirm: async () => {
-        pushUndoSnapshot();
-        const result = await clearProducts();
-        rememberProductOperation({
-          action: "clear",
-          productCount: result.removed || state.products.length,
-        });
-        queueRefresh(["products", "totals", "brands"]);
-      },
+    if (!state.products.length) return;
+    await pushUndoSnapshot();
+    const result = await clearProducts();
+    rememberProductOperation({
+      action: "clear",
+      productCount: result.removed || state.products.length,
     });
+    queueRefresh(["products", "totals", "brands"]);
   };
 
   const handleApplyCategory = async (value?: string) => {
     const category = (value ?? bulkCategoryValue).trim();
     if (!category) {
-      showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione uma categoria antes de aplicar.", tone: "warning" });
+      showNoticeDialog({ title: "Seleção obrigatória", message: "Selecione uma categoria antes de aplicar.", tone: "warning" });
       return;
     }
     if (!(await confirmFilteredBulkAction("a categoria", category))) return;
     setBulkCategoryValue(category);
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     const result = await applyCategory(category);
     rememberProductOperation({
       action: "bulk_category",
@@ -1470,7 +1394,7 @@ export default function App({ authSession = null }: AppProps) {
     }
     if (!(await confirmFilteredBulkAction("a marca", brand))) return;
     setBulkBrandValue(brand);
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     const result = await applyBrand(brand);
     rememberProductOperation({
       action: "bulk_brand",
@@ -1482,7 +1406,7 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleJoinDuplicates = async () => {
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     const result = await joinDuplicates();
     queueRefresh(["products", "totals"]);
     showNoticeDialog({
@@ -1493,11 +1417,11 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleJoinGrades = async () => {
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     const result = await joinGrades();
     queueRefresh(["products", "totals"]);
     if (!result.lotes_processados) {
-      showNoticeDialog({ title: "Sem grades pendentes", message: "Nao ha lotes com grades pendentes para importar.", tone: "info" });
+      showNoticeDialog({ title: "Sem grades pendentes", message: "Não há lotes com grades pendentes para importar.", tone: "info" });
       return;
     }
     showNoticeDialog({
@@ -1533,12 +1457,12 @@ export default function App({ authSession = null }: AppProps) {
     setMarginBusy(true);
     setMarginError(null);
     try {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       await saveMargin(percentual);
       const result = await applyMargin(percentual);
       rememberProductOperation({
         action: "margin",
-        value: result.percentual_utilizado.toFixed(2),
+        value: formatPercentDisplay(result.percentual_utilizado).replace("%", ""),
         changedCount: result.total_atualizados,
       });
       queueRefresh(["products", "totals", "margin"]);
@@ -1576,10 +1500,10 @@ export default function App({ authSession = null }: AppProps) {
       return false;
     });
     if (!hasAnyOption) {
-      showNoticeDialog({ title: "Selecao obrigatoria", message: "Escolha pelo menos uma opcao para cortar numeros do codigo.", tone: "warning" });
+      showNoticeDialog({ title: "Seleção obrigatória", message: "Escolha pelo menos uma opção para cortar números do código.", tone: "warning" });
       return;
     }
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     const result = await formatCodes(payload);
     rememberProductOperation({
       action: "format_codes",
@@ -1590,23 +1514,22 @@ export default function App({ authSession = null }: AppProps) {
     queueRefresh(["products"]);
     setShowFormatCodesPanel(false);
     showNoticeDialog({
-      title: "Codigos formatados",
+      title: "Códigos formatados",
       message: `Total analisado: ${result.total}\nAlterados: ${result.alterados}${result.prefixo ? `\nPrefixo removido: ${result.prefixo}` : ""}`,
       tone: "success",
     });
   };
 
   const handleImproveDescriptions = async () => {
-    const termos = Array.from(new Set(descriptionOptions.remover_termos.split(",").map((item) => item.trim()).filter(Boolean)));
-    if (!descriptionOptions.remover_numeros && !descriptionOptions.remover_especiais && !descriptionOptions.remover_letras && !termos.length) {
-      showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione ao menos uma regra de limpeza.", tone: "warning" });
+    const termos = parseDescriptionRemovalTerms(descriptionOptions.remover_termos);
+    if (!descriptionOptions.remover_numeros && !descriptionOptions.remover_especiais && !termos.length) {
+      showNoticeDialog({ title: "Seleção obrigatória", message: "Selecione ao menos uma regra de limpeza.", tone: "warning" });
       return;
     }
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     const result = await improveDescriptions({
       remover_numeros: descriptionOptions.remover_numeros,
       remover_especiais: descriptionOptions.remover_especiais,
-      remover_letras: descriptionOptions.remover_letras,
       remover_termos: termos,
     });
     rememberProductOperation({
@@ -1617,8 +1540,8 @@ export default function App({ authSession = null }: AppProps) {
     queueRefresh(["products"]);
     setShowDescriptionPanel(false);
     showNoticeDialog({
-      title: "Descricoes atualizadas",
-      message: `Descricoes analisadas: ${result.total}\nDescricoes modificadas: ${result.modificados}`,
+      title: "Descrições atualizadas",
+      message: `Descrições analisadas: ${result.total}\nDescrições modificadas: ${result.modificados}`,
       tone: "success",
     });
   };
@@ -1635,7 +1558,7 @@ export default function App({ authSession = null }: AppProps) {
 
   const openGradeModal = async (preferredOrderingKey?: string | null) => {
     if (!state.products.length) {
-      showNoticeDialog({ title: "Lista vazia", message: "Nao ha itens na lista para inserir grades.", tone: "warning" });
+      showNoticeDialog({ title: "Lista vazia", message: "Não há itens na lista para inserir grades.", tone: "warning" });
       return;
     }
     const [sizesPayload, configPayload] = await Promise.all([fetchCatalogSizes(), fetchGradeConfig()]);
@@ -1891,7 +1814,7 @@ export default function App({ authSession = null }: AppProps) {
     const grades = Object.entries(gradeDraft)
       .map(([tamanho, quantidade]) => ({ tamanho, quantidade: Number.parseInt(quantidade, 10) || 0 }))
       .filter((item) => item.quantidade > 0);
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     await patchProduct(selectedGradeProduct.ordering_key, { grades });
     setGradeValidationError(null);
     queueRefresh(["products", "totals"]);
@@ -1929,7 +1852,7 @@ export default function App({ authSession = null }: AppProps) {
     if (!selectedGradeProduct) {
       return;
     }
-    pushUndoSnapshot();
+    await pushUndoSnapshot();
     await patchProduct(selectedGradeProduct.ordering_key, { grades: [] });
     setGradeDraft({});
     setGradeValidationError(null);
@@ -1944,7 +1867,7 @@ export default function App({ authSession = null }: AppProps) {
       detail: `${productsWithGrades.length} itens serao afetados. A lista de produtos e os dados de cadastro permanecem intactos.`,
       confirmLabel: "Limpar grades",
       onConfirm: async () => {
-        pushUndoSnapshot();
+        await pushUndoSnapshot();
         await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
         setGradeDraft({});
         setGradeValidationError(null);
@@ -1978,13 +1901,14 @@ export default function App({ authSession = null }: AppProps) {
   const handleToggleOrdering = async () => {
     if (!orderingMode) {
       resetListModes({ ordering: true });
+      clearOrderingDraft();
       setOrderingDraftKeys([]);
       setOrderingMode(true);
       return;
     }
     const finalOrder = buildFinalOrderingKeys(originalOrderingKeys, orderingDraftKeys);
     if (finalOrder.length) {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       const result = await reorderProducts(finalOrder);
       rememberProductOperation({
         action: "reorder",
@@ -1995,24 +1919,26 @@ export default function App({ authSession = null }: AppProps) {
     }
     setOrderingMode(false);
     setOrderingDraftKeys([]);
+    clearOrderingDraft();
   };
 
   const handleCancelOrdering = () => {
     setOrderingMode(false);
     setOrderingDraftKeys([]);
+    clearOrderingDraft();
   };
 
   const handleOrderingSelection = (orderingKey: string, options?: { allowRemove?: boolean }) => {
     if (!orderingMode) return;
-    setOrderingDraftKeys((current) => {
-      return toggleOrderingKey(current, orderingKey, options);
+    runOrderingDraftTransition(() => {
+      setOrderingDraftKeys((current) => toggleOrderingKey(current, orderingKey, options));
     });
   };
 
   const moveOrderingItem = (orderingKey: string, direction: -1 | 1) => {
     if (!orderingMode) return;
-    setOrderingDraftKeys((current) => {
-      return moveOrderingKey(current, orderingKey, direction);
+    runOrderingDraftTransition(() => {
+      setOrderingDraftKeys((current) => moveOrderingKey(current, orderingKey, direction));
     });
   };
 
@@ -2029,7 +1955,7 @@ export default function App({ authSession = null }: AppProps) {
       : [...createSetKeys, orderingKey].slice(-2);
     setCreateSetKeys(futureKeys);
     if (futureKeys.length === 2) {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       const result = await createSet(futureKeys[0], futureKeys[1]);
       rememberProductOperation({
         action: "create_set",
@@ -2071,12 +1997,12 @@ export default function App({ authSession = null }: AppProps) {
     const { orderingKey, field, value } = editingCell;
     const payloadResult = buildInlineEditPayload(field, value);
     if (!payloadResult.ok) {
-      showNoticeDialog({ title: "Edicao invalida", message: payloadResult.error, tone: "warning" });
+      showNoticeDialog({ title: "Edição inválida", message: payloadResult.error, tone: "warning" });
       return;
     }
 
     try {
-      pushUndoSnapshot();
+      await pushUndoSnapshot();
       await patchProduct(orderingKey, payloadResult.payload);
       const product = productsByKey.get(orderingKey);
       rememberProductOperation({
@@ -2129,11 +2055,10 @@ export default function App({ authSession = null }: AppProps) {
     try {
       const [targetsPayload, gradeConfigPayload] = await Promise.all([fetchAutomationTargets(), fetchGradeConfig()]);
       setSettingsTargets(targetsPayload || {});
-      setAutomationTargetsLoaded(true);
       setSettingsGradeConfig(normalizeGradeConfigState(gradeConfigPayload));
       setSettingsContextText("");
     } catch (error) {
-      setSettingsError(formatCaughtErrorMessage(error, "Falha ao carregar configuracoes."));
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao carregar configurações."));
     } finally {
       setSettingsLoading(false);
     }
@@ -2180,7 +2105,6 @@ export default function App({ authSession = null }: AppProps) {
     try {
       const saved = await saveAutomationTargets(settingsTargets);
       setSettingsTargets(saved);
-      setAutomationTargetsLoaded(true);
       setSettingsMessage("Targets salvos com sucesso.");
       queueRefresh(["automation"]);
     } catch (error) {
@@ -2196,10 +2120,10 @@ export default function App({ authSession = null }: AppProps) {
     try {
       const saved = await saveGradeConfig(normalizeGradeConfigState(settingsGradeConfig));
       setSettingsGradeConfig(normalizeGradeConfigState(saved.config));
-      setSettingsMessage("Configuracao de grades salva com sucesso.");
+      setSettingsMessage("Configuração de grades salva com sucesso.");
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(formatCaughtErrorMessage(error, "Falha ao salvar configuracao de grades."));
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao salvar configuração de grades."));
     } finally {
       setSettingsSaving(null);
     }
@@ -2212,7 +2136,6 @@ export default function App({ authSession = null }: AppProps) {
       const nextTargets = { ...settingsTargets, [key]: point };
       const saved = await saveAutomationTargets(nextTargets);
       setSettingsTargets(saved);
-      setAutomationTargetsLoaded(true);
       setSettingsMessage(`${label} capturado em ${formatTargetPoint(point)}.`);
       queueRefresh(["automation"]);
     } catch (error) {
@@ -2254,10 +2177,10 @@ export default function App({ authSession = null }: AppProps) {
       });
       const saved = await saveGradeConfig(nextConfig);
       setSettingsGradeConfig(normalizeGradeConfigState(saved.config));
-      setSettingsMessage(`Primeira celula de quantidade capturada em ${formatTargetPoint(point)}.`);
+      setSettingsMessage(`Primeira célula de quantidade capturada em ${formatTargetPoint(point)}.`);
       queueRefresh(["automation"]);
     } catch (error) {
-      setSettingsError(formatCaughtErrorMessage(error, "Falha ao capturar a primeira celula."));
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao capturar a primeira célula."));
     } finally {
       setSettingsSaving(null);
     }
@@ -2283,7 +2206,7 @@ export default function App({ authSession = null }: AppProps) {
     try {
       const payload = await prepareByteEmpresa();
       setSettingsContextText(formatJsonBlock(payload));
-      setSettingsMessage("Preparacao do ByteEmpresa executada.");
+      setSettingsMessage("Preparação do ByteEmpresa executada.");
       queueRefresh(["automation"]);
     } catch (error) {
       setSettingsError(formatCaughtErrorMessage(error, "Falha ao preparar a janela do ByteEmpresa."));
@@ -2307,29 +2230,17 @@ export default function App({ authSession = null }: AppProps) {
       : importResult?.metrics && Object.keys(importResult.metrics).length
         ? importResult.metrics
         : {};
-  const importProcessLog = coerceImportProcessLog(importMetrics);
   const importWarnings = importResult?.warnings?.length ? importResult.warnings : [];
   const importValidationStatus = String(importMetrics["final_validation_status"] || importMetrics["local_validation_status"] || "").trim();
   const importProgressMessage = buildImportProgressMessage(importing, importJob?.message);
   const importDiagnosticsChips = buildImportDiagnosticsChips(importMetrics, importWarnings);
   const importSuccessMessage = importResult ? `${importResult.total_itens} itens importados as ${formatTimestamp(importJob?.updated_at)}.` : null;
-  const operationalHealthChips = buildOperationalHealthChips({
-    backendStatus: runtimeHealth.status,
-    backendError: runtimeHealth.message,
-    authEnabled: authSession?.auth_enabled ?? false,
-    authenticated: authSession?.authenticated ?? false,
-    bootstrapRequired: authSession?.bootstrap_required ?? false,
-    websocketStatus: uiSocketStatus,
-    automationState: state.automation.estado,
-    automationError,
-    pendingGrades: incompleteGradeProducts.length,
-  });
   const executionReadiness = buildExecutionReadiness({
     productCount: state.products.length,
+    pendingGradeImportCount: pendingGradeImportProducts.length,
     pendingGradeCount: incompleteGradeProducts.length,
     automationState: state.automation.estado,
     automationError,
-    missingTargetLabels: missingCompleteTargetLabels,
   });
   const stageWidth = Math.max(
     320,
@@ -2352,7 +2263,7 @@ export default function App({ authSession = null }: AppProps) {
           workspacePanel?.scrollIntoView({ block: "nearest", inline: "nearest" });
         }}
       >
-        Pular para area de trabalho
+        Pular para área de trabalho
       </a>
       <div className="shellStage" style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}>
         <div
@@ -2363,18 +2274,22 @@ export default function App({ authSession = null }: AppProps) {
           }}
         >
       <main className="appShellTs" aria-labelledby="app-title">
-        <aside className="leftPanelTs" aria-label="Fluxo de importacao e resumo operacional">
+        <aside className="leftPanelTs" aria-label="Fluxo de importação e resumo operacional">
           <div className="lojasyncBrandHeader">
             <img src="/logo.png" alt="LojaSync" className="lojasyncLogoImg" />
-            <h1 className="lojasyncBrandName" id="app-title"><b>Loja</b>sync</h1>
+            <h1 className="lojasyncBrandName" id="app-title">Loja<b>Sync</b></h1>
+            <div className="sidebarClockTs" aria-label={`Horário atual ${sidebarClockText}. Data ${sidebarDateText}.`}>
+              <span className="sidebarClockTimeTs">{sidebarClockText}</span>
+              <span className="sidebarClockDateTs">{sidebarDateText}</span>
+            </div>
           </div>
           <div className="actionsFloatingTs">
             <div className="panelActionCompact">
               <button
                 className="iconShellButton"
                 type="button"
-                title="Configuracoes"
-                aria-label="Configuracoes"
+                title="Configurações"
+                aria-label="Configurações"
                 onClick={() => void openSettingsModal()}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -2399,7 +2314,6 @@ export default function App({ authSession = null }: AppProps) {
               importSuccessMessage={importSuccessMessage}
               validationStatus={importValidationStatus}
               diagnosticsChips={importDiagnosticsChips}
-              processLog={importProcessLog}
               warnings={importWarnings}
               recentImports={recentImports}
               inputRef={importInputRef}
@@ -2427,11 +2341,8 @@ export default function App({ authSession = null }: AppProps) {
           />
 
           <OperationalSummaryPanel
-            healthChips={operationalHealthChips}
-            checkedAt={runtimeHealth.checkedAt}
             totalsText={state.totalsText}
             totalsRaw={state.totalsRaw}
-            operationDiary={operationDiary}
           />
         </aside>
 
@@ -2446,7 +2357,7 @@ export default function App({ authSession = null }: AppProps) {
             automationMessage={state.automation.message}
             automationError={automationError}
             automationProgressWidth={automationProgressWidth}
-            pendingGradeCount={incompleteGradeProducts.length}
+            pendingGradeCount={pendingGradeImportProducts.length + incompleteGradeProducts.length}
             executionReadiness={executionReadiness}
             runBusyAction={runBusyAction}
             onStartComplete={handleStartComplete}
@@ -2458,11 +2369,10 @@ export default function App({ authSession = null }: AppProps) {
           />
 
           <ProductListControls
+            loading={loading}
             displayedCount={displayedProducts.length}
             totalCount={state.products.length}
             productSearchQuery={productSearchQuery}
-            productQuickFilter={productQuickFilter}
-            productQuickFilterOptions={productQuickFilterOptions}
             undoRedoHistoryState={undoRedoHistoryState}
             busyAction={busyAction}
             globalEditMode={globalEditMode}
@@ -2470,10 +2380,7 @@ export default function App({ authSession = null }: AppProps) {
             showDescriptionPanel={showDescriptionPanel}
             formatCodesOptions={formatCodesOptions}
             descriptionOptions={descriptionOptions}
-            postProcessing={postProcessing}
-            postProcessJob={postProcessJob}
-            postProcessError={postProcessError}
-            postProcessResult={postProcessResult}
+            descriptionSuggestions={descriptionCleanupSuggestions}
             orderingMode={orderingMode}
             orderingSelectedCount={orderingDraftKeys.length}
             createSetMode={createSetMode}
@@ -2482,7 +2389,6 @@ export default function App({ authSession = null }: AppProps) {
             onUndo={undoLastAction}
             onRedo={redoLastAction}
             onProductSearchChange={setProductSearchQuery}
-            onQuickFilterChange={handleProductQuickFilterChange}
             onToggleGlobalEdit={handleToggleGlobalEdit}
             onToggleFormatCodesPanel={() => {
               setShowFormatCodesPanel((current) => !current);
@@ -2492,7 +2398,6 @@ export default function App({ authSession = null }: AppProps) {
               setShowDescriptionPanel((current) => !current);
               setShowFormatCodesPanel(false);
             }}
-            onStartPostProcess={handleStartPostProcess}
             onToggleOrdering={handleToggleOrdering}
             onCancelOrdering={handleCancelOrdering}
             onToggleCreateSets={handleToggleCreateSets}
@@ -2500,19 +2405,19 @@ export default function App({ authSession = null }: AppProps) {
             onClearProducts={handleClearProducts}
             onFormatCodeOptionChange={(field, value) => setFormatCodesOptions((current) => ({ ...current, [field]: value }))}
             onRestoreOriginalCodes={async () => {
-              pushUndoSnapshot();
+              await pushUndoSnapshot();
               const result = await restoreOriginalCodes();
               rememberProductOperation({
                 action: "format_codes",
                 productCount: result.total,
                 changedCount: result.restaurados,
-                value: "Codigos originais restaurados",
+                value: "Códigos originais restaurados",
               });
               queueRefresh(["products"]);
               setShowFormatCodesPanel(false);
               showNoticeDialog({
-                title: "Codigos restaurados",
-                message: `Total analisado: ${result.total}\nCodigos restaurados: ${result.restaurados}`,
+                title: "Códigos restaurados",
+                message: `Total analisado: ${result.total}\nCódigos restaurados: ${result.restaurados}`,
                 tone: "success",
               });
             }}
@@ -2565,19 +2470,17 @@ export default function App({ authSession = null }: AppProps) {
             onOrderingSelection={handleOrderingSelection}
             onCreateSetSelection={handleCreateSetSelection}
             onMoveOrderingItem={moveOrderingItem}
-            onQuickFilterChange={handleProductQuickFilterChange}
             onProductSearchChange={setProductSearchQuery}
-            onReviewFilterChange={handleProductQuickFilterChange}
             onDeleteProduct={async (orderingKey) => {
               const product = productsByKey.get(orderingKey);
               const productName = product?.nome || orderingKey;
               openConfirmationDialog({
                 title: "Excluir item da lista?",
                 message: `"${productName}" sera removido da lista ativa.`,
-                detail: "A remocao afeta apenas este item e pode ser desfeita pelo historico da lista.",
+                detail: "A remoção afeta apenas este item e pode ser desfeita pelo histórico da lista.",
                 confirmLabel: "Excluir item",
                 onConfirm: async () => {
-                  pushUndoSnapshot();
+                  await pushUndoSnapshot();
                   await deleteProduct(orderingKey);
                   rememberProductOperation({
                     action: "delete",
@@ -2687,7 +2590,7 @@ export default function App({ authSession = null }: AppProps) {
           groupedGradeSizes={groupedGradeSizes}
           activeGradeFamily={activeGradeFamily}
           erpSizes={gradeConfig?.erp_size_order || []}
-          erpOrderText={(gradeConfig?.erp_size_order || []).join(" • ") || "Nao configurada"}
+          erpOrderText={(gradeConfig?.erp_size_order || []).join(" • ") || "Não configurada"}
           newGradeSize={newGradeSize}
           validationError={gradeValidationError}
           modalError={gradeModalError}

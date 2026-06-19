@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+const appConfig = await import(new URL("../.tmp-tests/appConfig.js", import.meta.url));
 const ui = await import(new URL("../.tmp-tests/uiFormatting.js", import.meta.url));
+
+test("allows up to fifty undo redo snapshots", () => {
+  assert.equal(appConfig.MAX_UNDO_HISTORY, 50);
+});
 
 test("formats singular and plural count labels", () => {
   assert.equal(ui.actionText(1, "item ativo", "itens ativos"), "1 item ativo");
@@ -30,7 +35,7 @@ test("normalizes target points from finite coordinates only", () => {
 });
 
 test("formats target points for settings displays", () => {
-  assert.equal(ui.formatTargetPoint(null), "Nao calibrado");
+  assert.equal(ui.formatTargetPoint(null), "Não calibrado");
   assert.equal(ui.formatTargetPoint({ x: 10, y: 20 }), "X: 10 | Y: 20");
 });
 
@@ -55,8 +60,8 @@ test("coerces import process logs to displayable entries", () => {
 
 test("builds import progress messages from the latest job status", () => {
   assert.equal(ui.buildImportProgressMessage(false, "Processando com servico LLM"), null);
-  assert.equal(ui.buildImportProgressMessage(true, null), "Importacao em andamento...");
-  assert.equal(ui.buildImportProgressMessage(true, "  Processando texto 2/3 com servico LLM  "), "Processando texto 2/3 com servico LLM");
+  assert.equal(ui.buildImportProgressMessage(true, null), "Importação em andamento...");
+  assert.equal(ui.buildImportProgressMessage(true, "  Processando texto 2/3 com servico LLM  "), "Processando texto 2/3 com IA");
 });
 
 test("builds import diagnostics chips from existing metrics", () => {
@@ -72,17 +77,12 @@ test("builds import diagnostics chips from existing metrics", () => {
       ["OCR por pagina inteira sem itens validos"],
     ),
     [
-      { label: "Origem", value: "LLM", tone: "neutral" },
-      { label: "LLM", value: "2 chamadas", tone: "neutral" },
-      { label: "Partes", value: "3", tone: "neutral" },
-      { label: "Imagens", value: "1", tone: "neutral" },
-      { label: "Fallback", value: "Recortes verticais", tone: "warning" },
-      { label: "Avisos", value: "1", tone: "warning" },
+      { label: "Origem", value: "IA", tone: "neutral" },
     ],
   );
 
   assert.deepEqual(ui.buildImportDiagnosticsChips({ selected_source: "local" }), [
-    { label: "Origem", value: "Parser local", tone: "success" },
+    { label: "Origem", value: "Leitura local", tone: "success" },
   ]);
   assert.deepEqual(ui.buildImportDiagnosticsChips(null), []);
 });
@@ -99,9 +99,9 @@ test("builds operational health chips from runtime, auth, websocket and automati
     }),
     [
       { label: "Backend", value: "Ativo", tone: "success" },
-      { label: "Auth", value: "Sessao ativa", tone: "success" },
+      { label: "Auth", value: "Sessão ativa", tone: "success" },
       { label: "Tempo real", value: "Conectado", tone: "success" },
-      { label: "Automacao", value: "Em execucao", tone: "warning" },
+      { label: "Automação", value: "Em execução", tone: "warning" },
       { label: "Grades", value: "2 pendentes", tone: "warning" },
     ],
   );
@@ -117,11 +117,11 @@ test("builds operational health chips from runtime, auth, websocket and automati
       pendingGrades: 0,
     }),
     [
-      { label: "Backend", value: "Indisponivel", tone: "error" },
+      { label: "Backend", value: "Indisponível", tone: "error" },
       { label: "Auth", value: "Login pendente", tone: "warning" },
-      { label: "Tempo real", value: "Reconectando", tone: "warning" },
-      { label: "Automacao", value: "ByteEmpresa fechado", tone: "error" },
-      { label: "Grades", value: "Sem pendencias", tone: "success" },
+      { label: "Tempo real", value: "Polling API", tone: "neutral" },
+      { label: "Automação", value: "ByteEmpresa fechado", tone: "error" },
+      { label: "Grades", value: "Sem pendências", tone: "success" },
     ],
   );
 });
@@ -129,7 +129,7 @@ test("builds operational health chips from runtime, auth, websocket and automati
 test("formats automation state labels for operator-facing UI", () => {
   assert.equal(ui.formatAutomationStateLabel(null), "Pronta");
   assert.equal(ui.formatAutomationStateLabel("idle"), "Pronta");
-  assert.equal(ui.formatAutomationStateLabel("running"), "Em execucao");
+  assert.equal(ui.formatAutomationStateLabel("running"), "Em execução");
   assert.equal(ui.formatAutomationStateLabel("stopping"), "Parando");
   assert.equal(ui.formatAutomationStateLabel("failed"), "Falha");
   assert.equal(ui.formatAutomationStateLabel("queued"), "Na fila");
@@ -148,13 +148,9 @@ test("builds execution readiness from list, grades and automation state", () => 
     {
       ready: true,
       tone: "success",
-      title: "Pronto para cadastro completo",
-      detail: "Lista com produtos, grades fechadas e automacao sem erro ativo.",
-      items: [
-        { label: "Lista", value: "8 itens", tone: "success" },
-        { label: "Grades", value: "Fechadas", tone: "success" },
-        { label: "Automacao", value: "Pronta", tone: "neutral" },
-      ],
+      title: "Pronto",
+      detail: "",
+      items: [],
     },
   );
 
@@ -168,12 +164,10 @@ test("builds execution readiness from list, grades and automation state", () => 
     {
       ready: false,
       tone: "warning",
-      title: "2 grades pendentes",
-      detail: "Abra Inserir Grade para fechar as pendencias antes do cadastro completo.",
+      title: "2 grades com divergência",
+      detail: "Abra Inserir grade para fechar as divergências antes do cadastro completo.",
       items: [
-        { label: "Lista", value: "3 itens", tone: "success" },
-        { label: "Grades", value: "2 pendentes", tone: "warning" },
-        { label: "Automacao", value: "Pronta", tone: "neutral" },
+        { label: "Grades", value: "2 divergentes", tone: "warning" },
       ],
     },
   );
@@ -188,12 +182,11 @@ test("builds execution readiness from list, grades and automation state", () => 
     {
       ready: false,
       tone: "error",
-      title: "Revisar automacao",
-      detail: "Corrija o erro da automacao antes de iniciar o cadastro completo.",
+      title: "Revisar automação",
+      detail: "Corrija o erro da automação antes de iniciar o cadastro completo.",
       items: [
         { label: "Lista", value: "Sem produtos", tone: "warning" },
-        { label: "Grades", value: "Fechadas", tone: "success" },
-        { label: "Automacao", value: "ByteEmpresa fechado", tone: "error" },
+        { label: "Automação", value: "ByteEmpresa fechado", tone: "error" },
       ],
     },
   );
@@ -201,21 +194,37 @@ test("builds execution readiness from list, grades and automation state", () => 
   assert.deepEqual(
     ui.buildExecutionReadiness({
       productCount: 5,
+      pendingGradeImportCount: 2,
       pendingGradeCount: 0,
       automationState: "idle",
       automationError: null,
-      missingTargetLabels: ["Campo Descricao", "Cadastro completo passo 1"],
     }),
     {
       ready: false,
       tone: "warning",
-      title: "2 targets incompletos",
-      detail: "Calibre os alvos de automacao nas configuracoes antes do cadastro completo.",
+      title: "2 grades para importar",
+      detail: "Use Importar grades para aplicar as grades detectadas antes do cadastro completo.",
       items: [
-        { label: "Lista", value: "5 itens", tone: "success" },
-        { label: "Grades", value: "Fechadas", tone: "success" },
-        { label: "Automacao", value: "Pronta", tone: "neutral" },
-        { label: "Targets", value: "2 faltando", tone: "warning" },
+        { label: "Grades", value: "2 a importar", tone: "warning" },
+      ],
+    },
+  );
+
+  assert.deepEqual(
+    ui.buildExecutionReadiness({
+      productCount: 5,
+      pendingGradeImportCount: 1,
+      pendingGradeCount: 1,
+      automationState: "idle",
+      automationError: null,
+    }),
+    {
+      ready: false,
+      tone: "warning",
+      title: "2 ajustes de grade pendentes",
+      detail: "Importe as grades detectadas e corrija as divergências antes do cadastro completo.",
+      items: [
+        { label: "Grades", value: "2 ajustes", tone: "warning" },
       ],
     },
   );
@@ -226,19 +235,13 @@ test("builds execution readiness from list, grades and automation state", () => 
       pendingGradeCount: 0,
       automationState: "idle",
       automationError: null,
-      missingTargetLabels: [],
     }),
     {
       ready: true,
       tone: "success",
-      title: "Pronto para cadastro completo",
-      detail: "Lista com produtos, grades fechadas, targets calibrados e automacao sem erro ativo.",
-      items: [
-        { label: "Lista", value: "5 itens", tone: "success" },
-        { label: "Grades", value: "Fechadas", tone: "success" },
-        { label: "Automacao", value: "Pronta", tone: "neutral" },
-        { label: "Targets", value: "Calibrados", tone: "success" },
-      ],
+      title: "Pronto",
+      detail: "",
+      items: [],
     },
   );
 });
@@ -251,7 +254,7 @@ test("builds automation status detail without stale idle cancellation messages",
       automationError: null,
       pendingGradeCount: 0,
     }),
-    "Sem automacao em execucao",
+    "Sem automação em execução",
   );
   assert.equal(
     ui.buildAutomationStatusDetail({
@@ -288,7 +291,7 @@ test("builds undo and redo history status from stack sizes", () => {
     redoCount: 0,
     canUndo: false,
     canRedo: false,
-    summary: "Sem historico",
+    summary: "Histórico vazio",
     undoLabel: "Nada para desfazer",
     redoLabel: "Nada para refazer",
   });
@@ -298,9 +301,9 @@ test("builds undo and redo history status from stack sizes", () => {
     redoCount: 1,
     canUndo: true,
     canRedo: true,
-    summary: "2 desfazer | 1 refazer",
-    undoLabel: "Desfazer 2 acoes",
-    redoLabel: "Refazer 1 acao",
+    summary: "Histórico: 2 desfazer / 1 refazer",
+    undoLabel: "Desfazer 2 ações",
+    redoLabel: "Refazer 1 ação",
   });
 
   assert.deepEqual(ui.buildUndoRedoHistoryState(-5, Number.NaN), {
@@ -308,7 +311,7 @@ test("builds undo and redo history status from stack sizes", () => {
     redoCount: 0,
     canUndo: false,
     canRedo: false,
-    summary: "Sem historico",
+    summary: "Histórico vazio",
     undoLabel: "Nada para desfazer",
     redoLabel: "Nada para refazer",
   });
@@ -339,13 +342,32 @@ test("builds and limits recent import history entries", () => {
     id: "job-1",
     completedAt: 1710000001000,
     sourceName: "romaneio.pdf",
-    mode: "Parser local",
+    mode: "Leitura local",
     totalItems: 12,
     warningCount: 1,
     validationStatus: "approved",
     gradesAvailable: true,
     status: "ok",
   });
+
+  assert.equal(
+    ui.buildImportHistoryEntry(
+      {
+        status: "ok",
+        saved_file: null,
+        local_file: "romaneio-ia.pdf",
+        content: null,
+        warnings: [],
+        total_itens: 8,
+        grades_disponiveis: false,
+        total_grades_disponiveis: 0,
+        imported_keys: [],
+        metrics: { selected_source: "llm", final_validation_status: "approved" },
+      },
+      { now: 1710000002000, mode: "llm" },
+    ).mode,
+    "IA",
+  );
 
   assert.deepEqual(
     ui.updateRecentImportHistory(
@@ -378,6 +400,15 @@ test("formats recent import source names for compact rail display", () => {
   assert.equal(ui.formatImportSourceDisplayName("   "), "Romaneio importado");
 });
 
+test("formats import validation statuses for operator-facing UI", () => {
+  assert.equal(ui.formatImportValidationStatus("approved"), "Aprovado");
+  assert.equal(ui.formatImportValidationStatus("rejected"), "Rejeitado");
+  assert.equal(ui.formatImportValidationStatus("unverified"), "Não validado");
+  assert.equal(ui.formatImportValidationStatus("error"), "Erro");
+  assert.equal(ui.formatImportValidationStatus(""), "Sem validação");
+  assert.equal(ui.formatImportValidationStatus("custom"), "custom");
+});
+
 test("builds and protects operation diary entries", () => {
   const entry = ui.buildOperationDiaryEntry({
     kind: "import",
@@ -385,7 +416,7 @@ test("builds and protects operation diary entries", () => {
     detail: "romaneio.pdf",
     tone: "success",
     occurredAt: 1710001000000,
-    meta: ["Parser local", "12 itens", "", null, "1 aviso"],
+    meta: ["Leitura local", "12 itens", "", null, "1 aviso"],
   });
 
   assert.deepEqual(entry, {
@@ -395,7 +426,7 @@ test("builds and protects operation diary entries", () => {
     title: "Importacao concluida",
     detail: "romaneio.pdf",
     tone: "success",
-    meta: ["Parser local", "12 itens", "1 aviso"],
+    meta: ["Leitura local", "12 itens", "1 aviso"],
   });
 
   assert.deepEqual(
@@ -493,33 +524,11 @@ test("builds import completion messages only when grade groups are available", (
   assert.equal(ui.buildImportGradesAvailableMessage({ grades_disponiveis: false, total_grades_disponiveis: 0 }), null);
   assert.equal(
     ui.buildImportGradesAvailableMessage({ grades_disponiveis: true, total_grades_disponiveis: 0 }),
-    "Grades automaticas disponiveis.\n\nClique em Importar Grades para aplicar.",
+    "Grades automáticas disponíveis.\n\nClique em Importar grades para aplicar.",
   );
   assert.equal(
     ui.buildImportGradesAvailableMessage({ grades_disponiveis: true, total_grades_disponiveis: 3 }),
-    "Grades automaticas disponiveis.\n\nClique em Importar Grades para aplicar.\nGrupos detectados: 3",
-  );
-});
-
-test("builds post-process completion messages with dry-run and warnings context", () => {
-  assert.equal(
-    ui.buildPostProcessCompletionMessage({
-      total_itens: 5,
-      total_modificados: 2,
-      dry_run: false,
-      warnings: [],
-    }),
-    "Itens revisados: 5\nAlteracoes aplicadas nesta fase: 2",
-  );
-
-  assert.equal(
-    ui.buildPostProcessCompletionMessage({
-      total_itens: 8,
-      total_modificados: 0,
-      dry_run: true,
-      warnings: ["Entrada ignorada", "Resposta parcial"],
-    }),
-    "Itens revisados: 8\nAlteracoes aplicadas nesta fase: 0\nModo inicial ativo: a IA revisou os itens, mas ainda nao aplicamos as sugestoes automaticamente.\nAvisos: Entrada ignorada | Resposta parcial",
+    "Grades automáticas disponíveis.\n\nClique em Importar grades para aplicar.\nGrupos detectados: 3",
   );
 });
 
@@ -531,4 +540,20 @@ test("clones product snapshots without sharing nested references", () => {
 
   assert.equal(original[0].grades[0].quantidade, 1);
   assert.equal(cloned[0].grades[0].quantidade, 3);
+});
+
+test("keeps undo redo history stacks bounded to the newest snapshots", () => {
+  const stack = Array.from({ length: 50 }, (_, index) => `snapshot-${index + 1}`);
+
+  ui.pushBoundedHistorySnapshot(stack, "snapshot-51", 50);
+
+  assert.equal(stack.length, 50);
+  assert.equal(stack[0], "snapshot-2");
+  assert.equal(stack[49], "snapshot-51");
+
+  ui.pushBoundedHistorySnapshot(stack, "snapshot-52", 50);
+
+  assert.equal(stack.length, 50);
+  assert.equal(stack[0], "snapshot-3");
+  assert.equal(stack[49], "snapshot-52");
 });

@@ -23,7 +23,7 @@ export function NoticeToastStack({ toasts, onDismiss }: NoticeToastStackProps) {
   }
 
   return (
-    <div className="noticeToastRegionTs" role="status" aria-live="polite" aria-label="Atualizacoes da operacao">
+    <div className="noticeToastRegionTs" role="status" aria-live="polite" aria-label="Atualizações da operação">
       {toasts.map((toast) => (
         <article key={toast.id} className={`noticeToastTs noticeToast-${toast.tone}`}>
           <div className="noticeToastIconTs" aria-hidden="true">{TOAST_ICONS[toast.tone]}</div>

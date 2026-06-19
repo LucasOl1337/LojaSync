@@ -1,10 +1,9 @@
-import type { KeyboardEvent, RefObject } from "react";
+import type { CSSProperties, KeyboardEvent, RefObject } from "react";
 
 import type { EditingCellState } from "./appConfig";
 import { EditableProductCell } from "./editableProductCell";
 import type { EditableField } from "./productEditing";
 import { buildProductNameReviewBadges, buildProductReviewFieldStatus } from "./productFilters";
-import type { ProductQuickFilter } from "./productFilters";
 import type { Product } from "./types";
 
 type ProductTableRowProps = {
@@ -30,7 +29,6 @@ type ProductTableRowProps = {
   onCreateSetSelection: (orderingKey: string) => Promise<void>;
   onMoveOrderingItem: (orderingKey: string, direction: -1 | 1) => void;
   onDeleteProduct: (orderingKey: string) => Promise<void>;
-  onReviewFilterChange: (filter: ProductQuickFilter) => void;
 };
 
 export function ProductTableRow({
@@ -56,15 +54,18 @@ export function ProductTableRow({
   onCreateSetSelection,
   onMoveOrderingItem,
   onDeleteProduct,
-  onReviewFilterChange,
 }: ProductTableRowProps) {
   const reviewBadges = buildProductNameReviewBadges(product);
   const selectableRowActive = orderingMode || createSetMode;
   const selectedForMode = orderingMode ? Boolean(selectionPosition) : isCreateSetSelected;
+  const rowTransitionName = `product-row-${product.ordering_key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const rowStyle = orderingMode
+    ? ({ "--row-transition-name": rowTransitionName } as CSSProperties)
+    : undefined;
   const rowModeLabel = orderingMode
-    ? selectionPosition
-      ? `Linha ${index + 1}: ${product.nome}. Posicao ${selectionPosition} na nova ordem. Pressione Shift Enter para remover.`
-      : `Linha ${index + 1}: ${product.nome}. Pressione Enter para adicionar a ordenacao.`
+      ? selectionPosition
+      ? `Linha ${index + 1}: ${product.nome}. Posição ${selectionPosition} na nova ordem. Pressione Shift Enter para remover.`
+      : `Linha ${index + 1}: ${product.nome}. Pressione Enter para adicionar à ordenação.`
     : createSetMode
       ? `Linha ${index + 1}: ${product.nome}. ${isCreateSetSelected ? "Selecionado para conjunto" : "Pressione Enter para selecionar para conjunto"}.`
       : undefined;
@@ -88,24 +89,20 @@ export function ProductTableRow({
     if (!fieldStatus || globalEditMode) return renderCellContent(field, displayValue);
 
     return (
-      <button
+      <span
         className={`tableFieldStatusTs fieldStatus-${fieldStatus.tone}`}
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onReviewFilterChange(fieldStatus.filter);
-        }}
-        title={`Filtrar por ${fieldStatus.label}`}
-        aria-label={`Filtrar por ${fieldStatus.label}`}
+        title={fieldStatus.label}
+        aria-label={fieldStatus.label}
       >
         <span className="tableFieldStatusDotTs" aria-hidden="true" />
-        <span>Falta</span>
-      </button>
+        <span className="tableFieldStatusLabelTs">{fieldStatus.label}</span>
+      </span>
     );
   };
 
   return (
     <tr
+      style={rowStyle}
       className={[
         isCreateSetSelected ? "selectedRow" : "",
         orderingMode && selectionPosition ? "orderedRow" : "",
@@ -153,21 +150,15 @@ export function ProductTableRow({
             <small className="automationPreviewText">{`Texto enviado: ${automationTypedDescription}`}</small>
           ) : null}
           {reviewBadges.length ? (
-            <div className="productReviewBadgesTs" aria-label="Pendencias de revisao">
+            <div className="productReviewBadgesTs" aria-label="Pendências de revisão">
               {reviewBadges.map((badge) => (
-                <button
+                <span
                   key={badge.key}
                   className={`productReviewBadgeTs reviewBadge-${badge.tone}`}
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onReviewFilterChange(badge.filter);
-                  }}
-                  title={`Filtrar por ${badge.label}`}
-                  aria-label={`Filtrar por ${badge.label}`}
+                  title={badge.label}
                 >
                   {badge.label}
-                </button>
+                </span>
               ))}
             </div>
           ) : null}
@@ -183,11 +174,21 @@ export function ProductTableRow({
         <td>
           <div className={`rowActionStack ${orderingMode ? "orderingRowActionStack" : ""}`}>
             {orderingMode ? (
-              <span className={`orderingSelectionBadge compactOrderingSelectionBadge ${selectionPosition ? "activeOrderingSelectionBadge" : ""}`}>
-                {selectionPosition ? `${selectionPosition}` : "•"}
-              </span>
+              <button
+                className={`orderingSelectionBadge compactOrderingSelectionBadge ${selectionPosition ? "activeOrderingSelectionBadge" : ""}`}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOrderingSelection(product.ordering_key, { allowRemove: false });
+                }}
+                aria-pressed={Boolean(selectionPosition)}
+                aria-label={selectionPosition ? `${product.nome} está na posição ${selectionPosition}` : `Priorizar ${product.nome}`}
+                title={selectionPosition ? `Posição ${selectionPosition}` : "Priorizar item"}
+              >
+                {selectionPosition ? `${selectionPosition}` : "Priorizar"}
+              </button>
             ) : null}
-            {isAutomationCurrentRow ? <span className="automationCurrentBadge">Em execucao</span> : null}
+            {isAutomationCurrentRow ? <span className="automationCurrentBadge">Em execução</span> : null}
             {orderingMode && selectionPosition ? (
               <>
                 <button
@@ -210,7 +211,7 @@ export function ProductTableRow({
                 </button>
               </>
             ) : null}
-            {globalEditMode && !orderingMode && !createSetMode ? (
+            {!orderingMode && !createSetMode ? (
               <button
                 className="rowDeleteButtonTs"
                 type="button"
@@ -230,7 +231,21 @@ export function ProductTableRow({
                 </svg>
               </button>
             ) : null}
-            {createSetMode ? <span className={`selectionHint ${isCreateSetSelected ? "selectedSelectionHint" : ""}`}>{isCreateSetSelected ? "Selecionado" : "Selecionar"}</span> : null}
+            {createSetMode ? (
+              <button
+                className={`selectionHint ${isCreateSetSelected ? "selectedSelectionHint" : ""}`}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void onCreateSetSelection(product.ordering_key);
+                }}
+                aria-pressed={isCreateSetSelected}
+                aria-label={isCreateSetSelected ? `${product.nome} selecionado para conjunto` : `Selecionar ${product.nome} para conjunto`}
+                title={isCreateSetSelected ? "Selecionado para conjunto" : "Selecionar para conjunto"}
+              >
+                {isCreateSetSelected ? "Selecionado" : "Selecionar"}
+              </button>
+            ) : null}
           </div>
         </td>
       ) : null}

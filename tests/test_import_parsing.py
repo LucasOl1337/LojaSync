@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
@@ -236,6 +235,52 @@ class ImportParsingTests(unittest.TestCase):
                 ("02649601000", "94,99", 3),
             ],
         )
+        self.assertEqual(
+            [[(grade.tamanho, grade.quantidade) for grade in (item.grades or [])] for item in compacted],
+            [
+                [("10", 2), ("12", 2)],
+                [("2", 1), ("8", 2)],
+                [("10", 2), ("18", 2)],
+                [("2", 1), ("8", 2)],
+            ],
+        )
+
+    def test_compact_import_batch_keeps_same_code_and_price_with_different_names_separate(self) -> None:
+        service = ProductService(
+            _DummyRepo(),
+            _DummyBrands(),
+            _DummyMarginStore(),
+            _DummyMetricsStore(),
+        )
+        payload = """
+        {"items":[
+          {"codigo":"DUP-001","descricao_original":"CALCA BOLSO RETO TAM 36","nome_curto":"CALCA BOLSO RETO","quantidade":2,"preco":"84,99","tamanho":"36"},
+          {"codigo":"DUP-001","descricao_original":"CALCA BOLSO RETO TAM 38","nome_curto":"CALCA BOLSO RETO","quantidade":1,"preco":"84,99","tamanho":"38"},
+          {"codigo":"DUP-001","descricao_original":"JAQUETA ZIPER TRAD TAM P","nome_curto":"JAQUETA ZIPER TRAD","quantidade":2,"preco":"84,99","tamanho":"P"},
+          {"codigo":"DUP-001","descricao_original":"JAQUETA ZIPER TRAD TAM M","nome_curto":"JAQUETA ZIPER TRAD","quantidade":1,"preco":"84,99","tamanho":"M"}
+        ]}
+        """
+
+        parsed = parse_candidate_content(payload)
+        compacted, summary = service.compact_import_batch(parsed)
+
+        self.assertEqual(len(compacted), 2)
+        self.assertEqual(summary["resultantes"], 2)
+        self.assertEqual(summary["removidos"], 2)
+        self.assertEqual(
+            [(item.nome, item.codigo, item.preco, item.quantidade) for item in compacted],
+            [
+                ("CALCA BOLSO RETO", "DUP-001", "84,99", 3),
+                ("JAQUETA ZIPER TRAD", "DUP-001", "84,99", 3),
+            ],
+        )
+        self.assertEqual(
+            [[(grade.tamanho, grade.quantidade) for grade in (item.grades or [])] for item in compacted],
+            [
+                [("36", 2), ("38", 1)],
+                [("P", 2), ("M", 1)],
+            ],
+        )
 
     def test_parse_candidate_content_reads_structured_invoice_rows(self) -> None:
         records = parse_candidate_content(_sample_invoice_rows())
@@ -403,6 +448,71 @@ class ImportParsingTests(unittest.TestCase):
         finally:
             remove_import_job(job.job_id)
 
+    def test_run_import_job_prefer_llm_does_not_skip_llm_when_local_parser_is_approved(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        local_payload = {
+            "total_rows": 1,
+            "total_itens": 1,
+            "remessa_quantity": 2,
+            "quantity_matches_remessa": True,
+            "document_total_products": "40,00",
+            "document_total_note": None,
+            "extracted_total_products": "40,00",
+            "products_value_matches_document": True,
+            "items": [
+                {
+                    "nome": "CAMISETA LOCAL",
+                    "codigo": "LOCAL-1",
+                    "quantidade": 2,
+                    "preco": "20,00",
+                }
+            ],
+        }
+        upload_text = "\n".join(["Qtd de Peças da Remessa: 12", _sample_invoice_rows()])
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [{"name": "parte_1", "content": upload_text}],
+                        "images": [],
+                        "errors": [],
+                    }
+                )
+                with patch(
+                    "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
+                    return_value=local_payload,
+                ):
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            return_value=(_sample_invoice_rows(), None),
+                        ) as mocked_chat:
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=b"fake-pdf",
+                                filename="romaneio.pdf",
+                                content_type="application/pdf",
+                                service=service,
+                                data_dir=data_dir,
+                                prefer_llm=True,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["local_validation_status"], "approved")
+                self.assertTrue(result.metrics["local_parser_preapproved"])
+                self.assertEqual(result.metrics["selected_source"], "llm")
+                self.assertEqual(fake_client.upload_calls, 1)
+                self.assertEqual(mocked_chat.call_count, 1)
+                self.assertEqual(len(service.created), 8)
+        finally:
+            remove_import_job(job.job_id)
+
     def test_run_import_job_retries_incomplete_llm_chunk_with_smaller_structured_subchunks(self) -> None:
         service = _RecordingImportService()
         job = create_import_job()
@@ -557,7 +667,7 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertIsNotNone(status)
                 assert status is not None
                 self.assertEqual(status.stage, "error")
-                self.assertIn("did not match the invoice validation checks", str(status.error))
+                self.assertIn("dados extraídos não bateram com a validação da nota", str(status.error))
                 self.assertIsNone(result)
                 self.assertEqual(len(service.created), 0)
         finally:
@@ -615,119 +725,6 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(len(service.created), 8)
         finally:
             remove_import_job(job.job_id)
-
-    def test_apply_post_processing_applies_local_safe_adjustments(self) -> None:
-        repo = _DummyRepo(
-            [
-                Product(
-                    nome="REGATA CROPPED [50CM] BASICO(A)",
-                    codigo="1000086766",
-                    quantidade=3,
-                    preco="20,37",
-                    categoria="",
-                    marca="",
-                    descricao_completa="REGATA CROPPED [50CM] BASICO(A) Cor 00004 Tam 12 *AB-CD* AD",
-                ),
-                Product(
-                    nome="CALA JOGGER BASICO(A)",
-                    codigo="1000108790",
-                    quantidade=2,
-                    preco="33,49",
-                    categoria="",
-                    marca="",
-                    descricao_completa="CALA JOGGER BASICO(A) Cor 00004 Tam 8",
-                ),
-            ]
-        )
-        service = ProductService(
-            repo,
-            _DummyBrands(),
-            _DummyMarginStore(),
-            _DummyMetricsStore(),
-        )
-
-        result = service.apply_post_processing(None)
-        items = service.list_products()
-
-        self.assertFalse(result["dry_run"])
-        self.assertEqual(result["modificados"], 2)
-        self.assertEqual(items[0].nome, "REGATA CROPPED BASICO")
-        self.assertEqual(items[0].preco, "20,40")
-        self.assertEqual(items[1].nome, "CALCA JOGGER BASICO")
-        self.assertEqual(items[1].preco, "33,50")
-
-    def test_apply_post_processing_uses_structured_llm_suggestion_when_confident(self) -> None:
-        product = Product(
-            nome="JAQUETA SOLIRA",
-            codigo="090840002",
-            quantidade=6,
-            preco="90,90",
-            categoria="",
-            marca="",
-            descricao_completa="JAQUETA SOLIRA *SA-FKII* AD",
-        )
-        repo = _DummyRepo([product])
-        service = ProductService(
-            repo,
-            _DummyBrands(),
-            _DummyMarginStore(),
-            _DummyMetricsStore(),
-        )
-
-        llm_payload = json.dumps(
-            {
-                "items": [
-                    {
-                        "ordering_key": product.ordering_key(),
-                        "nome_sugerido": "JAQUETA SOLAR",
-                        "codigo_sugerido": "090840002",
-                        "preco_sugerido": "90,91",
-                        "acoes": "ajustar_tudo",
-                        "confianca": 0.92,
-                    }
-                ]
-            }
-        )
-
-        result = service.apply_post_processing(llm_payload)
-        items = service.list_products()
-
-        self.assertEqual(result["llm_suggestions_applied"], 1)
-        self.assertEqual(items[0].nome, "JAQUETA SOLAR")
-        self.assertEqual(items[0].preco, "91,00")
-
-    def test_get_post_process_review_candidates_keeps_only_ambiguous_items_for_llm(self) -> None:
-        noisy = Product(
-            nome="REGATA CROPPED 50CM BASICO A COR",
-            codigo="1000086766",
-            quantidade=5,
-            preco="20,37",
-            categoria="",
-            marca="",
-            descricao_completa="REGATA CROPPED 50CM BASICO(A) COR 00004",
-        )
-        clean = Product(
-            nome="EMBALAGEM KRAFT MALWEE KIDS",
-            codigo="1000131724",
-            quantidade=3,
-            preco="19,00",
-            categoria="",
-            marca="",
-            descricao_completa="EMBALAGEM KRAFT MALWEE KIDS",
-        )
-        repo = _DummyRepo([noisy, clean])
-        service = ProductService(
-            repo,
-            _DummyBrands(),
-            _DummyMarginStore(),
-            _DummyMetricsStore(),
-        )
-
-        candidates = service.get_post_process_review_candidates()
-
-        self.assertEqual(len(candidates), 1)
-        self.assertEqual(candidates[0].codigo, noisy.codigo)
-
 
 if __name__ == "__main__":
     unittest.main()

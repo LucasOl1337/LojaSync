@@ -1,58 +1,67 @@
-import type { ImportDiagnosticsChip, ImportProcessEntry } from "./uiFormatting";
+import { formatImportValidationStatus, type ImportDiagnosticsChip } from "./uiFormatting";
 
 type ImportDiagnosticsPanelProps = {
   validationStatus: string;
   chips: ImportDiagnosticsChip[];
-  processLog: ImportProcessEntry[];
   warnings: string[];
 };
 
 export function ImportDiagnosticsPanel({
   validationStatus,
   chips,
-  processLog,
   warnings,
 }: ImportDiagnosticsPanelProps) {
-  if (!validationStatus && !chips.length && !processLog.length && !warnings.length) {
+  if (!validationStatus && !chips.length && !warnings.length) {
     return null;
   }
+  const validationLabel = validationStatus ? formatImportValidationStatus(validationStatus) : "";
+  const summaryLabel = [
+    ...chips.map((chip) => `${chip.label}: ${chip.value}`),
+    validationLabel ? `Validação: ${validationLabel}` : "",
+    warnings.length ? `${warnings.length} aviso${warnings.length === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(". ");
 
   return (
-    <div className="importDiagnosticsTs">
-      {chips.length ? (
-        <div className="importInsightChipsTs">
+    <details className="importDiagnosticsTs">
+      <summary className="importDiagnosticsSummaryTs" aria-label={`Resultado da importação. ${summaryLabel}. Clique para expandir.`}>
+        <span className="importDiagnosticsSummaryMainTs">
+          <strong>Resultado da importação</strong>
+          <span>Ver detalhes</span>
+        </span>
+        <span className="importDiagnosticsSummaryMetaTs">
           {chips.map((chip) => (
             <span key={`${chip.label}-${chip.value}`} className={`importInsightChipTs chip-${chip.tone}`}>
               <span>{chip.label}</span>
               <strong>{chip.value}</strong>
             </span>
           ))}
-        </div>
-      ) : null}
-      {validationStatus ? (
-        <div className={`importValidationBadge validation-${validationStatus}`}>
-          Validation: {validationStatus}
-        </div>
-      ) : null}
-      {processLog.length ? (
-        <div className="importLogListTs">
-          {processLog.map((entry) => (
-            <div key={`${entry.index}-${entry.source}-${entry.message}`} className={`importLogEntryTs log-${entry.level}`}>
-              <span className="importLogSourceTs">{entry.source}</span>
-              <span>{entry.message}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {warnings.length ? (
-        <div className="importWarningsTs">
-          {warnings.map((warning, index) => (
-            <div key={`${index}-${warning}`} className="importWarningEntryTs">
-              {warning}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
+          {validationStatus ? (
+            <span className={`importValidationBadge validation-${validationStatus}`}>
+              Validação: {validationLabel}
+            </span>
+          ) : null}
+        </span>
+      </summary>
+      <div className="importDiagnosticsDetailsTs">
+        {chips.map((chip) => (
+          <div key={`detail-${chip.label}-${chip.value}`} className="importDiagnosticDetailRowTs">
+            <span>{chip.label}</span>
+            <strong>{chip.value}</strong>
+          </div>
+        ))}
+        {validationStatus ? (
+          <div className="importDiagnosticDetailRowTs">
+            <span>Validação</span>
+            <strong>{validationLabel}</strong>
+          </div>
+        ) : null}
+        {warnings.length ? (
+          <div className="importDiagnosticDetailRowTs">
+            <span>Avisos</span>
+            <strong>{warnings.length}</strong>
+          </div>
+        ) : null}
+      </div>
+    </details>
   );
 }

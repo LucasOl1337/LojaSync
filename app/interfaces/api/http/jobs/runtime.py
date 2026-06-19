@@ -33,20 +33,14 @@ from app.application.imports.job_validation import (
     select_llm_import_result as _select_llm_import_result,
     summarize_llm_upload_payload as _summarize_llm_upload_payload,
 )
-from app.application.products.post_process_prompt import (
-    build_post_process_context_text,
-    build_post_process_message,
-    build_post_process_products_text,
-)
 from app.domain.grades.parser import parse_grade_extraction
 from app.domain.products.entities import Product
 from app.interfaces.api.http.jobs.llm import coerce_int_env, llm_base_url, llm_timeout_seconds, post_llm_chat
-from app.interfaces.api.http.jobs.store import update_grade_job, update_import_job, update_post_process_job
+from app.interfaces.api.http.jobs.store import update_grade_job, update_import_job
 from app.interfaces.api.http.route_models import (
     GradeExtractionProduct,
     GradeExtractionResponse,
     ImportRomaneioResultResponse,
-    PostProcessProductsResultResponse,
 )
 from app.interfaces.api.http.route_shared import CATALOG_SIZES
 from app.shared.logging.setup import log_event
@@ -282,190 +276,6 @@ def _run_import_image_batches(
     return parts, saved_file, candidates
 
 
-def run_post_process_job(
-    *,
-    job_id: str,
-    service: object,
-) -> None:
-    warnings: list[str] = []
-    raw_response = ""
-    saved_file: str | None = None
-    total_started = time.perf_counter()
-    metrics: dict[str, Any] = {
-        "llm_base_url": llm_base_url(),
-        "llm_timeout_seconds": llm_timeout_seconds(),
-        "llm_chat_used": False,
-        "llm_chat_calls": 0,
-        "llm_chat_total_ms": 0,
-        "total_products": 0,
-        "dry_run": True,
-    }
-
-    update_post_process_job(
-        job_id,
-        "processing",
-        message="Carregando produtos atuais para pos-processamento",
-        metrics=metrics,
-    )
-
-    list_products = getattr(service, "list_products", None)
-    get_review_candidates = getattr(service, "get_post_process_review_candidates", None)
-    if not callable(list_products):
-        log_event(
-            logger,
-            logging.WARNING,
-            "post_process_job_failed",
-            "post-process job failed",
-            job_id=job_id,
-            failure_reason="product_service_unavailable",
-        )
-        update_post_process_job(job_id, "error", error="Servico de produtos indisponivel", metrics=metrics)
-        return
-
-    products = list_products()  # type: ignore[misc]
-    metrics["total_products"] = len(products)
-    if not products:
-        log_event(
-            logger,
-            logging.WARNING,
-            "post_process_job_failed",
-            "post-process job failed",
-            job_id=job_id,
-            failure_reason="no_products",
-            total_products=0,
-        )
-        update_post_process_job(job_id, "error", error="Nao ha produtos para pos-processar", metrics=metrics)
-        return
-
-    review_products = products
-    if callable(get_review_candidates):
-        try:
-            review_products = get_review_candidates()  # type: ignore[misc]
-        except Exception as exc:
-            logger.warning("Falha ao selecionar candidatos para revisao IA (job_id=%s): %s", job_id, exc)
-            warnings.append(f"Falha ao selecionar itens prioritarios para IA: {exc}")
-            review_products = products
-
-    metrics["review_candidate_products"] = len(review_products)
-
-    documents: list[dict[str, Any]] = []
-    if review_products:
-        products_text = build_post_process_products_text(review_products)
-        context_text = build_post_process_context_text(
-            total_products=len(products),
-            review_products=review_products,
-        )
-        documents = [
-            {"name": "contexto_revisao.txt", "content": context_text},
-            {"name": "produtos_prioritarios.txt", "content": products_text},
-        ]
-    else:
-        products_text = ""
-        warnings.append("Nenhum item ambiguo detectado para revisao via IA; executadas apenas regras locais seguras.")
-
-    if review_products:
-        try:
-            update_post_process_job(
-                job_id,
-                "reviewing",
-                message="Enviando apenas os itens mais ambiguos para revisao inteligente via LLM",
-                metrics=metrics,
-            )
-            timeout = httpx.Timeout(llm_timeout_seconds(), connect=10.0)
-            with httpx.Client(timeout=timeout) as client:
-                selected_mode = "product_post_processor"
-                call_started = time.perf_counter()
-                try:
-                    raw_response, saved_file = post_llm_chat(
-                        client,
-                        job_id=job_id,
-                        mode=selected_mode,
-                        message=build_post_process_message(),
-                        documents=documents,
-                        images=[],
-                    )
-                except httpx.HTTPStatusError as exc:
-                    response_text = ""
-                    try:
-                        response_text = exc.response.text
-                    except Exception:
-                        response_text = str(exc)
-                    if exc.response.status_code == 422 and "mode" in response_text.lower():
-                        warnings.append(
-                            "Servidor LLM atual nao reconhece o modo dedicado de revisao; usando modo padrao como fallback."
-                        )
-                        selected_mode = "default"
-                        raw_response, saved_file = post_llm_chat(
-                            client,
-                            job_id=job_id,
-                            mode=selected_mode,
-                            message=build_post_process_message(),
-                            documents=documents,
-                            images=[],
-                        )
-                    else:
-                        raise
-                call_ms = int((time.perf_counter() - call_started) * 1000)
-                metrics["llm_chat_used"] = True
-                metrics["llm_chat_calls"] = 1
-                metrics["llm_chat_total_ms"] = call_ms
-                metrics["llm_mode_used"] = selected_mode
-                metrics["input_chars"] = len(products_text)
-                metrics["output_chars"] = len(raw_response or "")
-        except Exception as exc:
-            logger.warning("Falha no pos-processamento LLM (job_id=%s): %s", job_id, exc)
-            warnings.append(f"Falha ao consultar o servico LLM: {exc}")
-
-    if not raw_response:
-        warnings.append("A IA nao retornou sugestoes estruturadas; foram aplicadas apenas as regras locais seguras.")
-
-    apply_post_processing = getattr(service, "apply_post_processing", None)
-    application_result: dict[str, Any] = {
-        "total": len(products),
-        "modificados": 0,
-        "warnings": [],
-        "llm_suggestions_applied": 0,
-        "local_adjustments_applied": 0,
-        "dry_run": True,
-    }
-    if callable(apply_post_processing):
-        try:
-            application_result = apply_post_processing(raw_response)  # type: ignore[misc]
-        except Exception as exc:
-            logger.warning("Falha ao aplicar pos-processamento local (job_id=%s): %s", job_id, exc)
-            warnings.append(f"Falha ao aplicar ajustes do pos-processamento: {exc}")
-
-    warnings.extend([str(item) for item in application_result.get("warnings", []) if str(item).strip()])
-    metrics["total_ms"] = int((time.perf_counter() - total_started) * 1000)
-    metrics["post_process_modified"] = int(application_result.get("modificados", 0) or 0)
-    metrics["llm_suggestions_applied"] = int(application_result.get("llm_suggestions_applied", 0) or 0)
-    metrics["local_adjustments_applied"] = int(application_result.get("local_adjustments_applied", 0) or 0)
-    result = PostProcessProductsResultResponse(
-        status="ok" if raw_response or application_result.get("modificados") else "partial",
-        total_itens=len(products),
-        total_modificados=int(application_result.get("modificados", 0) or 0),
-        dry_run=bool(application_result.get("dry_run", False)),
-        saved_file=saved_file,
-        raw_response=raw_response or None,
-        warnings=warnings,
-        metrics=metrics,
-    )
-    update_post_process_job(job_id, "completed", result=result, metrics=metrics)
-    log_event(
-        logger,
-        logging.INFO,
-        "post_process_job_completed",
-        "post-process job completed",
-        job_id=job_id,
-        status=result.status,
-        total_products=len(products),
-        modified_products=result.total_modificados,
-        warnings=len(warnings),
-        llm_chat_calls=int(metrics.get("llm_chat_calls", 0) or 0),
-        total_ms=int(metrics.get("total_ms", 0) or 0),
-    )
-
-
 def run_grade_extraction_job(
     *,
     job_id: str,
@@ -628,6 +438,7 @@ def run_import_job(
     content_type: str | None,
     service: object,
     data_dir: Path,
+    prefer_llm: bool = False,
 ) -> None:
     warnings: list[str] = []
     llm_text = ""
@@ -665,7 +476,7 @@ def run_import_job(
         local_attempt = _evaluate_local_parser_attempt(local_payload, decode_ms=local_decode_ms)
         metrics.update(local_attempt.metrics)
 
-        if local_attempt.approved_for_import:
+        if local_attempt.approved_for_import and not prefer_llm:
             parsed_items = local_attempt.products
             selected_source = "local"
             selected_text = products_to_text(parsed_items)
@@ -676,6 +487,16 @@ def run_import_job(
                 message="Local parser approved by invoice validation. Skipping the LLM fallback.",
             )
             _update_stage("parsing", "Parser local aprovado; preparando importacao")
+        elif local_attempt.approved_for_import:
+            metrics["local_parser_preapproved"] = True
+            metrics["llm_requested"] = True
+            _append_process_event(
+                metrics,
+                source="local",
+                level="success",
+                message="Validacao local aprovada; importacao via LLM solicitada.",
+            )
+            _update_stage("uploading", "Validacao local aprovada; enviando arquivo para servico LLM")
         else:
             fallback_message = local_attempt.fallback_message or "Local parser not approved: automatic approval was not reached."
             warnings.append(fallback_message)
@@ -963,7 +784,7 @@ def run_import_job(
         update_import_job(
             job_id,
             "error",
-            error="Import blocked because the extracted data did not match the invoice validation checks.",
+            error="Importação bloqueada porque os dados extraídos não bateram com a validação da nota.",
             metrics=metrics,
         )
         return

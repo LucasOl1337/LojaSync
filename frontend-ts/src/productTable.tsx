@@ -4,7 +4,7 @@ import { CATEGORIES } from "./appConfig";
 import type { EditingCellState } from "./appConfig";
 import type { EditableField } from "./productEditing";
 import { ProductTableRow } from "./productTableRow";
-import type { ProductQuickFilter, ProductQuickFilterEmptyState } from "./productFilters";
+import type { ProductQuickFilterEmptyState } from "./productFilters";
 import type { Product } from "./types";
 import { actionText } from "./uiFormatting";
 
@@ -51,9 +51,7 @@ type ProductTableProps = {
   onCreateSetSelection: (orderingKey: string) => Promise<void>;
   onMoveOrderingItem: (orderingKey: string, direction: -1 | 1) => void;
   onDeleteProduct: (orderingKey: string) => Promise<void>;
-  onQuickFilterChange: (filter: ProductQuickFilter) => void;
   onProductSearchChange: (query: string) => void;
-  onReviewFilterChange: (filter: ProductQuickFilter) => void;
 };
 
 function TableSkeleton({ columnCount }: { columnCount: number }) {
@@ -85,65 +83,43 @@ function LoadingTableState({ columnCount }: { columnCount: number }) {
 
 function EmptyTableState({
   emptyState,
-  onQuickFilterChange,
   onProductSearchChange,
 }: {
   emptyState: ProductQuickFilterEmptyState;
-  onQuickFilterChange: (filter: ProductQuickFilter) => void;
   onProductSearchChange: (query: string) => void;
 }) {
   const checklistItems = emptyState.searchActive
     ? [
-        "A busca considera nome, marca, codigo, codigo original, categoria e descricao.",
+        "Busca em nome, marca, código, código original, categoria e descrição.",
         "Limpe a busca para voltar ao recorte atual da lista.",
-        "Filtros rapidos continuam preservados enquanto voce pesquisa.",
-      ]
-    : emptyState.actions.length
-    ? [
-        "Volte para Todos para conferir itens fora do recorte atual.",
-        "Use Revisar para priorizar pendencias reais quando houver alertas.",
-        "Nenhuma acao em massa foi aplicada pelo filtro vazio.",
       ]
     : [
         "Importe um romaneio pelo painel lateral para preencher a tabela.",
         "Use a entrada manual quando houver poucos itens fora do arquivo.",
-        "Filtros e revisao ficam disponiveis assim que houver produtos ativos.",
+        "A busca fica disponível assim que houver produtos ativos.",
       ];
   const stateKicker = emptyState.searchActive
     ? "Busca sem resultado"
-    : emptyState.actions.length
-      ? "Filtro sem resultado"
-      : "Lista vazia";
+    : "Lista vazia";
+
+  const stateClassName = ["tableStateTs", emptyState.searchActive ? "tableStateSearchTs" : ""].filter(Boolean).join(" ");
 
   return (
-    <div className="tableStateTs">
+    <div className={stateClassName}>
       <div className="tableStateMainTs">
         <span className="tableStateKickerTs">{stateKicker}</span>
         <strong>{emptyState.title}</strong>
         <span>{emptyState.detail}</span>
         {emptyState.searchActive ? (
-          <div className="tableStateActionsTs" role="group" aria-label="Acoes da busca">
+          <div className="tableStateActionsTs" role="group" aria-label="Ações da busca">
             <button className="quickFilterContextButtonTs contextAction-review" type="button" onClick={() => onProductSearchChange("")}>
               Limpar busca
             </button>
           </div>
-        ) : emptyState.actions.length ? (
-          <div className="tableStateActionsTs" role="group" aria-label="Acoes do estado vazio">
-            {emptyState.actions.map((action) => (
-              <button
-                key={action.key}
-                className={`quickFilterContextButtonTs contextAction-${action.tone}`}
-                type="button"
-                onClick={() => onQuickFilterChange(action.targetFilter)}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
         ) : null}
       </div>
 
-      <ul className="tableStateChecklistTs" aria-label="Proximos passos da lista">
+      <ul className="tableStateChecklistTs" aria-label="Próximos passos da lista">
         {checklistItems.map((item) => (
           <li key={item}>{item}</li>
         ))}
@@ -195,50 +171,49 @@ export function ProductTable({
   onCreateSetSelection,
   onMoveOrderingItem,
   onDeleteProduct,
-  onQuickFilterChange,
   onProductSearchChange,
-  onReviewFilterChange,
 }: ProductTableProps) {
-  const visibleItemsLabel = loading ? "Atualizando lista" : actionText(products.length, "item visivel", "itens visiveis");
+  const visibleItemsLabel = loading ? "Atualizando lista" : actionText(products.length, "item visível", "itens visíveis");
   const totalItemsLabel = actionText(totalProductCount, "item", "itens");
   const bulkActionsBlockedByMode = !loading && products.length > 0 && (orderingMode || createSetMode);
   const bulkActionsBlockedByEditLock = !loading && products.length > 0 && !globalEditMode && !bulkActionsBlockedByMode;
   const bulkActionsDisabled = loading || products.length === 0 || bulkActionsBlockedByEditLock || bulkActionsBlockedByMode;
+  const showBulkActionsRow = !bulkActionsBlockedByEditLock && !bulkActionsBlockedByMode;
   const filteredBulkScopeActive = !loading && totalProductCount > products.length;
-  const bulkScopeHint = filteredBulkScopeActive ? `${visibleItemsLabel} no filtro` : null;
+  const bulkScopeHint = filteredBulkScopeActive ? `${visibleItemsLabel} na busca` : null;
   const bulkScopeLabel = (() => {
     if (loading) return "Atualizando escopo";
     if (products.length === 0) return "Sem itens no escopo";
-    if (bulkActionsBlockedByMode) return "Edicao em lote pausada";
-    if (bulkActionsBlockedByEditLock) return "Edicao em lote travada";
+    if (bulkActionsBlockedByMode) return "Edição em lote pausada";
+    if (bulkActionsBlockedByEditLock) return "Edição em lote travada";
     if (filteredBulkScopeActive) return `Aplicar aos ${totalItemsLabel}`;
     return "Aplicar a todos";
   })();
   const bulkScopeDetail = (() => {
-    if (loading) return "Aguardando atualizacao da lista.";
-    if (products.length === 0) return "Importe ou adicione produtos para liberar acoes em lote.";
-    if (orderingMode) return "Finalize a ordenacao para liberar a edicao em lote.";
-    if (createSetMode) return "Finalize os conjuntos para liberar a edicao em lote.";
-    if (bulkActionsBlockedByEditLock) return "Permita edicoes para aplicar marca ou categoria em lote.";
-    if (filteredBulkScopeActive) return "Ha itens fora do filtro ativo; a confirmacao aparece antes de aplicar fora do recorte.";
+    if (loading) return "Aguardando atualização da lista.";
+    if (products.length === 0) return "Importe ou adicione produtos para liberar ações em lote.";
+    if (orderingMode) return "Finalize a ordenação para liberar a edição em lote.";
+    if (createSetMode) return "Finalize os conjuntos para liberar a edição em lote.";
+    if (bulkActionsBlockedByEditLock) return "Permita edições para aplicar marca ou categoria em lote.";
+    if (filteredBulkScopeActive) return "Há itens fora da busca atual; a confirmação aparece antes de aplicar em toda a lista.";
     return `${totalItemsLabel} no escopo atual.`;
   })();
   const bulkActionsAriaLabel = bulkActionsDisabled
-    ? `Acoes em lote indisponiveis: ${bulkScopeDetail}`
+    ? `Ações em lote indisponíveis: ${bulkScopeDetail}`
     : bulkScopeHint
-    ? `Acoes em lote globais para ${totalItemsLabel}; ${bulkScopeHint}; confirmacao obrigatoria fora do filtro`
-    : "Acoes em lote da tabela";
+    ? `Ações em lote globais para ${totalItemsLabel}; ${bulkScopeHint}; confirmação obrigatória fora da busca`
+    : "Ações em lote da tabela";
   const bulkBrandMenuId = "product-table-bulk-brand-panel";
   const bulkBrandTitleId = "product-table-bulk-brand-title";
   const bulkBrandComposerId = "product-table-bulk-brand-composer";
   const bulkCategoryMenuId = "product-table-bulk-category-panel";
   const bulkCategoryTitleId = "product-table-bulk-category-title";
   const tableModeLabel = orderingMode
-    ? "Ordenacao ativa"
+    ? "Ordenação ativa"
     : createSetMode
       ? `Conjunto ${Math.min(createSetKeys.length, 2)}/2`
       : "Fluxo normal";
-  const showRowActions = globalEditMode || orderingMode || createSetMode || automationIsRunning;
+  const showRowActions = true;
   const tableColumnCount = showRowActions ? 9 : 8;
   const handleBulkPopoverKeyDown = <TElement extends HTMLElement>(
     event: KeyboardEvent<TElement>,
@@ -278,7 +253,7 @@ export function ProductTable({
         <div className="tableHeaderChipsTs" aria-label="Resumo da tabela">
           <span className="tableHeaderChipTs">{visibleItemsLabel}</span>
           <span className={`tableHeaderChipTs ${globalEditMode ? "tableHeaderChipActiveTs" : ""}`}>
-            {globalEditMode ? "Edicao livre" : "Edicao travada"}
+            {globalEditMode ? "Edição livre" : "Edição travada"}
           </span>
           <span className={`tableHeaderChipTs ${orderingMode || createSetMode ? "tableHeaderChipActiveTs" : ""}`}>
             {tableModeLabel}
@@ -286,29 +261,25 @@ export function ProductTable({
         </div>
       </div>
 
-      <div
-        className={[
-          "tableBulkActionsTs",
-          filteredBulkScopeActive ? "filteredBulkActionsTs" : "",
-          bulkActionsDisabled && !loading && products.length ? "tableBulkActionsLockedTs" : "",
-        ].filter(Boolean).join(" ")}
-        aria-label={bulkActionsAriaLabel}
-      >
-        <div className="tableBulkActionsCopyTs">
-          <span className="tableBulkActionsLabelTs">Escopo em lote</span>
-          <div className="tableBulkScopeSummaryTs">
-            <strong>{bulkScopeLabel}</strong>
-            {bulkScopeHint ? <span className="tableBulkActionsHintTs">{bulkScopeHint}</span> : null}
-            <small>{bulkScopeDetail}</small>
+      {showBulkActionsRow ? (
+        <div
+          className={[
+            "tableBulkActionsTs",
+            filteredBulkScopeActive ? "filteredBulkActionsTs" : "",
+            bulkActionsDisabled && !loading && products.length ? "tableBulkActionsLockedTs" : "",
+          ].filter(Boolean).join(" ")}
+          aria-label={bulkActionsAriaLabel}
+        >
+          <div className="tableBulkActionsCopyTs">
+            <span className="tableBulkActionsLabelTs">Escopo em lote</span>
+            <div className="tableBulkScopeSummaryTs">
+              <strong>{bulkScopeLabel}</strong>
+              {bulkScopeHint ? <span className="tableBulkActionsHintTs">{bulkScopeHint}</span> : null}
+              <small>{bulkScopeDetail}</small>
+            </div>
           </div>
-        </div>
-        {bulkActionsBlockedByEditLock ? (
-          <button className="tableBulkUnlockButtonTs" type="button" onClick={onToggleGlobalEdit}>
-            Permitir edicoes
-          </button>
-        ) : null}
-        {!bulkActionsDisabled ? (
-          <div className="tableBulkControlsTs">
+          {!bulkActionsDisabled ? (
+            <div className="tableBulkControlsTs">
             <div className="bulkHeaderCell tableBulkControlTs" ref={bulkBrandMenuRef} onBlur={(event) => handleBulkControlBlur(event, onCloseBulkBrandMenu)}>
               <button
                 className="bulkHeaderButton tableBulkButtonTs"
@@ -398,9 +369,10 @@ export function ProductTable({
                 </div>
               ) : null}
             </div>
-          </div>
-        ) : null}
-      </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className={`tableScrollTs ${loading || !products.length ? "tableScrollStateTs" : ""}`}>
         <table className={`productsTableTs ${showRowActions ? "" : "productsTableNoActionsTs"}`}>
@@ -409,12 +381,12 @@ export function ProductTable({
               <th scope="col">#</th>
               <th scope="col">Nome</th>
               <th scope="col">Marca</th>
-              <th scope="col">Codigo</th>
+              <th scope="col">Código</th>
               <th scope="col">Qtd</th>
               <th scope="col">Custo</th>
               <th scope="col">Venda</th>
               <th scope="col">Categoria</th>
-              {showRowActions ? <th scope="col">Acoes</th> : null}
+              {showRowActions ? <th scope="col">Ações</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -453,7 +425,6 @@ export function ProductTable({
                     onCreateSetSelection={onCreateSetSelection}
                     onMoveOrderingItem={onMoveOrderingItem}
                     onDeleteProduct={onDeleteProduct}
-                    onReviewFilterChange={onReviewFilterChange}
                   />
                 );
               })
@@ -462,7 +433,6 @@ export function ProductTable({
                 <td colSpan={tableColumnCount} className="emptyState richTableStateCell">
                   <EmptyTableState
                     emptyState={emptyState}
-                    onQuickFilterChange={onQuickFilterChange}
                     onProductSearchChange={onProductSearchChange}
                   />
                 </td>

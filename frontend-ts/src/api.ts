@@ -10,19 +10,34 @@ import type {
   ImportStartResponse,
   ImportStatus,
   MarginSettingsResponse,
-  PostProcessResult,
-  PostProcessStartResponse,
-  PostProcessStatus,
   Product,
   ProductListResponse,
   ProductPayload,
   TargetCaptureResponse,
   RuntimeHealthResponse,
   TotalsResponse,
+  UndoRedoApplyResponse,
+  UndoRedoHistoryResponse,
 } from "./types";
 
+type BackendUrlSources = {
+  windowBackendUrl?: string | null;
+  origin?: string | null;
+};
+
 const runtimeWindow = (globalThis as typeof globalThis & { window?: Window & { __BACKEND_URL__?: string } }).window;
-const API_BASE_URL = runtimeWindow?.__BACKEND_URL__ || runtimeWindow?.location?.origin || "";
+
+export function resolveApiBaseUrl({ windowBackendUrl, origin }: BackendUrlSources) {
+  const candidate = [windowBackendUrl, origin]
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || "";
+  return candidate.replace(/\/+$/, "");
+}
+
+const API_BASE_URL = resolveApiBaseUrl({
+  windowBackendUrl: runtimeWindow?.__BACKEND_URL__,
+  origin: runtimeWindow?.location?.origin,
+});
 
 function buildRequestUrl(path: string, method: string) {
   const url = new URL(`${API_BASE_URL}${path}`);
@@ -49,7 +64,7 @@ function looksLikeHtmlResponse(text: string) {
 export function buildUnexpectedJsonResponseMessage(text: string, fallback = "Resposta invalida do servidor.") {
   const trimmed = String(text || "").trim();
   if (looksLikeHtmlResponse(trimmed)) {
-    return "O backend do LojaSync retornou HTML em vez de JSON. Verifique se o runtime principal e o runtime de autenticacao estao ativos.";
+    return "O backend do LojaSync retornou HTML em vez de JSON. Verifique se o runtime principal e o runtime de autenticação estão ativos.";
   }
   return trimmed || fallback;
 }
@@ -259,6 +274,29 @@ export function restoreSnapshot(items: Product[]) {
   });
 }
 
+export function fetchUndoRedoHistory() {
+  return requestJson<UndoRedoHistoryResponse>("/actions/history");
+}
+
+export function recordUndoSnapshot(clearRedo = true) {
+  return requestJson<UndoRedoHistoryResponse>("/actions/history/snapshot", {
+    method: "POST",
+    body: JSON.stringify({ clear_redo: clearRedo }),
+  });
+}
+
+export function undoHistorySnapshot() {
+  return requestJson<UndoRedoApplyResponse>("/actions/history/undo", {
+    method: "POST",
+  });
+}
+
+export function redoHistorySnapshot() {
+  return requestJson<UndoRedoApplyResponse>("/actions/history/redo", {
+    method: "POST",
+  });
+}
+
 export function clearProducts() {
   return requestJson<{ removed: number }>("/products", {
     method: "DELETE",
@@ -350,7 +388,6 @@ export function restoreOriginalCodes() {
 export function improveDescriptions(payload: {
   remover_numeros: boolean;
   remover_especiais: boolean;
-  remover_letras: boolean;
   remover_termos: string[];
 }) {
   return requestJson<{ total: number; modificados: number }>("/actions/improve-descriptions", {
@@ -441,26 +478,6 @@ export async function importRomaneioLocalExperiment(file: File) {
 
 export function cleanupImportJob(jobId: string) {
   return requestJson<{ status: string; job_id: string }>(`/actions/import-romaneio/status/${jobId}`, {
-    method: "DELETE",
-  });
-}
-
-export function startPostProcessProducts() {
-  return requestJson<PostProcessStartResponse>("/actions/post-process-products", {
-    method: "POST",
-  });
-}
-
-export function fetchPostProcessStatus(jobId: string) {
-  return requestJson<PostProcessStatus>(`/actions/post-process-products/status/${jobId}`);
-}
-
-export function fetchPostProcessResult(jobId: string) {
-  return requestJson<PostProcessResult>(`/actions/post-process-products/result/${jobId}`);
-}
-
-export function cleanupPostProcessJob(jobId: string) {
-  return requestJson<{ status: string; job_id: string }>(`/actions/post-process-products/status/${jobId}`, {
     method: "DELETE",
   });
 }

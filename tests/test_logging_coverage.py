@@ -23,14 +23,12 @@ from app.infrastructure.persistence.sqlite import (
     SQLiteProductRepository,
 )
 from app.interfaces.api.http.app import create_app
-from app.interfaces.api.http.jobs.runtime import run_grade_extraction_job, run_import_job, run_post_process_job
+from app.interfaces.api.http.jobs.runtime import run_grade_extraction_job, run_import_job
 from app.interfaces.api.http.jobs.store import (
     create_grade_job,
     create_import_job,
-    create_post_process_job,
     remove_grade_job,
     remove_import_job,
-    remove_post_process_job,
 )
 from app.interfaces.auth_api.http.app import create_auth_app
 from app.shared.config.settings import AppSettings
@@ -337,42 +335,3 @@ class LoggingCoverageTests(unittest.TestCase):
         self.assertEqual(getattr(record, "job_id"), job.job_id)
         self.assertEqual(getattr(record, "parsed_items"), 1)
         self.assertEqual(getattr(record, "updated_products"), 1)
-
-    def test_post_process_background_job_logs_completion_summary(self) -> None:
-        class FakeService:
-            def list_products(self) -> list[Product]:
-                return [
-                    Product(
-                        nome="Produto OCR",
-                        codigo="OCR-1",
-                        quantidade=2,
-                        preco="19,90",
-                        categoria="Infantil",
-                        marca="Marca",
-                    )
-                ]
-
-            def get_post_process_review_candidates(self) -> list[Product]:
-                return []
-
-            def apply_post_processing(self, _raw_response: str | None) -> dict[str, object]:
-                return {
-                    "total": 1,
-                    "modificados": 1,
-                    "warnings": [],
-                    "llm_suggestions_applied": 0,
-                    "local_adjustments_applied": 1,
-                    "dry_run": False,
-                }
-
-        job = create_post_process_job()
-        self.addCleanup(remove_post_process_job, job.job_id)
-
-        with self.assertLogs("app.interfaces.api.http.jobs.runtime", level="INFO") as logs:
-            run_post_process_job(job_id=job.job_id, service=FakeService())
-
-        record = _record_with_event(logs.records, "post_process_job_completed")
-        self.assertEqual(getattr(record, "job_id"), job.job_id)
-        self.assertEqual(getattr(record, "total_products"), 1)
-        self.assertEqual(getattr(record, "modified_products"), 1)
-        self.assertEqual(getattr(record, "llm_chat_calls"), 0)

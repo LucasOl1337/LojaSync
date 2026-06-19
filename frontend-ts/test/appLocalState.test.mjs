@@ -33,7 +33,7 @@ const historyEntry = {
   id: "import-1",
   completedAt: 10,
   sourceName: "romaneio.pdf",
-  mode: "Parser local",
+  mode: "Leitura local",
   totalItems: 4,
   warningCount: 0,
   validationStatus: "approved",
@@ -77,16 +77,22 @@ test("reads persisted import history and operation diary through coercion limits
 test("persists product quick filter and grade family with safe fallbacks", () => {
   const storage = fakeStorage({
     [localState.PRODUCT_QUICK_FILTER_KEY]: "unknown",
+    [localState.ORDERING_DRAFT_KEY]: JSON.stringify(["b", "", "a", "b"]),
   });
 
   assert.equal(localState.readInitialProductQuickFilter(storage), "all");
   assert.equal(localState.saveProductQuickFilter("missing_code", storage), "missing_code");
   assert.equal(storage.dump()[localState.PRODUCT_QUICK_FILTER_KEY], "missing_code");
   assert.equal(localState.readLastActiveGradeFamily(storage), "common");
+  assert.deepEqual(localState.readInitialOrderingDraft(storage), ["b", "a"]);
+  assert.deepEqual(localState.saveOrderingDraft(["c", "c", "a"], storage), ["c", "a"]);
+  assert.deepEqual(JSON.parse(storage.dump()[localState.ORDERING_DRAFT_KEY]), ["c", "a"]);
 
   localState.saveLastActiveGradeFamily("adulto", storage);
+  localState.clearOrderingDraft(storage);
 
   assert.equal(localState.readLastActiveGradeFamily(storage), "adulto");
+  assert.deepEqual(JSON.parse(storage.dump()[localState.ORDERING_DRAFT_KEY]), []);
 });
 
 test("ignores broken storage without throwing", () => {
@@ -102,5 +108,7 @@ test("ignores broken storage without throwing", () => {
   assert.deepEqual(localState.readInitialImportHistory(brokenStorage), []);
   assert.deepEqual(localState.readInitialOperationDiary(brokenStorage), []);
   assert.equal(localState.readInitialProductQuickFilter(brokenStorage), "all");
+  assert.deepEqual(localState.readInitialOrderingDraft(brokenStorage), []);
   assert.doesNotThrow(() => localState.saveRecentImportHistory([historyEntry], brokenStorage));
+  assert.doesNotThrow(() => localState.saveOrderingDraft(["a"], brokenStorage));
 });

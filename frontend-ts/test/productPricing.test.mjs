@@ -21,6 +21,13 @@ test("formats price inputs with comma decimals", () => {
   assert.equal(pricing.formatPriceInput(null), "");
 });
 
+test("formats percent displays for Portuguese operator UI", () => {
+  assert.equal(pricing.formatPercentDisplay(120), "120%");
+  assert.equal(pricing.formatPercentDisplay(120.5), "120,5%");
+  assert.equal(pricing.formatPercentDisplay(120.25), "120,25%");
+  assert.equal(pricing.formatPercentDisplay(Number.NaN), "0%");
+});
+
 test("parses positive percent inputs for margin controls", () => {
   assert.equal(pricing.parsePositivePercentInput("120,5"), 120.5);
   assert.equal(pricing.parsePositivePercentInput("12.75"), 12.75);

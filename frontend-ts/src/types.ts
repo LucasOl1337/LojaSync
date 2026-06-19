@@ -55,6 +55,19 @@ export type TotalsResponse = {
   caracteres_digitados: number;
 };
 
+export type UndoRedoHistoryResponse = {
+  undo_count: number;
+  redo_count: number;
+  limit: number;
+  can_undo: boolean;
+  can_redo: boolean;
+};
+
+export type UndoRedoApplyResponse = UndoRedoHistoryResponse & {
+  restored: boolean;
+  total: number;
+};
+
 export type MarginSettingsResponse = {
   margem: number;
   percentual: number;
@@ -170,32 +183,6 @@ export type LocalImportExperimentResult = {
   remessa_quantity: number | null;
   quantity_matches_remessa: boolean;
   items: LocalImportExperimentItem[];
-  metrics: Record<string, unknown>;
-};
-
-export type PostProcessStartResponse = {
-  job_id: string;
-};
-
-export type PostProcessStatus = {
-  job_id: string;
-  stage: string;
-  message: string;
-  started_at: number;
-  updated_at: number;
-  completed_at: number | null;
-  error: string | null;
-  metrics: Record<string, unknown>;
-};
-
-export type PostProcessResult = {
-  status: string;
-  total_itens: number;
-  total_modificados: number;
-  dry_run: boolean;
-  saved_file: string | null;
-  raw_response: string | null;
-  warnings: string[];
   metrics: Record<string, unknown>;
 };
 

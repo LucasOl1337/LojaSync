@@ -33,6 +33,8 @@ tmp*.png
 *.spec
 build/
 dist/
+!frontend-ts/dist/
+!frontend-ts/dist/**
 
 # Project-specific generated outputs
 Legacy/engine/webapp/build*/
@@ -52,7 +54,9 @@ frontend-ts/.tmp-tests/
 EnterviewArtifacts/
 data/romaneios/*.txt
 data/lojasync.db
+data/lojasync.db-*
 data/auth.json
+data/undo_redo_history.json
 .claire/
 .claude/
 .codegraph/

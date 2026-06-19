@@ -29,6 +29,9 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const detailBreakIndex = detail?.indexOf(".");
+  const detailLead = detail && detailBreakIndex && detailBreakIndex > 0 ? detail.slice(0, detailBreakIndex + 1) : detail;
+  const detailRest = detail && detailBreakIndex && detailBreakIndex > 0 ? detail.slice(detailBreakIndex + 1).trim() : "";
 
   useEffect(() => {
     const previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -88,10 +91,15 @@ export function ConfirmationDialog({
       >
         <div className="confirmationIconTs" aria-hidden="true">!</div>
         <div className="confirmationBodyTs">
-          <span className="sectionTag">Confirmacao</span>
+          <span className="sectionTag">Confirmação</span>
           <h3 id="confirmation-dialog-title">{title}</h3>
           <p id="confirmation-dialog-message">{message}</p>
-          {detail ? <small>{detail}</small> : null}
+          {detail ? (
+            <small className="confirmationDetailTs">
+              {detailLead ? <strong>{detailLead}</strong> : null}
+              {detailRest ? <span>{detailRest}</span> : null}
+            </small>
+          ) : null}
           {error ? <div className="confirmationErrorTs" role="alert">{error}</div> : null}
         </div>
         <div className="confirmationActionsTs">

@@ -37,7 +37,7 @@ export default function AuthShell() {
       }
       setMode(current.authenticated ? "app" : "login");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Nao foi possivel validar a sessao.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível validar a sessão.");
       setMode("login");
     }
   }
@@ -62,7 +62,7 @@ export default function AuthShell() {
       await refreshSession();
       setMessage("Senha inicial configurada com sucesso.");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Nao foi possivel configurar a senha.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível configurar a senha.");
     } finally {
       setBusy(null);
     }
@@ -78,7 +78,7 @@ export default function AuthShell() {
       setPassword("");
       await refreshSession();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Nao foi possivel entrar.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível entrar.");
     } finally {
       setBusy(null);
     }
@@ -97,7 +97,7 @@ export default function AuthShell() {
       setNextPasswordConfirm("");
       await refreshSession();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Nao foi possivel sair.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível sair.");
       setBusy(null);
     }
   }
@@ -107,7 +107,7 @@ export default function AuthShell() {
     setError(null);
     setMessage(null);
     if (nextPassword !== nextPasswordConfirm) {
-      setError("A nova senha e a confirmacao precisam ser iguais.");
+      setError("A nova senha e a confirmação precisam ser iguais.");
       return;
     }
     setBusy("change-password");
@@ -120,7 +120,7 @@ export default function AuthShell() {
       setMessage("Senha alterada. Entre novamente com a nova senha.");
       await refreshSession();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Nao foi possivel atualizar a senha.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível atualizar a senha.");
     } finally {
       setBusy(null);
     }
@@ -133,10 +133,10 @@ export default function AuthShell() {
   if (mode === "loading") {
     return (
       <div className="authGateShell">
-        <div className="authCard">
-          <span className="authEyebrow">LojaSync Security</span>
+        <div className="authCard authLoadingCard" role="status" aria-live="polite" aria-busy="true">
+          <span className="authEyebrow">Segurança LojaSync</span>
           <h1>Preparando acesso seguro</h1>
-          <p>Validando sua sessao e as configuracoes iniciais do sistema.</p>
+          <p>Validando sua sessão e as configurações iniciais do sistema.</p>
         </div>
       </div>
     );
@@ -147,12 +147,12 @@ export default function AuthShell() {
     return (
       <div className="authGateShell">
         <form className="authCard" onSubmit={isSetup ? handleSetup : handleLogin}>
-          <span className="authEyebrow">{isSetup ? "Primeira configuracao" : "Acesso administrativo"}</span>
+          <span className="authEyebrow">{isSetup ? "Primeira configuração" : "Acesso administrativo"}</span>
           <h1>{isSetup ? "Defina a senha mestre do LojaSync" : "Entrar no LojaSync"}</h1>
           <p>
             {isSetup
               ? `Proteja o painel com uma senha de pelo menos ${MIN_PASSWORD_HINT} caracteres antes de liberar o uso da equipe.`
-              : "Use a senha administrativa para liberar o painel de vendas e automacao."}
+              : "Use a senha administrativa para liberar o painel de vendas e automação."}
           </p>
 
           <label className="authField">
@@ -194,7 +194,7 @@ export default function AuthShell() {
     <div className="securedShell">
       <header className="securityBar">
         <div>
-          <span className="authEyebrow">Sessao protegida</span>
+          <span className="authEyebrow">Sessão protegida</span>
           <strong>{session?.user || "admin"}</strong>
         </div>
         <div className="securityBarActions">

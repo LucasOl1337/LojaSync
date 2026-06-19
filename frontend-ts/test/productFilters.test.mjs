@@ -62,7 +62,7 @@ test("builds quick filter option counts from current products", () => {
     { key: "pending_grades", label: "Grades pendentes", count: 1 },
     { key: "recent_imports", label: "Importados", count: 2 },
     { key: "missing_brand", label: "Sem marca", count: 1 },
-    { key: "missing_code", label: "Sem codigo", count: 1 },
+    { key: "missing_code", label: "Sem código", count: 1 },
     { key: "missing_category", label: "Sem categoria", count: 1 },
     { key: "grade_mismatch", label: "Divergencia", count: 1 },
   ]);
@@ -74,12 +74,23 @@ test("builds readable quick filter button labels for assistive tech", () => {
     "Filtro ativo: Todos, 4 itens",
   );
   assert.equal(
-    filters.buildProductQuickFilterButtonLabel({ key: "missing_code", label: "Sem codigo", count: 1 }, false),
-    "Filtro: Sem codigo, 1 item",
+    filters.buildProductQuickFilterButtonLabel({ key: "missing_code", label: "Sem código", count: 1 }, false),
+    "Filtro: Sem código, 1 item",
   );
   assert.equal(
     filters.buildProductQuickFilterButtonLabel({ key: "pending_grades", label: "Grades pendentes", count: 0 }, false),
     "Filtro: Grades pendentes, 0 itens",
+  );
+});
+
+test("builds loading quick filter labels without false counts", () => {
+  assert.equal(
+    filters.buildProductQuickFilterLoadingButtonLabel({ label: "Todos" }, true),
+    "Filtro ativo: Todos, atualizando contagem",
+  );
+  assert.equal(
+    filters.buildProductQuickFilterLoadingButtonLabel({ label: "Sem código" }, false),
+    "Filtro: Sem código, atualizando contagem",
   );
 });
 
@@ -97,7 +108,7 @@ test("marks zero-count inactive quick filters as visually empty", () => {
     "default",
   );
   assert.equal(
-    filters.getProductQuickFilterVisualState({ key: "missing_code", label: "Sem codigo", count: 1 }, false),
+    filters.getProductQuickFilterVisualState({ key: "missing_code", label: "Sem código", count: 1 }, false),
     "default",
   );
 });
@@ -109,7 +120,7 @@ test("hides inactive zero-count quick filters from the primary toolbar", () => {
     { key: "pending_grades", label: "Grades pendentes", count: 0 },
     { key: "recent_imports", label: "Importados", count: 2 },
     { key: "missing_brand", label: "Sem marca", count: 1 },
-    { key: "missing_code", label: "Sem codigo", count: 0 },
+    { key: "missing_code", label: "Sem código", count: 0 },
     { key: "missing_category", label: "Sem categoria", count: 1 },
     { key: "grade_mismatch", label: "Divergencia", count: 0 },
   ];
@@ -150,7 +161,7 @@ test("builds product review badges from the same conditions used by review filte
   assert.deepEqual(filters.buildProductReviewBadges(products[1]), [
     { key: "pending_grades", filter: "pending_grades", label: "Grade pendente", tone: "warning" },
     { key: "missing_brand", filter: "missing_brand", label: "Sem marca", tone: "warning" },
-    { key: "missing_code", filter: "missing_code", label: "Sem codigo", tone: "warning" },
+    { key: "missing_code", filter: "missing_code", label: "Sem código", tone: "warning" },
   ]);
   assert.deepEqual(filters.buildProductReviewBadges(products[2]), [
     { key: "grade_mismatch", filter: "grade_mismatch", label: "Grade 1/3", tone: "error" },
@@ -178,7 +189,7 @@ test("builds column-level review states for missing catalog fields", () => {
   assert.deepEqual(filters.buildProductReviewFieldStatus(products[1], "codigo"), {
     field: "codigo",
     filter: "missing_code",
-    label: "Sem codigo",
+    label: "Sem código",
     tone: "warning",
   });
   assert.deepEqual(filters.buildProductReviewFieldStatus(products[3], "categoria"), {
@@ -189,11 +200,9 @@ test("builds column-level review states for missing catalog fields", () => {
   });
 });
 
-test("keeps column-level review states out of the product name badges", () => {
+test("keeps table-level review states out of the product name badges", () => {
   assert.deepEqual(filters.buildProductNameReviewBadges(products[0]), []);
-  assert.deepEqual(filters.buildProductNameReviewBadges(products[1]), [
-    { key: "pending_grades", filter: "pending_grades", label: "Grade pendente", tone: "warning" },
-  ]);
+  assert.deepEqual(filters.buildProductNameReviewBadges(products[1]), []);
   assert.deepEqual(filters.buildProductNameReviewBadges(products[2]), [
     { key: "grade_mismatch", filter: "grade_mismatch", label: "Grade 1/3", tone: "error" },
   ]);
@@ -209,16 +218,16 @@ test("builds active quick filter context with reversible actions", () => {
   assert.equal(filters.buildProductQuickFilterContext("all", options, 4, 4), null);
   assert.deepEqual(filters.buildProductQuickFilterContext("missing_brand", options, 1, 4), {
     title: "Filtro ativo: Sem marca",
-    detail: "1 de 4 itens visiveis",
+    detail: "1 de 4 itens visíveis",
     tone: "warning",
     actions: [
       { key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" },
-      { key: "needs_review", label: "Voltar para Revisar", targetFilter: "needs_review", tone: "review" },
+      { key: "needs_review", label: "Voltar para revisar", targetFilter: "needs_review", tone: "review" },
     ],
   });
   assert.deepEqual(filters.buildProductQuickFilterContext("needs_review", options, 2, 4), {
-    title: "Revisao ativa",
-    detail: "2 de 4 itens visiveis",
+    title: "Revisão ativa",
+    detail: "2 de 4 itens visíveis",
     tone: "review",
     actions: [{ key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" }],
   });
@@ -237,25 +246,25 @@ test("builds a filtered empty state with recovery actions", () => {
     detail: "Existem 4 itens na lista fora deste recorte.",
     actions: [
       { key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" },
-      { key: "needs_review", label: "Voltar para Revisar", targetFilter: "needs_review", tone: "review" },
+      { key: "needs_review", label: "Voltar para revisar", targetFilter: "needs_review", tone: "review" },
     ],
   });
   assert.deepEqual(filters.buildProductQuickFilterEmptyState("needs_review", options, 0, 4), {
     title: "Nenhum item para revisar.",
-    detail: "Os 4 itens atuais nao possuem pendencias deste filtro.",
+    detail: "Os 4 itens atuais não possuem pendências deste filtro.",
     actions: [{ key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" }],
   });
   assert.deepEqual(filters.buildProductQuickFilterEmptyState("needs_review", options, 0, 1), {
     title: "Nenhum item para revisar.",
-    detail: "O item atual nao possui pendencias deste filtro.",
+    detail: "O item atual não possui pendências deste filtro.",
     actions: [{ key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" }],
   });
   assert.deepEqual(filters.buildProductQuickFilterEmptyState("missing_code", options, 0, 1), {
-    title: "Nenhum item em Sem codigo.",
+    title: "Nenhum item em Sem código.",
     detail: "Existe 1 item na lista fora deste recorte.",
     actions: [
       { key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" },
-      { key: "needs_review", label: "Voltar para Revisar", targetFilter: "needs_review", tone: "review" },
+      { key: "needs_review", label: "Voltar para revisar", targetFilter: "needs_review", tone: "review" },
     ],
   });
 });
@@ -263,14 +272,14 @@ test("builds a filtered empty state with recovery actions", () => {
 test("builds a search empty state with a clear recovery path", () => {
   assert.deepEqual(filters.buildProductSearchEmptyState("solira", 3), {
     title: "Nenhum resultado para solira.",
-    detail: "A busca foi aplicada em 3 itens visiveis do recorte atual.",
+    detail: "A busca foi aplicada em 3 itens visíveis do recorte atual.",
     actions: [],
     searchActive: true,
     searchQuery: "solira",
   });
   assert.deepEqual(filters.buildProductSearchEmptyState("  ", 1), {
     title: "Nenhum resultado encontrado.",
-    detail: "A busca foi aplicada em 1 item visivel do recorte atual.",
+    detail: "A busca foi aplicada em 1 item visível do recorte atual.",
     actions: [],
     searchActive: true,
     searchQuery: "",

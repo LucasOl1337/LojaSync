@@ -40,6 +40,10 @@ class RuntimePaths:
     def auth_file(self) -> Path:
         return self.data_dir / "auth.json"
 
+    @property
+    def undo_history_file(self) -> Path:
+        return self.data_dir / "undo_redo_history.json"
+
 
 def build_runtime_paths() -> RuntimePaths:
     root_dir = Path(__file__).resolve().parents[3]

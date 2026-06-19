@@ -1,4 +1,4 @@
-import type { ImportResult, ImportStatus, PostProcessResult, Product, TargetPoint } from "./types";
+import type { ImportResult, ImportStatus, Product, TargetPoint } from "./types";
 
 export type ImportProcessEntry = {
   index: number;
@@ -100,10 +100,10 @@ export type UndoRedoHistoryState = {
 
 export type ExecutionReadinessInput = {
   productCount?: number | null;
+  pendingGradeImportCount?: number | null;
   pendingGradeCount?: number | null;
   automationState?: string | null;
   automationError?: string | null;
-  missingTargetLabels?: string[] | null;
 };
 
 export type AutomationStatusDetailInput = {
@@ -133,12 +133,12 @@ export function actionText(count: number, singular: string, plural: string) {
 export function formatAutomationStateLabel(state: unknown) {
   const normalized = String(state || "").trim().toLowerCase();
   if (!normalized || normalized === "idle") return "Pronta";
-  if (normalized === "running") return "Em execucao";
+  if (normalized === "running") return "Em execução";
   if (normalized === "stopping" || normalized === "canceling" || normalized === "cancelling") return "Parando";
   if (normalized === "failed" || normalized === "error") return "Falha";
   if (normalized === "queued") return "Na fila";
   if (normalized === "paused") return "Pausada";
-  if (normalized === "succeeded" || normalized === "completed" || normalized === "success") return "Concluida";
+  if (normalized === "succeeded" || normalized === "completed" || normalized === "success") return "Concluída";
   return String(state || "").trim();
 }
 
@@ -172,13 +172,13 @@ export function buildUndoRedoHistoryState(undoCount: unknown, redoCount: unknown
     canUndo,
     canRedo,
     summary: canUndo || canRedo
-      ? `${safeUndoCount} desfazer | ${safeRedoCount} refazer`
-      : "Sem historico",
+      ? `Histórico: ${safeUndoCount} desfazer / ${safeRedoCount} refazer`
+      : "Histórico vazio",
     undoLabel: canUndo
-      ? `Desfazer ${actionText(safeUndoCount, "acao", "acoes")}`
+      ? `Desfazer ${actionText(safeUndoCount, "ação", "ações")}`
       : "Nada para desfazer",
     redoLabel: canRedo
-      ? `Refazer ${actionText(safeRedoCount, "acao", "acoes")}`
+      ? `Refazer ${actionText(safeRedoCount, "ação", "ações")}`
       : "Nada para refazer",
   };
 }
@@ -219,8 +219,18 @@ export function cloneSnapshotProducts(items: Product[]) {
   return JSON.parse(JSON.stringify(items || [])) as Product[];
 }
 
+export function pushBoundedHistorySnapshot<T>(stack: T[], snapshot: T, limit: number) {
+  const safeLimit = Math.max(0, Math.floor(Number.isFinite(limit) ? limit : 0));
+  stack.push(snapshot);
+  const overflow = stack.length - safeLimit;
+  if (overflow > 0) {
+    stack.splice(0, overflow);
+  }
+  return stack;
+}
+
 export function formatTargetPoint(point?: TargetPoint | null) {
-  if (!point) return "Nao calibrado";
+  if (!point) return "Não calibrado";
   return `X: ${point.x} | Y: ${point.y}`;
 }
 
@@ -267,59 +277,32 @@ export function coerceStringList(value: unknown) {
   return value.map((item) => String(item || "").trim()).filter(Boolean);
 }
 
+function formatImportProgressCopy(message: string) {
+  return message
+    .replace(/\bservi[cç]o LLM\b/gi, "IA")
+    .replace(/\bLLM\b/g, "IA")
+    .replace(/\bConcluido\b/g, "Concluído")
+    .replace(/\bvalidacao\b/g, "validação")
+    .replace(/\bimportacao\b/g, "importação");
+}
+
 export function buildImportProgressMessage(importing: boolean, jobMessage?: string | null) {
   if (!importing) return null;
   const message = String(jobMessage || "").trim();
-  return message || "Importacao em andamento...";
-}
-
-function positiveMetric(metrics: Record<string, unknown>, key: string) {
-  const value = Number(metrics[key] || 0);
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-}
-
-function hasVerticalSliceFallback(metrics: Record<string, unknown>) {
-  const details = metrics["llm_chat_calls_details"];
-  return Array.isArray(details)
-    ? details.some((item) => item && typeof item === "object" && String((item as Record<string, unknown>).attempt || "") === "vertical_slices")
-    : false;
+  return message ? formatImportProgressCopy(message) : "Importação em andamento...";
 }
 
 export function buildImportDiagnosticsChips(
   metrics: Record<string, unknown> | null | undefined,
-  warnings: string[] = [],
+  _warnings: string[] = [],
 ): ImportDiagnosticsChip[] {
   const source = String(metrics?.["selected_source"] || "").trim();
   const chips: ImportDiagnosticsChip[] = [];
-  const safeMetrics: Record<string, unknown> = metrics || {};
 
   if (source === "local") {
-    chips.push({ label: "Origem", value: "Parser local", tone: "success" });
+    chips.push({ label: "Origem", value: "Leitura local", tone: "success" });
   } else if (source === "llm") {
-    chips.push({ label: "Origem", value: "LLM", tone: "neutral" });
-  }
-
-  const chatCalls = positiveMetric(safeMetrics, "llm_chat_calls");
-  if (chatCalls) {
-    chips.push({ label: "LLM", value: `${chatCalls} chamada${chatCalls === 1 ? "" : "s"}`, tone: "neutral" });
-  }
-
-  const chunkCount = positiveMetric(safeMetrics, "llm_chunk_count");
-  if (chunkCount > 1) {
-    chips.push({ label: "Partes", value: String(chunkCount), tone: "neutral" });
-  }
-
-  const uploadImages = positiveMetric(safeMetrics, "upload_images");
-  if (uploadImages) {
-    chips.push({ label: "Imagens", value: String(uploadImages), tone: "neutral" });
-  }
-
-  if (hasVerticalSliceFallback(safeMetrics)) {
-    chips.push({ label: "Fallback", value: "Recortes verticais", tone: "warning" });
-  }
-
-  if (warnings.length) {
-    chips.push({ label: "Avisos", value: String(warnings.length), tone: "warning" });
+    chips.push({ label: "Origem", value: "IA", tone: "neutral" });
   }
 
   return chips;
@@ -331,7 +314,7 @@ export function buildOperationalHealthChips(input: OperationalHealthInput): Stat
   if (input.backendStatus === "ok") {
     chips.push({ label: "Backend", value: "Ativo", tone: "success" });
   } else if (input.backendStatus === "error") {
-    chips.push({ label: "Backend", value: "Indisponivel", tone: "error" });
+    chips.push({ label: "Backend", value: "Indisponível", tone: "error" });
   } else {
     chips.push({ label: "Backend", value: "Verificando", tone: "warning" });
   }
@@ -341,7 +324,7 @@ export function buildOperationalHealthChips(input: OperationalHealthInput): Stat
   } else if (input.authEnabled === false) {
     chips.push({ label: "Auth", value: "Livre", tone: "neutral" });
   } else if (input.authenticated) {
-    chips.push({ label: "Auth", value: "Sessao ativa", tone: "success" });
+    chips.push({ label: "Auth", value: "Sessão ativa", tone: "success" });
   } else {
     chips.push({ label: "Auth", value: "Login pendente", tone: "warning" });
   }
@@ -349,7 +332,7 @@ export function buildOperationalHealthChips(input: OperationalHealthInput): Stat
   const websocketMap: Record<UiSocketStatus, StatusChip> = {
     connecting: { label: "Tempo real", value: "Conectando", tone: "warning" },
     connected: { label: "Tempo real", value: "Conectado", tone: "success" },
-    reconnecting: { label: "Tempo real", value: "Reconectando", tone: "warning" },
+    reconnecting: { label: "Tempo real", value: "Polling API", tone: "neutral" },
     disconnected: { label: "Tempo real", value: "Offline", tone: "error" },
   };
   chips.push(websocketMap[input.websocketStatus]);
@@ -357,17 +340,17 @@ export function buildOperationalHealthChips(input: OperationalHealthInput): Stat
   const automationError = String(input.automationError || "").trim();
   const automationState = String(input.automationState || "").trim();
   if (automationError) {
-    chips.push({ label: "Automacao", value: automationError, tone: "error" });
+    chips.push({ label: "Automação", value: automationError, tone: "error" });
   } else if (automationState === "running") {
-    chips.push({ label: "Automacao", value: formatAutomationStateLabel(automationState), tone: "warning" });
+    chips.push({ label: "Automação", value: formatAutomationStateLabel(automationState), tone: "warning" });
   } else {
-    chips.push({ label: "Automacao", value: formatAutomationStateLabel(automationState), tone: "neutral" });
+    chips.push({ label: "Automação", value: formatAutomationStateLabel(automationState), tone: "neutral" });
   }
 
   const pendingGrades = Math.max(0, Math.floor(Number(input.pendingGrades || 0)));
   chips.push({
     label: "Grades",
-    value: pendingGrades ? `${pendingGrades} pendente${pendingGrades === 1 ? "" : "s"}` : "Sem pendencias",
+    value: pendingGrades ? `${pendingGrades} pendente${pendingGrades === 1 ? "" : "s"}` : "Sem pendências",
     tone: pendingGrades ? "warning" : "success",
   });
 
@@ -387,41 +370,35 @@ export function buildAutomationStatusDetail(input: AutomationStatusDetailInput) 
   const automationMessage = String(input.automationMessage || "").trim();
   if (automationState === "running" && automationMessage) return automationMessage;
 
-  return "Sem automacao em execucao";
+  return "Sem automação em execução";
 }
 
 export function buildExecutionReadiness(input: ExecutionReadinessInput): ExecutionReadinessState {
   const productCount = safeCount(input.productCount);
+  const pendingGradeImportCount = safeCount(input.pendingGradeImportCount);
   const pendingGradeCount = safeCount(input.pendingGradeCount);
+  const totalGradeIssueCount = pendingGradeImportCount + pendingGradeCount;
   const automationError = String(input.automationError || "").trim();
   const automationState = String(input.automationState || "").trim() || "idle";
   const automationRunning = automationState === "running";
-  const targetLabels = Array.isArray(input.missingTargetLabels)
-    ? input.missingTargetLabels.map((item) => String(item || "").trim()).filter(Boolean)
-    : null;
-  const missingTargetCount = targetLabels?.length ?? 0;
-  const items: StatusChip[] = [
-    {
-      label: "Lista",
-      value: productCount ? actionText(productCount, "item", "itens") : "Sem produtos",
-      tone: productCount ? "success" : "warning",
-    },
-    {
-      label: "Grades",
-      value: pendingGradeCount ? `${pendingGradeCount} pendente${pendingGradeCount === 1 ? "" : "s"}` : "Fechadas",
-      tone: pendingGradeCount ? "warning" : "success",
-    },
-    {
-      label: "Automacao",
-      value: automationError || formatAutomationStateLabel(automationState),
-      tone: automationError ? "error" : automationRunning ? "warning" : "neutral",
-    },
-  ];
-  if (targetLabels) {
+
+  const items: StatusChip[] = [];
+  if (!productCount) {
+    items.push({ label: "Lista", value: "Sem produtos", tone: "warning" });
+  }
+  if (totalGradeIssueCount) {
+    const gradeValue = pendingGradeImportCount && pendingGradeCount
+      ? `${totalGradeIssueCount} ajustes`
+      : pendingGradeImportCount
+        ? `${pendingGradeImportCount} a importar`
+        : `${pendingGradeCount} divergente${pendingGradeCount === 1 ? "" : "s"}`;
+    items.push({ label: "Grades", value: gradeValue, tone: "warning" });
+  }
+  if (automationError || automationRunning) {
     items.push({
-      label: "Targets",
-      value: missingTargetCount ? `${missingTargetCount} faltando` : "Calibrados",
-      tone: missingTargetCount ? "warning" : "success",
+      label: "Automação",
+      value: automationError || formatAutomationStateLabel(automationState),
+      tone: automationError ? "error" : "warning",
     });
   }
 
@@ -429,8 +406,8 @@ export function buildExecutionReadiness(input: ExecutionReadinessInput): Executi
     return {
       ready: false,
       tone: "error",
-      title: "Revisar automacao",
-      detail: "Corrija o erro da automacao antes de iniciar o cadastro completo.",
+      title: "Revisar automação",
+      detail: "Corrija o erro da automação antes de iniciar o cadastro completo.",
       items,
     };
   }
@@ -439,18 +416,28 @@ export function buildExecutionReadiness(input: ExecutionReadinessInput): Executi
     return {
       ready: false,
       tone: "warning",
-      title: "Automacao em execucao",
-      detail: "Aguarde a execucao atual terminar ou use Parar antes de iniciar outro fluxo.",
+      title: "Automação em execução",
+      detail: "Aguarde a execução atual terminar ou use Parar antes de iniciar outro fluxo.",
       items,
     };
   }
 
-  if (pendingGradeCount) {
+  if (totalGradeIssueCount) {
+    const title = pendingGradeImportCount && pendingGradeCount
+      ? `${totalGradeIssueCount} ajustes de grade pendentes`
+      : pendingGradeImportCount
+        ? `${pendingGradeImportCount} grade${pendingGradeImportCount === 1 ? "" : "s"} para importar`
+        : `${pendingGradeCount} grade${pendingGradeCount === 1 ? "" : "s"} com divergência`;
+    const detail = pendingGradeImportCount && pendingGradeCount
+      ? "Importe as grades detectadas e corrija as divergências antes do cadastro completo."
+      : pendingGradeImportCount
+        ? "Use Importar grades para aplicar as grades detectadas antes do cadastro completo."
+        : "Abra Inserir grade para fechar as divergências antes do cadastro completo.";
     return {
       ready: false,
       tone: "warning",
-      title: `${pendingGradeCount} grade${pendingGradeCount === 1 ? "" : "s"} pendente${pendingGradeCount === 1 ? "" : "s"}`,
-      detail: "Abra Inserir Grade para fechar as pendencias antes do cadastro completo.",
+      title,
+      detail,
       items,
     };
   }
@@ -465,24 +452,12 @@ export function buildExecutionReadiness(input: ExecutionReadinessInput): Executi
     };
   }
 
-  if (missingTargetCount) {
-    return {
-      ready: false,
-      tone: "warning",
-      title: `${missingTargetCount} target${missingTargetCount === 1 ? "" : "s"} incompleto${missingTargetCount === 1 ? "" : "s"}`,
-      detail: "Calibre os alvos de automacao nas configuracoes antes do cadastro completo.",
-      items,
-    };
-  }
-
   return {
     ready: true,
     tone: "success",
-    title: "Pronto para cadastro completo",
-    detail: targetLabels
-      ? "Lista com produtos, grades fechadas, targets calibrados e automacao sem erro ativo."
-      : "Lista com produtos, grades fechadas e automacao sem erro ativo.",
-    items,
+    title: "Pronto",
+    detail: "",
+    items: [],
   };
 }
 
@@ -490,7 +465,7 @@ export function buildImportGradesAvailableMessage(result: Pick<ImportResult, "gr
   if (!result.grades_disponiveis) {
     return null;
   }
-  const baseMessage = "Grades automaticas disponiveis.\n\nClique em Importar Grades para aplicar.";
+  const baseMessage = "Grades automáticas disponíveis.\n\nClique em Importar grades para aplicar.";
   if (Number(result.total_grades_disponiveis || 0) > 0) {
     return `${baseMessage}\nGrupos detectados: ${result.total_grades_disponiveis}`;
   }
@@ -498,9 +473,9 @@ export function buildImportGradesAvailableMessage(result: Pick<ImportResult, "gr
 }
 
 function normalizeImportMode(source: string, fallback?: "llm" | "local" | null) {
-  if (source === "local" || fallback === "local") return "Parser local";
-  if (source === "llm" || fallback === "llm") return "LLM";
-  return "Importacao";
+  if (source === "local" || fallback === "local") return "Leitura local";
+  if (source === "llm" || fallback === "llm") return "IA";
+  return "Importação";
 }
 
 export function formatImportSourceDisplayName(sourceName: unknown) {
@@ -511,6 +486,18 @@ export function formatImportSourceDisplayName(sourceName: unknown) {
   const normalizedPath = value.replace(/\\/g, "/");
   const lastSegment = normalizedPath.split("/").filter(Boolean).pop();
   return lastSegment?.trim() || fallback;
+}
+
+export function formatImportValidationStatus(status: unknown) {
+  const value = String(status || "").trim();
+  const normalized = value.toLowerCase();
+
+  if (!normalized || normalized === "sem validacao") return "Sem validação";
+  if (normalized === "approved") return "Aprovado";
+  if (normalized === "rejected") return "Rejeitado";
+  if (normalized === "unverified") return "Não validado";
+  if (normalized === "error" || normalized === "failed") return "Erro";
+  return value;
 }
 
 export function buildImportHistoryEntry(
@@ -567,7 +554,7 @@ export function coerceImportHistoryEntries(value: unknown, limit = 3): ImportHis
         id,
         completedAt,
         sourceName: String(record.sourceName || "Romaneio importado").trim() || "Romaneio importado",
-        mode: String(record.mode || "Importacao").trim() || "Importacao",
+        mode: String(record.mode || "Importação").trim() || "Importação",
         totalItems: Math.max(0, Math.floor(Number(record.totalItems || 0))),
         warningCount: Math.max(0, Math.floor(Number(record.warningCount || 0))),
         validationStatus: String(record.validationStatus || "sem validacao").trim() || "sem validacao",
@@ -666,11 +653,11 @@ export function buildProductOperationDiaryEntry(input: ProductOperationDiaryInpu
       ...baseMeta,
     ]);
   } else if (input.action === "format_codes") {
-    entry.title = "Codigos formatados";
+    entry.title = "Códigos formatados";
     entry.detail = `${changedCount} alterado${changedCount === 1 ? "" : "s"}`;
     entry.meta = normalizeDiaryMeta([productItemMeta(productCount), value, ...baseMeta]);
   } else if (input.action === "improve_descriptions") {
-    entry.title = "Descricoes revisadas";
+    entry.title = "Descrições revisadas";
     entry.detail = `${changedCount} modificada${changedCount === 1 ? "" : "s"}`;
     entry.meta = normalizeDiaryMeta([productItemMeta(productCount), ...baseMeta]);
   } else if (input.action === "margin") {
@@ -716,18 +703,4 @@ export function coerceOperationDiaryEntries(value: unknown, limit = 6): Operatio
     .filter((item): item is OperationDiaryEntry => Boolean(item))
     .sort((left, right) => right.occurredAt - left.occurredAt)
     .slice(0, safeLimit);
-}
-
-export function buildPostProcessCompletionMessage(result: Pick<PostProcessResult, "total_itens" | "total_modificados" | "dry_run" | "warnings">) {
-  const summaryLines = [
-    `Itens revisados: ${result.total_itens}`,
-    `Alteracoes aplicadas nesta fase: ${result.total_modificados}`,
-  ];
-  if (result.dry_run) {
-    summaryLines.push("Modo inicial ativo: a IA revisou os itens, mas ainda nao aplicamos as sugestoes automaticamente.");
-  }
-  if (result.warnings?.length) {
-    summaryLines.push(`Avisos: ${result.warnings.join(" | ")}`);
-  }
-  return summaryLines.join("\n");
 }

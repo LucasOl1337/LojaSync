@@ -2,37 +2,29 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from app.domain.products.entities import Product
-from app.interfaces.api.http.route_jobs import (
-    create_post_process_job,
-    get_post_process_job,
-    get_post_process_result,
-    remove_post_process_job,
-    run_post_process_job,
-    update_post_process_job,
-)
 from app.interfaces.api.http.route_models import (
     BulkActionPayload,
     CreateSetPayload,
     CreateSetResponse,
     FormatCodesPayload,
     FormatCodesResponse,
+    HistorySnapshotPayload,
     ImproveDescriptionPayload,
     ImproveDescriptionResponse,
     JoinGradesPayload,
     JoinGradesResponse,
     MarginPayload,
     MarginResponse,
-    PostProcessProductsResultResponse,
-    PostProcessProductsStartResponse,
-    PostProcessProductsStatusResponse,
     ReorderPayload,
     RestoreCodesResponse,
     SnapshotRestorePayload,
     SnapshotRestoreResponse,
+    UndoRedoApplyResponse,
+    UndoRedoHistoryResponse,
 )
 from app.interfaces.api.http.route_shared import CATALOG_SIZES, get_product_service, product_to_response
 from app.interfaces.api.schemas.products import (
@@ -50,6 +42,24 @@ from app.interfaces.api.schemas.products import (
 from app.shared.ui_events import publish_state_changed
 
 router = APIRouter()
+
+
+def _history_response(state) -> UndoRedoHistoryResponse:
+    return UndoRedoHistoryResponse(
+        undo_count=state.undo_count,
+        redo_count=state.redo_count,
+        limit=state.limit,
+        can_undo=state.can_undo,
+        can_redo=state.can_redo,
+    )
+
+
+def _history_apply_response(*, restored: bool, total: int, state) -> UndoRedoApplyResponse:
+    return UndoRedoApplyResponse(
+        **_history_response(state).model_dump(),
+        restored=restored,
+        total=total,
+    )
 
 
 @router.get("/products", response_model=ProductListResponse)
@@ -208,6 +218,34 @@ async def restore_snapshot(payload: SnapshotRestorePayload, request: Request) ->
     return SnapshotRestoreResponse(total=total)
 
 
+@router.get("/actions/history", response_model=UndoRedoHistoryResponse)
+async def get_undo_redo_history(request: Request) -> UndoRedoHistoryResponse:
+    return _history_response(get_product_service(request).get_undo_redo_history_state())
+
+
+@router.post("/actions/history/snapshot", response_model=UndoRedoHistoryResponse)
+async def record_undo_snapshot(request: Request, payload: HistorySnapshotPayload | None = None) -> UndoRedoHistoryResponse:
+    state = get_product_service(request).record_undo_snapshot(clear_redo=True if payload is None else payload.clear_redo)
+    publish_state_changed(["history"])
+    return _history_response(state)
+
+
+@router.post("/actions/history/undo", response_model=UndoRedoApplyResponse)
+async def undo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
+    restored, total, state = get_product_service(request).undo_last_snapshot()
+    if restored:
+        publish_state_changed(["products", "totals", "brands", "history"])
+    return _history_apply_response(restored=restored, total=total, state=state)
+
+
+@router.post("/actions/history/redo", response_model=UndoRedoApplyResponse)
+async def redo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
+    restored, total, state = get_product_service(request).redo_last_snapshot()
+    if restored:
+        publish_state_changed(["products", "totals", "brands", "history"])
+    return _history_apply_response(restored=restored, total=total, state=state)
+
+
 @router.post("/actions/format-codes", response_model=FormatCodesResponse)
 async def format_codes(payload: FormatCodesPayload, request: Request) -> FormatCodesResponse:
     result = get_product_service(request).format_codes(payload.model_dump())
@@ -254,64 +292,17 @@ async def create_set(payload: CreateSetPayload, request: Request) -> CreateSetRe
 @router.post("/actions/improve-descriptions", response_model=ImproveDescriptionResponse)
 async def improve_descriptions(payload: ImproveDescriptionPayload, request: Request) -> ImproveDescriptionResponse:
     has_terms = bool([term for term in payload.remover_termos if str(term).strip()])
-    if not payload.remover_numeros and not payload.remover_especiais and not payload.remover_letras and not has_terms:
+    if not payload.remover_numeros and not payload.remover_especiais and not has_terms:
         raise HTTPException(status_code=400, detail="Selecione ao menos uma opcao de limpeza.")
     result = get_product_service(request).improve_descriptions(
         payload.remover_numeros,
         payload.remover_especiais,
-        payload.remover_letras,
+        False,
         payload.remover_termos,
     )
     if result.get("modificados"):
         publish_state_changed(["products"])
     return ImproveDescriptionResponse(**result)
-
-
-@router.post("/actions/post-process-products", response_model=PostProcessProductsStartResponse)
-async def start_post_process_products(
-    request: Request,
-    background: BackgroundTasks,
-) -> PostProcessProductsStartResponse:
-    service = get_product_service(request)
-    if not service.list_products():
-        raise HTTPException(status_code=400, detail="Nao ha produtos para pos-processar")
-
-    job = create_post_process_job()
-    update_post_process_job(job.job_id, "processing")
-    background.add_task(
-        run_post_process_job,
-        job_id=job.job_id,
-        service=service,
-    )
-    return PostProcessProductsStartResponse(job_id=job.job_id)
-
-
-@router.get("/actions/post-process-products/status/{job_id}", response_model=PostProcessProductsStatusResponse)
-async def post_process_products_status(job_id: str) -> PostProcessProductsStatusResponse:
-    job = get_post_process_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job nao encontrado")
-    return job
-
-
-@router.get("/actions/post-process-products/result/{job_id}", response_model=PostProcessProductsResultResponse)
-async def post_process_products_result(job_id: str) -> PostProcessProductsResultResponse:
-    job = get_post_process_job(job_id)
-    result = get_post_process_result(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job nao encontrado")
-    if job.stage != "completed":
-        raise HTTPException(status_code=409, detail="Processamento ainda em andamento")
-    if result is None:
-        raise HTTPException(status_code=500, detail="Resultado indisponivel")
-    return result
-
-
-@router.delete("/actions/post-process-products/status/{job_id}")
-async def post_process_products_cleanup(job_id: str) -> dict[str, str]:
-    if not remove_post_process_job(job_id):
-        raise HTTPException(status_code=404, detail="Job nao encontrado")
-    return {"status": "removed", "job_id": job_id}
 
 
 @router.get("/actions/export-json")

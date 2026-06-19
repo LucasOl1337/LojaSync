@@ -1,5 +1,7 @@
 import { useEffect, useRef, type FormEvent, type KeyboardEvent } from "react";
 
+import { formatPercentDisplay } from "./productPricing";
+
 type MarginDialogProps = {
   currentPercent: number;
   value: string;
@@ -21,6 +23,7 @@ export function MarginDialog({
 }: MarginDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const currentPercentDisplay = formatPercentDisplay(currentPercent);
 
   useEffect(() => {
     const previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -89,10 +92,10 @@ export function MarginDialog({
         <div className="marginDialogHeaderTs">
           <div className="marginDialogTitleBlockTs">
             <span className="sectionTag">Financeiro</span>
-            <h3 id="margin-dialog-title">Aplicar margem padrao</h3>
-            <p id="margin-dialog-description">Atualize a margem da sessao e recalcule os precos de venda da lista ativa.</p>
+            <h3 id="margin-dialog-title">Aplicar margem padrão</h3>
+            <p id="margin-dialog-description">Atualize a margem da sessão e recalcule os preços de venda da lista ativa.</p>
           </div>
-          <span className="marginCurrentChipTs">{currentPercent.toFixed(1)}%</span>
+          <span className="marginCurrentChipTs">{currentPercentDisplay}</span>
         </div>
 
         <form className="marginDialogFormTs" onSubmit={handleSubmit}>
@@ -113,7 +116,7 @@ export function MarginDialog({
               <span aria-hidden="true">%</span>
             </div>
           </label>
-          <small className="marginDialogHintTs">Use ponto ou virgula para casas decimais. O valor precisa ser maior que zero.</small>
+          <small className="marginDialogHintTs">Use ponto ou vírgula para casas decimais. O valor precisa ser maior que zero.</small>
           {error ? <div className="marginDialogErrorTs" id="margin-dialog-error" role="alert">{error}</div> : null}
 
           <div className="marginDialogActionsTs">

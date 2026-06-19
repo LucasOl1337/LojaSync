@@ -63,6 +63,15 @@ export function formatPriceInput(value: number | null) {
   return value.toFixed(2).replace(".", ",");
 }
 
+export function formatPercentDisplay(value: number | null | undefined) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "0%";
+  return `${new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(numericValue)}%`;
+}
+
 export function calculateSalePricePreview(costPrice: string, marginPercentual: number) {
   const parsed = parseNonNegativePriceInput(costPrice);
   if (parsed == null) return null;

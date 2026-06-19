@@ -36,7 +36,6 @@ const elements = {
   topStopGrades: document.getElementById("btn-top-parar-grades"),
   automationStatus: document.querySelector(".progress-summary .progress-count"),
   improveDescription: document.getElementById("btn-melhorar-descricao"),
-  postProcessLlm: document.getElementById("btn-pos-processar-llm"),
   deleteItems: document.getElementById("btn-deletar-itens"),
   editNames: document.getElementById("btn-editar-nomes"),
   allowEdits: document.getElementById("btn-permitir-edicoes"),
@@ -66,9 +65,6 @@ let romaneioStatusModal = null;
 let romaneioStatusInterval = null;
 let romaneioStatusJobId = null;
 let latestImportedKeys = [];
-let postProcessStatusModal = null;
-let postProcessStatusInterval = null;
-let postProcessStatusJobId = null;
 
 const DEFAULT_CATEGORIES = ["Masculino", "Feminino", "Infantil", "Acessórios"];
 
@@ -590,7 +586,7 @@ let createSetsMode = false;
 let createSetKeys = [];
 let captureWindow = null;
 let captureCallback = null;
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 50;
 let undoStack = [];
 let redoStack = [];
 let currentProductsSnapshot = [];
@@ -3393,88 +3389,6 @@ function createRomaneioStatusModal() {
   return romaneioStatusModal;
 }
 
-function createPostProcessStatusModal() {
-  if (postProcessStatusModal) {
-    return postProcessStatusModal;
-  }
-
-  const overlay = document.createElement("div");
-  overlay.className = "romaneio-status-overlay";
-
-  const panel = document.createElement("div");
-  panel.className = "romaneio-status-panel";
-
-  const title = document.createElement("h3");
-  title.textContent = "Pos-processamento LLM";
-
-  const stage = document.createElement("div");
-  stage.className = "romaneio-status-stage";
-  stage.textContent = "Preparando...";
-
-  const progressBar = document.createElement("div");
-  progressBar.className = "romaneio-progress";
-  const progressInner = document.createElement("div");
-  progressInner.className = "romaneio-progress-inner";
-  progressBar.appendChild(progressInner);
-
-  const logs = document.createElement("ul");
-  logs.className = "romaneio-status-logs";
-
-  panel.appendChild(title);
-  panel.appendChild(stage);
-  panel.appendChild(progressBar);
-  panel.appendChild(logs);
-  overlay.appendChild(panel);
-
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) {
-      overlay.classList.remove("visible");
-    }
-  });
-
-  document.body.appendChild(overlay);
-
-  postProcessStatusModal = {
-    overlay,
-    stage,
-    progressInner,
-    logs,
-    lastMessage: null,
-    show(message) {
-      if (message) {
-        stage.textContent = message;
-      }
-      overlay.classList.add("visible");
-    },
-    hide() {
-      overlay.classList.remove("visible");
-    },
-    update(message, progress) {
-      if (message) {
-        stage.textContent = message;
-        if (message !== this.lastMessage) {
-          const listItem = document.createElement("li");
-          listItem.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
-          logs.appendChild(listItem);
-          logs.scrollTop = logs.scrollHeight;
-          this.lastMessage = message;
-        }
-      }
-      if (typeof progress === "number") {
-        progressInner.style.width = `${progress * 100}%`;
-      }
-    },
-    reset() {
-      stage.textContent = "Preparando...";
-      progressInner.style.width = "10%";
-      logs.innerHTML = "";
-      this.lastMessage = null;
-    },
-  };
-
-  return postProcessStatusModal;
-}
-
 function stopRomaneioStatusPolling() {
   if (romaneioStatusInterval) {
     window.clearInterval(romaneioStatusInterval);
@@ -3581,105 +3495,6 @@ function startRomaneioStatusPolling(jobId) {
   romaneioStatusInterval = window.setInterval(fetchStatus, 5000);
 }
 
-function stopPostProcessStatusPolling() {
-  if (postProcessStatusInterval) {
-    window.clearInterval(postProcessStatusInterval);
-    postProcessStatusInterval = null;
-  }
-  postProcessStatusJobId = null;
-}
-
-function startPostProcessStatusPolling(jobId) {
-  stopPostProcessStatusPolling();
-  postProcessStatusJobId = jobId;
-  const modal = createPostProcessStatusModal();
-  modal.reset();
-  modal.show("Enviando itens para pos-processamento");
-  modal.update("Enviando itens para pos-processamento", 0.2);
-
-  const STAGE_PROGRESS = {
-    pending: 0.1,
-    processing: 0.35,
-    reviewing: 0.75,
-    completed: 1,
-    error: 1,
-  };
-
-  const fetchStatus = async () => {
-    if (!postProcessStatusJobId) {
-      return;
-    }
-    try {
-      const status = await fetchJSON(
-        `${API_BASE_URL}/actions/post-process-products/status/${postProcessStatusJobId}`
-      );
-      const { stage, message, error } = status || {};
-      const progress = STAGE_PROGRESS[String(stage)] ?? 0.1;
-      modal.update(message || "Processando...", progress);
-
-      if (stage === "completed") {
-        const currentJobId = postProcessStatusJobId;
-        stopPostProcessStatusPolling();
-        modal.update("Pos-processamento concluido", 1);
-        let result;
-        try {
-          result = await fetchJSON(
-            `${API_BASE_URL}/actions/post-process-products/result/${currentJobId}`
-          );
-        } catch (fetchErr) {
-          console.error("Falha ao obter resultado do pos-processamento:", fetchErr);
-          window.alert(
-            `O pos-processamento terminou, mas o resultado nao foi carregado: ${fetchErr.message || fetchErr}`
-          );
-        }
-        setTimeout(() => {
-          modal.hide();
-          modal.reset();
-        }, 1500);
-        if (result) {
-          const lines = [
-            `Itens analisados: ${result.total_itens || 0}`,
-            `Alteracoes aplicadas nesta fase: ${result.total_modificados || 0}`,
-          ];
-          if (result.dry_run) {
-            lines.push("Skeleton ativo: a resposta do LLM foi capturada, mas ainda nao aplicamos as sugestoes.");
-          }
-          if (Array.isArray(result.warnings) && result.warnings.length) {
-            lines.push(`Avisos: ${result.warnings.join(" | ")}`);
-          }
-          window.alert(lines.join("\n"));
-        }
-        try {
-          await fetch(`${API_BASE_URL}/actions/post-process-products/status/${currentJobId}`, {
-            method: "DELETE",
-          });
-        } catch (cleanupErr) {
-          console.warn("Falha ao limpar job de pos-processamento:", cleanupErr);
-        }
-        return;
-      }
-
-      if (stage === "error") {
-        stopPostProcessStatusPolling();
-        modal.update(error || "Falha ao executar pos-processamento", 1);
-        setTimeout(() => {
-          modal.hide();
-          modal.reset();
-        }, 2000);
-        throw new Error(error || "Falha ao executar pos-processamento");
-      }
-    } catch (err) {
-      console.error("Erro ao consultar status do pos-processamento:", err);
-      stopPostProcessStatusPolling();
-      createPostProcessStatusModal().hide();
-      window.alert(`Falha no pos-processamento: ${err.message || err}`);
-    }
-  };
-
-  fetchStatus();
-  postProcessStatusInterval = window.setInterval(fetchStatus, 5000);
-}
-
 async function handleImportRomaneio() {
   const input = ensureImportRomaneioInput();
   const file = await new Promise((resolve) => {
@@ -3731,45 +3546,6 @@ async function handleImportRomaneio() {
   } finally {
     toggleImportButtons(false);
     input.value = "";
-  }
-}
-
-async function handlePostProcessLlm() {
-  if (elements.postProcessLlm) {
-    elements.postProcessLlm.disabled = true;
-  }
-
-  const modal = createPostProcessStatusModal();
-  modal.reset();
-  modal.show("Preparando pos-processamento...");
-  modal.update("Preparando pos-processamento...", 0.15);
-  pushUndoSnapshot();
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/actions/post-process-products`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || response.statusText);
-    }
-
-    const data = await response.json();
-    const jobId = data?.job_id;
-    if (!jobId) {
-      throw new Error("Resposta invalida do servidor");
-    }
-    startPostProcessStatusPolling(jobId);
-  } catch (err) {
-    console.error("Erro ao iniciar pos-processamento:", err);
-    window.alert(`Falha ao iniciar pos-processamento: ${err.message || err}`);
-    createPostProcessStatusModal().hide();
-    stopPostProcessStatusPolling();
-  } finally {
-    if (elements.postProcessLlm) {
-      elements.postProcessLlm.disabled = false;
-    }
   }
 }
 
@@ -4280,7 +4056,6 @@ function registerEvents() {
   elements.formatCodes?.addEventListener("click", handleFormatCodes);
   elements.calibrate?.addEventListener("click", handleFullAutomationCalibrationClick);
   elements.improveDescription?.addEventListener("click", handleImproveDescription);
-  elements.postProcessLlm?.addEventListener("click", handlePostProcessLlm);
   elements.deleteItems?.addEventListener("click", handleDeleteItemsClick);
   elements.toggleOrdering?.addEventListener("click", handleToggleOrdering);
   elements.createSets?.addEventListener("click", handleCreateSetsClick);
@@ -4355,15 +4130,6 @@ const ROMANEIO_STAGE_PROGRESS = {
   completed: 1,
   error: 1,
 };
-
-const POST_PROCESS_STAGE_PROGRESS = {
-  pending: 0.1,
-  processing: 0.35,
-  reviewing: 0.75,
-  completed: 1,
-  error: 1,
-};
-
 
 let uiWs = null;
 let uiWsConnected = false;
@@ -4489,13 +4255,6 @@ function handleUiJobUpdated(payload) {
   if (job === "import_romaneio" && romaneioStatusJobId && jobId === romaneioStatusJobId) {
     const modal = createRomaneioStatusModal();
     const progress = ROMANEIO_STAGE_PROGRESS[String(stage)] ?? 0.1;
-    modal.update(message || "Processando...", progress);
-    return;
-  }
-
-  if (job === "post_process_products" && postProcessStatusJobId && jobId === postProcessStatusJobId) {
-    const modal = createPostProcessStatusModal();
-    const progress = POST_PROCESS_STAGE_PROGRESS[String(stage)] ?? 0.1;
     modal.update(message || "Processando...", progress);
     return;
   }

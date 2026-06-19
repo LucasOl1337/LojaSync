@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 
 @dataclass(frozen=True)
@@ -20,3 +21,11 @@ class AuthConfig:
 class SessionIdentity:
     username: str
     expires_at: int
+
+
+class AuthConfigStore(Protocol):
+    def load(self) -> AuthConfig:
+        ...
+
+    def save(self, config: AuthConfig) -> None:
+        ...

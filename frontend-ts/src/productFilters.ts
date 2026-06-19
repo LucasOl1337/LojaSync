@@ -6,7 +6,7 @@ const PRODUCT_QUICK_FILTER_DEFINITIONS = [
   { key: "pending_grades", label: "Grades pendentes" },
   { key: "recent_imports", label: "Importados" },
   { key: "missing_brand", label: "Sem marca" },
-  { key: "missing_code", label: "Sem codigo" },
+  { key: "missing_code", label: "Sem código" },
   { key: "missing_category", label: "Sem categoria" },
   { key: "grade_mismatch", label: "Divergencia" },
 ] as const;
@@ -61,7 +61,12 @@ export type ProductQuickFilterEmptyState = {
   searchQuery?: string;
 };
 
-const FIELD_REVIEW_BADGE_KEYS = new Set<ProductReviewFilter>(["missing_brand", "missing_code", "missing_category"]);
+const TABLE_LEVEL_REVIEW_BADGE_KEYS = new Set<ProductReviewFilter>([
+  "pending_grades",
+  "missing_brand",
+  "missing_code",
+  "missing_category",
+]);
 
 function sumSavedGradeValues(product: Pick<Product, "grades">) {
   return (product.grades || []).reduce((sum, item) => sum + (Number(item.quantidade || 0) || 0), 0);
@@ -99,7 +104,7 @@ export function buildProductReviewBadges(product: Product): ProductReviewBadge[]
     badges.push({ key: "missing_brand", filter: "missing_brand", label: "Sem marca", tone: "warning" });
   }
   if (!String(product.codigo || "").trim()) {
-    badges.push({ key: "missing_code", filter: "missing_code", label: "Sem codigo", tone: "warning" });
+    badges.push({ key: "missing_code", filter: "missing_code", label: "Sem código", tone: "warning" });
   }
   if (!String(product.categoria || "").trim()) {
     badges.push({ key: "missing_category", filter: "missing_category", label: "Sem categoria", tone: "warning" });
@@ -116,7 +121,7 @@ export function buildProductReviewBadges(product: Product): ProductReviewBadge[]
 }
 
 export function buildProductNameReviewBadges(product: Product): ProductReviewBadge[] {
-  return buildProductReviewBadges(product).filter((badge) => !FIELD_REVIEW_BADGE_KEYS.has(badge.key));
+  return buildProductReviewBadges(product).filter((badge) => !TABLE_LEVEL_REVIEW_BADGE_KEYS.has(badge.key));
 }
 
 export function buildProductReviewFieldStatus(product: Product, field: ProductReviewField): ProductReviewFieldStatus | null {
@@ -127,7 +132,7 @@ export function buildProductReviewFieldStatus(product: Product, field: ProductRe
   }
 
   if (field === "codigo") {
-    return { field, filter: "missing_code", label: "Sem codigo", tone: "warning" };
+    return { field, filter: "missing_code", label: "Sem código", tone: "warning" };
   }
 
   return { field, filter: "missing_category", label: "Sem categoria", tone: "warning" };
@@ -201,6 +206,10 @@ export function buildProductQuickFilterButtonLabel(option: ProductQuickFilterOpt
   return `${active ? "Filtro ativo" : "Filtro"}: ${option.label}, ${countLabel}`;
 }
 
+export function buildProductQuickFilterLoadingButtonLabel(option: Pick<ProductQuickFilterOption, "label">, active: boolean) {
+  return `${active ? "Filtro ativo" : "Filtro"}: ${option.label}, atualizando contagem`;
+}
+
 export function getProductQuickFilterVisualState(option: ProductQuickFilterOption, active: boolean): ProductQuickFilterVisualState {
   if (active) return "active";
   if (option.key !== "all" && option.count === 0) return "empty";
@@ -246,8 +255,8 @@ function getQuickFilterContextTone(filter: ProductQuickFilter): ProductQuickFilt
 
 function formatCurrentItemsWithoutIssues(totalCount: number) {
   return totalCount === 1
-    ? "O item atual nao possui pendencias deste filtro."
-    : `Os ${totalCount} itens atuais nao possuem pendencias deste filtro.`;
+    ? "O item atual não possui pendências deste filtro."
+    : `Os ${totalCount} itens atuais não possuem pendências deste filtro.`;
 }
 
 function formatItemsOutsideFilter(totalCount: number) {
@@ -269,12 +278,12 @@ export function buildProductQuickFilterContext(
     { key: "all", label: "Mostrar todos", targetFilter: "all", tone: "neutral" },
   ];
   if (activeFilter !== "needs_review" && getQuickFilterCount("needs_review", options) > 0) {
-    actions.push({ key: "needs_review", label: "Voltar para Revisar", targetFilter: "needs_review", tone: "review" });
+    actions.push({ key: "needs_review", label: "Voltar para revisar", targetFilter: "needs_review", tone: "review" });
   }
 
   return {
-    title: activeFilter === "needs_review" ? "Revisao ativa" : `Filtro ativo: ${getQuickFilterLabel(activeFilter, options)}`,
-    detail: `${displayedCount} de ${totalCount} itens visiveis`,
+    title: activeFilter === "needs_review" ? "Revisão ativa" : `Filtro ativo: ${getQuickFilterLabel(activeFilter, options)}`,
+    detail: `${displayedCount} de ${totalCount} itens visíveis`,
     tone: getQuickFilterContextTone(activeFilter),
     actions,
   };
@@ -309,7 +318,7 @@ export function buildProductQuickFilterEmptyState(
 
 export function buildProductSearchEmptyState(query: string, searchScopeCount: number): ProductQuickFilterEmptyState {
   const trimmedQuery = query.trim();
-  const scopeLabel = searchScopeCount === 1 ? "1 item visivel" : `${searchScopeCount} itens visiveis`;
+  const scopeLabel = searchScopeCount === 1 ? "1 item visível" : `${searchScopeCount} itens visíveis`;
 
   return {
     title: trimmedQuery ? `Nenhum resultado para ${trimmedQuery}.` : "Nenhum resultado encontrado.",

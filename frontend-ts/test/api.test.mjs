@@ -17,6 +17,17 @@ test("converts HTML responses into a readable backend availability message", asy
 
   assert.match(
     api.buildUnexpectedJsonResponseMessage("<html><body>fallback</body></html>"),
-    /runtime principal e o runtime de autenticacao/,
+    /runtime principal e o runtime de autenticação/,
   );
+});
+
+test("resolves API base URL from runtime override and origin", () => {
+  assert.equal(
+    api.resolveApiBaseUrl({
+      windowBackendUrl: "http://127.0.0.1:8891/",
+      origin: "http://127.0.0.1:5197",
+    }),
+    "http://127.0.0.1:8891",
+  );
+  assert.equal(api.resolveApiBaseUrl({ origin: "http://127.0.0.1:5197/" }), "http://127.0.0.1:5197");
 });

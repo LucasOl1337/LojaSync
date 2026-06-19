@@ -1,59 +1,61 @@
 # LojaSync
 
-Plataforma para cadastro e automacao de produtos em ERP, com foco em fluxo de romaneio e nota fiscal, consolidacao de grades e execucao assistida por backend web com automacao desktop.
+Release atual: v1.2.0, 2026-06-19
 
----
+LojaSync e uma plataforma desktop-web para cadastro assistido de produtos no Byte Empresa. O sistema combina painel web em React, API FastAPI, leitura de romaneios/NF-e, consolidacao de grades, persistencia local e automacao desktop para reduzir trabalho manual em cadastros de estoque.
 
-## Visao Geral
+## O que o sistema faz
 
-O LojaSync e um sistema desktop-web projetado para lojistas que precisam cadastrar grandes volumes de produtos no Byte Empresa. Ele combina painel web, processamento de documentos e automacao desktop para reduzir trabalho manual.
+- Importa romaneios e notas fiscais a partir de PDF/texto.
+- Valida itens localmente antes de acionar fallback por LLM.
+- Detecta e consolida grades por lote de importacao.
+- Mantem produtos ativos, historico, marcas, margem, metricas e autenticacao em SQLite local.
+- Permite desfazer/refazer edicoes de produtos com historico persistente.
+- Executa automacao desktop para cadastro completo, cadastro em massa e preenchimento de grades no ERP.
+- Exibe painel operacional com progresso, prontidao de execucao, avisos de importacao e metricas.
 
-O sistema agora roda com dois runtimes separados:
+## Stack
 
-- runtime principal de vendas, produtos e automacao
-- runtime de autenticacao, acessado por conector HTTP
+- Python 3.11+ com FastAPI, Uvicorn e Pydantic.
+- SQLite local em `data/lojasync.db`.
+- React 18 + TypeScript + Vite em `frontend-ts/`.
+- PyAutoGUI/pywinauto para automacao Windows.
+- Pipeline LLM opcional para leitura assistida quando o parser local nao aprova a nota.
 
-### O que o sistema faz
-
-- Importacao automatica de romaneios
-- Gestao de produtos em lote
-- Extracao e consolidacao de grades
-- Automacao de cadastro no ERP
-- GradeBot para preenchimento de grades
-- Metricas operacionais
-
----
-
-## Estrutura
+## Estrutura principal
 
 ```text
 LojaSync/
 |- launcher.py
 |- Iniciar LojaSync.bat
 |- patchatt.bat
+|- pyproject.toml
+|- requirements.txt
+|- README.md
+|- PATCH_NOTES.md
 |- app/
+|  |- application/
+|  |- bootstrap/
+|  |- domain/
+|  |- infrastructure/
+|  `- interfaces/
+|- frontend-ts/
 |- data/
-|- docs/
+|- DocsDev/
 `- Legacy/
 ```
 
-### Inicializacao rapida
+## Inicializacao rapida
+
+No Windows, use:
 
 ```bat
 Iniciar LojaSync.bat
 ```
 
-O iniciador tenta usar o Python da maquina; se faltar ambiente, cria uma `.venv` local e instala as dependencias necessarias.
+O iniciador procura Python 3.11/3.12, cria uma `.venv` local quando necessario, instala dependencias ausentes e sobe os runtimes principais.
 
-Ou manualmente:
-
-```bat
-py launcher.py
-```
-
----
-
-## Como executar manualmente
+Execucao manual:
 
 ```powershell
 python -m venv .venv
@@ -63,35 +65,107 @@ python -m pip install -r requirements.txt
 python launcher.py
 ```
 
----
+## Frontend TypeScript
+
+O launcher prepara o frontend automaticamente quando encontra `frontend-ts/`. Para trabalhar no frontend isolado:
+
+```powershell
+cd frontend-ts
+npm ci
+npm run dev
+```
+
+Build de producao:
+
+```powershell
+cd frontend-ts
+npm run build
+```
+
+O diretorio `frontend-ts/dist/` e versionado nesta aplicacao para que a release tenha um frontend pronto mesmo em maquinas sem Node.js. Antes de publicar uma nova release, rode `npm run build` e inclua o `dist/` atualizado.
 
 ## URLs padrao
 
-- Frontend principal: `http://127.0.0.1:8800`
-- Backend: `http://127.0.0.1:8800`
+- Aplicacao principal: `http://127.0.0.1:8800`
+- Backend/API: `http://127.0.0.1:8800`
+- Swagger: `http://127.0.0.1:8800/docs`
 - Auth runtime: `http://127.0.0.1:8810`
 - Frontend legado: `http://127.0.0.1:8800/legacy/`
-- Swagger: `http://127.0.0.1:8800/docs`
 - LLM Monitor: `http://127.0.0.1:5174`
 
----
+## Dados locais e migracao
 
-## Atualizacao rapida
+A release v1.2.0 usa SQLite como base operacional principal. Na primeira execucao, os repositorios SQLite carregam dados legados de JSON/JSONL quando a base ainda esta vazia.
 
-Para atualizar um PC que ja tenha o repositorio clonado:
+Arquivos locais importantes:
+
+- `data/lojasync.db`: banco SQLite local, nao versionado.
+- `data/products_active.jsonl` e `data/products_history.jsonl`: fontes legadas migradas para SQLite.
+- `data/brands.json`, `data/margem.json`, `data/metrics.json` e `data/auth.json`: fontes legadas/configuracoes locais.
+- `data/undo_redo_history.json`: historico local de desfazer/refazer, recriado em runtime e nao versionado.
+
+## Principais fluxos
+
+### Importacao de romaneio
+
+1. O arquivo enviado passa pelo parser local.
+2. A validacao compara quantidade extraida, totais de documento e sinais de consistencia.
+3. Se aprovado, o lote e importado sem LLM.
+4. Se reprovado ou se o usuario preferir LLM, o backend envia texto/imagens ao servico LLM.
+5. O pipeline LLM divide trechos estruturados, reprocessa chunks incompletos e usa recortes verticais de imagem como fallback.
+6. Produtos recebem metadados de lote (`import_batch_id`, origem e flag de grade pendente).
+
+### Grades
+
+- Produtos importados com grade detectavel ficam marcados como pendentes.
+- A acao de importar grades processa todos os lotes pendentes sem misturar produtos manuais.
+- A consolidacao preserva faixas de preco diferentes e nomes diferentes, evitando merges incorretos.
+
+### Edicao reversivel
+
+- O frontend registra snapshots antes de operacoes destrutivas ou em lote.
+- O backend expoe `/actions/history`, `/actions/history/snapshot`, `/actions/history/undo` e `/actions/history/redo`.
+- O historico e limitado a 50 snapshots e persiste entre reinicios locais.
+
+### Automacao
+
+- O centro de execucao centraliza cadastro completo, cadastro em massa, execucao de grades, importacao de grades e parada de emergencia.
+- A automacao depende de Windows, permissao de interacao com a area de trabalho e posicoes configuradas do Byte Empresa.
+
+## Comandos de validacao
+
+Backend:
+
+```powershell
+python -m pytest
+```
+
+Frontend:
+
+```powershell
+cd frontend-ts
+npm run build
+npm run test:logic
+```
+
+## Atualizacao em outro PC
+
+Para atualizar uma maquina ja clonada:
 
 ```bat
 patchatt.bat
 ```
 
-O script valida se a pasta e um repositorio Git, checa se ha alteracoes locais e faz `git pull --ff-only origin main`.
+O script valida Git, exige arvore limpa e executa `git pull --ff-only origin main`.
 
----
+## Patch notes
 
-## Observacoes
+As notas completas da release estao em `PATCH_NOTES.md`.
 
-- O projeto deve refletir o estado validado localmente.
-- Dados operacionais ficam em `data/`.
-- `data/auth.json` e historicos gerados em runtime sao locais da maquina e nao devem ser versionados; ao iniciar em um novo PC, eles sao recriados automaticamente.
-- A automacao desktop depende de Windows e PyAutoGUI.
-- O frontend novo em TypeScript e o principal da aplicacao. O legado permanece disponivel em `/legacy/`.
+## Observacoes operacionais
+
+- Nao versionar bancos, credenciais, historicos de runtime, `.venv`, `node_modules` ou caches.
+- `frontend-ts/dist/` e a excecao intencional de build estatico versionado para distribuicao local.
+- O frontend React e a interface principal. O frontend legado fica disponivel em `/legacy/` para compatibilidade.
+- O LLM e opcional para importacao; quando indisponivel, o parser local ainda pode aprovar notas consistentes.
+- Para publicar nova release, atualize versoes, README, `PATCH_NOTES.md`, rode validacoes, commite, crie tag e publique no GitHub.

@@ -63,6 +63,14 @@ from app.bootstrap.launcher.frontend import (
 )
 
 
+# Backward-compatible aliases must exist before Launcher.run executes when this
+# file is called as a script. Tests and legacy callers also patch these names.
+_locate_npm_command = locate_npm_command
+_make_http_server = make_http_server
+_is_tcp_listening = is_tcp_listening
+_is_port_bindable = is_port_bindable
+
+
 # ---------------------------------------------------------------------------
 # Module discovery helper
 # ---------------------------------------------------------------------------

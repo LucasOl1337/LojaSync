@@ -1,0 +1,39 @@
+{
+  "brand": {
+    "name": "LojaSync",
+    "vendor": "LojaSync",
+    "footer": "PLATAFORMA DESKTOP-WEB LOCAL",
+    "masthead": "NOTAS DA ATUALIZACAO",
+    "footerLeft": "Notas completas no GitHub Releases",
+    "bgGradient": ["#101820", "#17313A", "#1F4A4D"],
+    "pillGradient": ["#0F766E", "#22C55E"]
+  },
+  "version": "v1.2.1",
+  "date": "22 de junho de 2026 · Release oficial",
+  "categories": [
+    {
+      "label": "Correcoes",
+      "title": "CORRECOES",
+      "color": "#38BDF8",
+      "items": [
+        {
+          "name": "Aliases do launcher",
+          "desc": "helpers npm/http/tcp expostos para callers legados e testes",
+          "tag": "LAUNCHER"
+        }
+      ]
+    },
+    {
+      "label": "Sistemas",
+      "title": "SISTEMAS",
+      "color": "#A78BFA",
+      "items": [
+        {
+          "name": "Gate launcher/frontend",
+          "desc": "pytest filtrado validou aliases e fluxo frontend do launcher",
+          "tag": "TESTES"
+        }
+      ]
+    }
+  ]
+}

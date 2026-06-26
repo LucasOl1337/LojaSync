@@ -1,0 +1,33 @@
+[1m
+CodeGraph Status
+[0m
+[36mProject:[0m C:\Projetos\LojaSync
+
+[1mIndex Statistics:[0m
+  Files:     209
+  Nodes:     4.298
+  Edges:     10.364
+  DB Size:   10.89 MB
+  Backend:   [32mnode:sqlite - built-in (full WAL)[0m
+  Journal:   [32mwal[0m
+
+[1mNodes by Kind:[0m
+  function        1.475
+  import          852
+  method          722
+  variable        477
+  class           223
+  file            209
+  route           121
+  type_alias      113
+  constant        105
+  component       1
+
+[1mFiles by Language:[0m
+  python          155
+  tsx             21
+  javascript      18
+  typescript      15
+
+[32m[OK][0m Index is up to date
+

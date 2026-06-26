@@ -1,0 +1,1256 @@
+[
+  {
+    "path": "Legacy/automation/gradebot/gradebot.py",
+    "language": "python",
+    "nodeCount": 53,
+    "size": 14782
+  },
+  {
+    "path": "Legacy/engine/LLM3/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 53
+  },
+  {
+    "path": "Legacy/engine/LLM3/backend.py",
+    "language": "python",
+    "nodeCount": 66,
+    "size": 22569
+  },
+  {
+    "path": "Legacy/engine/LLM3/frontend.py",
+    "language": "python",
+    "nodeCount": 6,
+    "size": 14768
+  },
+  {
+    "path": "Legacy/engine/LLM3/keys.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 1199
+  },
+  {
+    "path": "Legacy/engine/LLM3/launcher.py",
+    "language": "python",
+    "nodeCount": 10,
+    "size": 902
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/core/parser_manager.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 8935
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/core/parser_manager_backup.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 7199
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/__init__.py",
+    "language": "python",
+    "nodeCount": 6,
+    "size": 509
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/calibration_window.py",
+    "language": "python",
+    "nodeCount": 15,
+    "size": 9461
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/grade_window.py",
+    "language": "python",
+    "nodeCount": 26,
+    "size": 15192
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/grades_window.py",
+    "language": "python",
+    "nodeCount": 18,
+    "size": 10971
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/log_window.py",
+    "language": "python",
+    "nodeCount": 13,
+    "size": 5863
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/main_gui.py",
+    "language": "python",
+    "nodeCount": 129,
+    "size": 137155
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/marca_window.py",
+    "language": "python",
+    "nodeCount": 11,
+    "size": 4317
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/margem_window.py",
+    "language": "python",
+    "nodeCount": 15,
+    "size": 9689
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/interface/settings_window.py",
+    "language": "python",
+    "nodeCount": 20,
+    "size": 11185
+  },
+  {
+    "path": "Legacy/engine/legacy/desktop_gui/quality/qualidadeNota.py",
+    "language": "python",
+    "nodeCount": 21,
+    "size": 12047
+  },
+  {
+    "path": "Legacy/engine/modules/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 337
+  },
+  {
+    "path": "Legacy/engine/modules/automation/__init__.py",
+    "language": "python",
+    "nodeCount": 3,
+    "size": 585
+  },
+  {
+    "path": "Legacy/engine/modules/automation/byte_empresa.py",
+    "language": "python",
+    "nodeCount": 30,
+    "size": 22224
+  },
+  {
+    "path": "Legacy/engine/modules/config/__init__.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 443
+  },
+  {
+    "path": "Legacy/engine/modules/config/constants.py",
+    "language": "python",
+    "nodeCount": 24,
+    "size": 2601
+  },
+  {
+    "path": "Legacy/engine/modules/config/theme.py",
+    "language": "python",
+    "nodeCount": 3,
+    "size": 2179
+  },
+  {
+    "path": "Legacy/engine/modules/core/__init__.py",
+    "language": "python",
+    "nodeCount": 5,
+    "size": 1219
+  },
+  {
+    "path": "Legacy/engine/modules/core/calculator.py",
+    "language": "python",
+    "nodeCount": 5,
+    "size": 2985
+  },
+  {
+    "path": "Legacy/engine/modules/core/file_manager.py",
+    "language": "python",
+    "nodeCount": 39,
+    "size": 20296
+  },
+  {
+    "path": "Legacy/engine/modules/core/validator.py",
+    "language": "python",
+    "nodeCount": 9,
+    "size": 6053
+  },
+  {
+    "path": "Legacy/engine/modules/parsers/__init__.py",
+    "language": "python",
+    "nodeCount": 8,
+    "size": 695
+  },
+  {
+    "path": "Legacy/engine/modules/parsers/parser_grades.py",
+    "language": "python",
+    "nodeCount": 13,
+    "size": 5373
+  },
+  {
+    "path": "Legacy/engine/webapp/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 46
+  },
+  {
+    "path": "Legacy/engine/webapp/automation_client.js",
+    "language": "javascript",
+    "nodeCount": 4,
+    "size": 869
+  },
+  {
+    "path": "Legacy/engine/webapp/backend.py",
+    "language": "python",
+    "nodeCount": 243,
+    "size": 124144
+  },
+  {
+    "path": "Legacy/engine/webapp/database.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 45375
+  },
+  {
+    "path": "Legacy/engine/webapp/executor.py",
+    "language": "python",
+    "nodeCount": 66,
+    "size": 25934
+  },
+  {
+    "path": "Legacy/engine/webapp/frontend.py",
+    "language": "python",
+    "nodeCount": 15,
+    "size": 2061
+  },
+  {
+    "path": "Legacy/engine/webapp/launcher.py",
+    "language": "python",
+    "nodeCount": 71,
+    "size": 21771
+  },
+  {
+    "path": "Legacy/engine/webapp/llm_monitor.py",
+    "language": "python",
+    "nodeCount": 62,
+    "size": 22382
+  },
+  {
+    "path": "Legacy/engine/webapp/parametros.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 7494
+  },
+  {
+    "path": "Legacy/engine/webapp/remote_manager.py",
+    "language": "python",
+    "nodeCount": 26,
+    "size": 9497
+  },
+  {
+    "path": "Legacy/engine/webapp/repdf.py",
+    "language": "python",
+    "nodeCount": 26,
+    "size": 11638
+  },
+  {
+    "path": "Legacy/engine/webapp/script.js",
+    "language": "javascript",
+    "nodeCount": 202,
+    "size": 135771
+  },
+  {
+    "path": "Legacy/engine/webapp/sequencias.py",
+    "language": "python",
+    "nodeCount": 25,
+    "size": 9770
+  },
+  {
+    "path": "Legacy/engine/webapp/theme.js",
+    "language": "javascript",
+    "nodeCount": 36,
+    "size": 14473
+  },
+  {
+    "path": "app/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 37
+  },
+  {
+    "path": "app/application/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 29
+  },
+  {
+    "path": "app/application/auth/__init__.py",
+    "language": "python",
+    "nodeCount": 3,
+    "size": 63
+  },
+  {
+    "path": "app/application/auth/service.py",
+    "language": "python",
+    "nodeCount": 28,
+    "size": 6472
+  },
+  {
+    "path": "app/application/automation/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 36
+  },
+  {
+    "path": "app/application/automation/byteempresa/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 48
+  },
+  {
+    "path": "app/application/automation/byteempresa/catalog.py",
+    "language": "python",
+    "nodeCount": 50,
+    "size": 19922
+  },
+  {
+    "path": "app/application/automation/byteempresa/models.py",
+    "language": "python",
+    "nodeCount": 7,
+    "size": 732
+  },
+  {
+    "path": "app/application/automation/byteempresa/session.py",
+    "language": "python",
+    "nodeCount": 38,
+    "size": 12293
+  },
+  {
+    "path": "app/application/automation/product_payload.py",
+    "language": "python",
+    "nodeCount": 9,
+    "size": 3779
+  },
+  {
+    "path": "app/application/automation/profiles.py",
+    "language": "python",
+    "nodeCount": 19,
+    "size": 10393
+  },
+  {
+    "path": "app/application/automation/service.py",
+    "language": "python",
+    "nodeCount": 93,
+    "size": 49349
+  },
+  {
+    "path": "app/application/imports/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 38
+  },
+  {
+    "path": "app/application/imports/job_validation.py",
+    "language": "python",
+    "nodeCount": 26,
+    "size": 18539
+  },
+  {
+    "path": "app/application/imports/local_experiment.py",
+    "language": "python",
+    "nodeCount": 89,
+    "size": 59120
+  },
+  {
+    "path": "app/application/imports/parsing.py",
+    "language": "python",
+    "nodeCount": 71,
+    "size": 43315
+  },
+  {
+    "path": "app/application/imports/pdf_text.py",
+    "language": "python",
+    "nodeCount": 10,
+    "size": 2047
+  },
+  {
+    "path": "app/application/products/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 26
+  },
+  {
+    "path": "app/application/products/service.py",
+    "language": "python",
+    "nodeCount": 71,
+    "size": 44545
+  },
+  {
+    "path": "app/bootstrap/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 30
+  },
+  {
+    "path": "app/bootstrap/launcher/__init__.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 186
+  },
+  {
+    "path": "app/bootstrap/launcher/env.py",
+    "language": "python",
+    "nodeCount": 28,
+    "size": 4205
+  },
+  {
+    "path": "app/bootstrap/launcher/frontend.py",
+    "language": "python",
+    "nodeCount": 19,
+    "size": 4939
+  },
+  {
+    "path": "app/bootstrap/launcher/net.py",
+    "language": "python",
+    "nodeCount": 7,
+    "size": 1494
+  },
+  {
+    "path": "app/bootstrap/wiring/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 25
+  },
+  {
+    "path": "app/bootstrap/wiring/auth_container.py",
+    "language": "python",
+    "nodeCount": 8,
+    "size": 862
+  },
+  {
+    "path": "app/bootstrap/wiring/container.py",
+    "language": "python",
+    "nodeCount": 13,
+    "size": 2205
+  },
+  {
+    "path": "app/domain/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 24
+  },
+  {
+    "path": "app/domain/auth/__init__.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 330
+  },
+  {
+    "path": "app/domain/auth/connectors.py",
+    "language": "python",
+    "nodeCount": 13,
+    "size": 1131
+  },
+  {
+    "path": "app/domain/auth/entities.py",
+    "language": "python",
+    "nodeCount": 9,
+    "size": 661
+  },
+  {
+    "path": "app/domain/brands/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 21
+  },
+  {
+    "path": "app/domain/brands/repository.py",
+    "language": "python",
+    "nodeCount": 5,
+    "size": 318
+  },
+  {
+    "path": "app/domain/grades/parser.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 5245
+  },
+  {
+    "path": "app/domain/metrics/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 23
+  },
+  {
+    "path": "app/domain/metrics/entities.py",
+    "language": "python",
+    "nodeCount": 3,
+    "size": 287
+  },
+  {
+    "path": "app/domain/products/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 23
+  },
+  {
+    "path": "app/domain/products/entities.py",
+    "language": "python",
+    "nodeCount": 19,
+    "size": 7347
+  },
+  {
+    "path": "app/domain/products/grade_utils.py",
+    "language": "python",
+    "nodeCount": 20,
+    "size": 6188
+  },
+  {
+    "path": "app/domain/products/money.py",
+    "language": "python",
+    "nodeCount": 6,
+    "size": 1461
+  },
+  {
+    "path": "app/domain/products/repository.py",
+    "language": "python",
+    "nodeCount": 11,
+    "size": 993
+  },
+  {
+    "path": "app/infrastructure/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 32
+  },
+  {
+    "path": "app/infrastructure/auth/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 36
+  },
+  {
+    "path": "app/infrastructure/auth/http_connector.py",
+    "language": "python",
+    "nodeCount": 15,
+    "size": 4705
+  },
+  {
+    "path": "app/infrastructure/persistence/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 29
+  },
+  {
+    "path": "app/infrastructure/persistence/files/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 31
+  },
+  {
+    "path": "app/infrastructure/persistence/files/auth_store.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 2599
+  },
+  {
+    "path": "app/infrastructure/persistence/files/settings_files.py",
+    "language": "python",
+    "nodeCount": 17,
+    "size": 3617
+  },
+  {
+    "path": "app/infrastructure/persistence/files/undo_history.py",
+    "language": "python",
+    "nodeCount": 25,
+    "size": 4830
+  },
+  {
+    "path": "app/infrastructure/persistence/jsonl/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 26
+  },
+  {
+    "path": "app/infrastructure/persistence/jsonl/stores.py",
+    "language": "python",
+    "nodeCount": 16,
+    "size": 3480
+  },
+  {
+    "path": "app/infrastructure/persistence/sqlite/__init__.py",
+    "language": "python",
+    "nodeCount": 3,
+    "size": 352
+  },
+  {
+    "path": "app/infrastructure/persistence/sqlite/stores.py",
+    "language": "python",
+    "nodeCount": 57,
+    "size": 26748
+  },
+  {
+    "path": "app/interfaces/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 28
+  },
+  {
+    "path": "app/interfaces/api/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 23
+  },
+  {
+    "path": "app/interfaces/api/http/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 17
+  },
+  {
+    "path": "app/interfaces/api/http/app.py",
+    "language": "python",
+    "nodeCount": 33,
+    "size": 8919
+  },
+  {
+    "path": "app/interfaces/api/http/jobs/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 36
+  },
+  {
+    "path": "app/interfaces/api/http/jobs/llm.py",
+    "language": "python",
+    "nodeCount": 9,
+    "size": 2264
+  },
+  {
+    "path": "app/interfaces/api/http/jobs/runtime.py",
+    "language": "python",
+    "nodeCount": 25,
+    "size": 36824
+  },
+  {
+    "path": "app/interfaces/api/http/jobs/store.py",
+    "language": "python",
+    "nodeCount": 19,
+    "size": 3943
+  },
+  {
+    "path": "app/interfaces/api/http/route_auth.py",
+    "language": "python",
+    "nodeCount": 24,
+    "size": 5647
+  },
+  {
+    "path": "app/interfaces/api/http/route_automation.py",
+    "language": "python",
+    "nodeCount": 39,
+    "size": 5925
+  },
+  {
+    "path": "app/interfaces/api/http/route_core.py",
+    "language": "python",
+    "nodeCount": 8,
+    "size": 1250
+  },
+  {
+    "path": "app/interfaces/api/http/route_imports.py",
+    "language": "python",
+    "nodeCount": 21,
+    "size": 4846
+  },
+  {
+    "path": "app/interfaces/api/http/route_jobs.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 708
+  },
+  {
+    "path": "app/interfaces/api/http/route_local_import_experiment.py",
+    "language": "python",
+    "nodeCount": 11,
+    "size": 2370
+  },
+  {
+    "path": "app/interfaces/api/http/route_models.py",
+    "language": "python",
+    "nodeCount": 40,
+    "size": 8034
+  },
+  {
+    "path": "app/interfaces/api/http/route_products.py",
+    "language": "python",
+    "nodeCount": 66,
+    "size": 13038
+  },
+  {
+    "path": "app/interfaces/api/http/route_shared.py",
+    "language": "python",
+    "nodeCount": 15,
+    "size": 3395
+  },
+  {
+    "path": "app/interfaces/api/http/routes.py",
+    "language": "python",
+    "nodeCount": 9,
+    "size": 827
+  },
+  {
+    "path": "app/interfaces/api/schemas/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 20
+  },
+  {
+    "path": "app/interfaces/api/schemas/products.py",
+    "language": "python",
+    "nodeCount": 22,
+    "size": 3667
+  },
+  {
+    "path": "app/interfaces/auth_api/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 36
+  },
+  {
+    "path": "app/interfaces/auth_api/http/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 36
+  },
+  {
+    "path": "app/interfaces/auth_api/http/app.py",
+    "language": "python",
+    "nodeCount": 6,
+    "size": 499
+  },
+  {
+    "path": "app/interfaces/auth_api/http/routes.py",
+    "language": "python",
+    "nodeCount": 25,
+    "size": 4053
+  },
+  {
+    "path": "app/interfaces/webapp/static/script.js",
+    "language": "javascript",
+    "nodeCount": 208,
+    "size": 144014
+  },
+  {
+    "path": "app/shared/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 31
+  },
+  {
+    "path": "app/shared/config/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 29
+  },
+  {
+    "path": "app/shared/config/settings.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 970
+  },
+  {
+    "path": "app/shared/jobs/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 38
+  },
+  {
+    "path": "app/shared/jobs/in_memory.py",
+    "language": "python",
+    "nodeCount": 14,
+    "size": 2639
+  },
+  {
+    "path": "app/shared/logging/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 22
+  },
+  {
+    "path": "app/shared/logging/setup.py",
+    "language": "python",
+    "nodeCount": 8,
+    "size": 998
+  },
+  {
+    "path": "app/shared/paths/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 21
+  },
+  {
+    "path": "app/shared/paths/runtime_paths.py",
+    "language": "python",
+    "nodeCount": 13,
+    "size": 1695
+  },
+  {
+    "path": "app/shared/ui_events.py",
+    "language": "python",
+    "nodeCount": 17,
+    "size": 2565
+  },
+  {
+    "path": "automation/lojasync-crawler.py",
+    "language": "python",
+    "nodeCount": 21,
+    "size": 10067
+  },
+  {
+    "path": "automation/lojasync-outreach.py",
+    "language": "python",
+    "nodeCount": 24,
+    "size": 10250
+  },
+  {
+    "path": "frontend-ts/dist/assets/index-Cy0vR5Wx.js",
+    "language": "javascript",
+    "nodeCount": 271,
+    "size": 295657
+  },
+  {
+    "path": "frontend-ts/src/App.tsx",
+    "language": "tsx",
+    "nodeCount": 37,
+    "size": 99601
+  },
+  {
+    "path": "frontend-ts/src/AuthShell.tsx",
+    "language": "tsx",
+    "nodeCount": 13,
+    "size": 9123
+  },
+  {
+    "path": "frontend-ts/src/api.ts",
+    "language": "typescript",
+    "nodeCount": 65,
+    "size": 14305
+  },
+  {
+    "path": "frontend-ts/src/appConfig.ts",
+    "language": "typescript",
+    "nodeCount": 16,
+    "size": 2642
+  },
+  {
+    "path": "frontend-ts/src/appLocalState.ts",
+    "language": "typescript",
+    "nodeCount": 32,
+    "size": 5706
+  },
+  {
+    "path": "frontend-ts/src/appNotifications.ts",
+    "language": "typescript",
+    "nodeCount": 12,
+    "size": 2345
+  },
+  {
+    "path": "frontend-ts/src/confirmationDialog.tsx",
+    "language": "tsx",
+    "nodeCount": 5,
+    "size": 4033
+  },
+  {
+    "path": "frontend-ts/src/descriptionCleanup.ts",
+    "language": "typescript",
+    "nodeCount": 27,
+    "size": 7824
+  },
+  {
+    "path": "frontend-ts/src/editableProductCell.tsx",
+    "language": "tsx",
+    "nodeCount": 10,
+    "size": 4655
+  },
+  {
+    "path": "frontend-ts/src/executionCenterPanel.tsx",
+    "language": "tsx",
+    "nodeCount": 4,
+    "size": 6660
+  },
+  {
+    "path": "frontend-ts/src/gradeLogic.ts",
+    "language": "typescript",
+    "nodeCount": 27,
+    "size": 11841
+  },
+  {
+    "path": "frontend-ts/src/gradeModal.tsx",
+    "language": "tsx",
+    "nodeCount": 7,
+    "size": 16957
+  },
+  {
+    "path": "frontend-ts/src/importDiagnostics.tsx",
+    "language": "tsx",
+    "nodeCount": 4,
+    "size": 2423
+  },
+  {
+    "path": "frontend-ts/src/importStagePanel.tsx",
+    "language": "tsx",
+    "nodeCount": 7,
+    "size": 8401
+  },
+  {
+    "path": "frontend-ts/src/keyboardShortcuts.ts",
+    "language": "typescript",
+    "nodeCount": 5,
+    "size": 936
+  },
+  {
+    "path": "frontend-ts/src/main.tsx",
+    "language": "tsx",
+    "nodeCount": 5,
+    "size": 268
+  },
+  {
+    "path": "frontend-ts/src/marginDialog.tsx",
+    "language": "tsx",
+    "nodeCount": 5,
+    "size": 4474
+  },
+  {
+    "path": "frontend-ts/src/noticeDialog.tsx",
+    "language": "tsx",
+    "nodeCount": 6,
+    "size": 2904
+  },
+  {
+    "path": "frontend-ts/src/noticeToastStack.tsx",
+    "language": "tsx",
+    "nodeCount": 6,
+    "size": 1207
+  },
+  {
+    "path": "frontend-ts/src/operationalHealthPanel.tsx",
+    "language": "tsx",
+    "nodeCount": 5,
+    "size": 2258
+  },
+  {
+    "path": "frontend-ts/src/operationalSummaryPanel.tsx",
+    "language": "tsx",
+    "nodeCount": 4,
+    "size": 2487
+  },
+  {
+    "path": "frontend-ts/src/productEditing.ts",
+    "language": "typescript",
+    "nodeCount": 12,
+    "size": 2897
+  },
+  {
+    "path": "frontend-ts/src/productEntryPanel.tsx",
+    "language": "tsx",
+    "nodeCount": 8,
+    "size": 5351
+  },
+  {
+    "path": "frontend-ts/src/productFilters.ts",
+    "language": "typescript",
+    "nodeCount": 42,
+    "size": 11700
+  },
+  {
+    "path": "frontend-ts/src/productForm.ts",
+    "language": "typescript",
+    "nodeCount": 12,
+    "size": 2589
+  },
+  {
+    "path": "frontend-ts/src/productListControls.tsx",
+    "language": "tsx",
+    "nodeCount": 16,
+    "size": 19499
+  },
+  {
+    "path": "frontend-ts/src/productListToolPanels.tsx",
+    "language": "tsx",
+    "nodeCount": 9,
+    "size": 8053
+  },
+  {
+    "path": "frontend-ts/src/productOrdering.ts",
+    "language": "typescript",
+    "nodeCount": 10,
+    "size": 2589
+  },
+  {
+    "path": "frontend-ts/src/productPricing.ts",
+    "language": "typescript",
+    "nodeCount": 12,
+    "size": 3198
+  },
+  {
+    "path": "frontend-ts/src/productTable.tsx",
+    "language": "tsx",
+    "nodeCount": 14,
+    "size": 18892
+  },
+  {
+    "path": "frontend-ts/src/productTableRow.tsx",
+    "language": "tsx",
+    "nodeCount": 9,
+    "size": 10506
+  },
+  {
+    "path": "frontend-ts/src/settingsModal.tsx",
+    "language": "tsx",
+    "nodeCount": 14,
+    "size": 12269
+  },
+  {
+    "path": "frontend-ts/src/textInputDialog.tsx",
+    "language": "tsx",
+    "nodeCount": 4,
+    "size": 4036
+  },
+  {
+    "path": "frontend-ts/src/types.ts",
+    "language": "typescript",
+    "nodeCount": 32,
+    "size": 5351
+  },
+  {
+    "path": "frontend-ts/src/uiFormatting.ts",
+    "language": "typescript",
+    "nodeCount": 56,
+    "size": 25812
+  },
+  {
+    "path": "frontend-ts/test/api.test.mjs",
+    "language": "javascript",
+    "nodeCount": 4,
+    "size": 1149
+  },
+  {
+    "path": "frontend-ts/test/appLocalState.test.mjs",
+    "language": "javascript",
+    "nodeCount": 11,
+    "size": 4241
+  },
+  {
+    "path": "frontend-ts/test/appNotifications.test.mjs",
+    "language": "javascript",
+    "nodeCount": 4,
+    "size": 1900
+  },
+  {
+    "path": "frontend-ts/test/descriptionCleanup.test.mjs",
+    "language": "javascript",
+    "nodeCount": 5,
+    "size": 3725
+  },
+  {
+    "path": "frontend-ts/test/executionCenterPanel.test.mjs",
+    "language": "javascript",
+    "nodeCount": 7,
+    "size": 1862
+  },
+  {
+    "path": "frontend-ts/test/gradeLogic.test.mjs",
+    "language": "javascript",
+    "nodeCount": 4,
+    "size": 5458
+  },
+  {
+    "path": "frontend-ts/test/keyboardShortcuts.test.mjs",
+    "language": "javascript",
+    "nodeCount": 5,
+    "size": 1560
+  },
+  {
+    "path": "frontend-ts/test/productEditing.test.mjs",
+    "language": "javascript",
+    "nodeCount": 5,
+    "size": 2941
+  },
+  {
+    "path": "frontend-ts/test/productFilters.test.mjs",
+    "language": "javascript",
+    "nodeCount": 6,
+    "size": 13854
+  },
+  {
+    "path": "frontend-ts/test/productForm.test.mjs",
+    "language": "javascript",
+    "nodeCount": 5,
+    "size": 3164
+  },
+  {
+    "path": "frontend-ts/test/productOrdering.test.mjs",
+    "language": "javascript",
+    "nodeCount": 5,
+    "size": 1793
+  },
+  {
+    "path": "frontend-ts/test/productPricing.test.mjs",
+    "language": "javascript",
+    "nodeCount": 4,
+    "size": 2915
+  },
+  {
+    "path": "frontend-ts/test/uiFormatting.test.mjs",
+    "language": "javascript",
+    "nodeCount": 5,
+    "size": 17556
+  },
+  {
+    "path": "frontend-ts/vite.config.ts",
+    "language": "typescript",
+    "nodeCount": 5,
+    "size": 717
+  },
+  {
+    "path": "launcher.py",
+    "language": "python",
+    "nodeCount": 51,
+    "size": 20599
+  },
+  {
+    "path": "tests/__init__.py",
+    "language": "python",
+    "nodeCount": 1,
+    "size": 36
+  },
+  {
+    "path": "tests/_invoice_dump.py",
+    "language": "python",
+    "nodeCount": 7,
+    "size": 844
+  },
+  {
+    "path": "tests/_invoice_harness.py",
+    "language": "python",
+    "nodeCount": 13,
+    "size": 6514
+  },
+  {
+    "path": "tests/_ocr_dump.py",
+    "language": "python",
+    "nodeCount": 10,
+    "size": 987
+  },
+  {
+    "path": "tests/auth_test_support.py",
+    "language": "python",
+    "nodeCount": 11,
+    "size": 2606
+  },
+  {
+    "path": "tests/test_auth_routes.py",
+    "language": "python",
+    "nodeCount": 18,
+    "size": 5511
+  },
+  {
+    "path": "tests/test_auth_runtime.py",
+    "language": "python",
+    "nodeCount": 18,
+    "size": 4689
+  },
+  {
+    "path": "tests/test_automation_product_payload.py",
+    "language": "python",
+    "nodeCount": 9,
+    "size": 3085
+  },
+  {
+    "path": "tests/test_automation_service_native_gate.py",
+    "language": "python",
+    "nodeCount": 15,
+    "size": 4299
+  },
+  {
+    "path": "tests/test_byteempresa_catalog.py",
+    "language": "python",
+    "nodeCount": 8,
+    "size": 1612
+  },
+  {
+    "path": "tests/test_http_frontend.py",
+    "language": "python",
+    "nodeCount": 14,
+    "size": 5641
+  },
+  {
+    "path": "tests/test_import_job_validation.py",
+    "language": "python",
+    "nodeCount": 31,
+    "size": 22228
+  },
+  {
+    "path": "tests/test_import_parsing.py",
+    "language": "python",
+    "nodeCount": 61,
+    "size": 33053
+  },
+  {
+    "path": "tests/test_job_store.py",
+    "language": "python",
+    "nodeCount": 10,
+    "size": 2432
+  },
+  {
+    "path": "tests/test_launcher.py",
+    "language": "python",
+    "nodeCount": 27,
+    "size": 6554
+  },
+  {
+    "path": "tests/test_llm3_model_config.py",
+    "language": "python",
+    "nodeCount": 11,
+    "size": 1943
+  },
+  {
+    "path": "tests/test_local_import_experiment.py",
+    "language": "python",
+    "nodeCount": 22,
+    "size": 17953
+  },
+  {
+    "path": "tests/test_logging_coverage.py",
+    "language": "python",
+    "nodeCount": 47,
+    "size": 16146
+  },
+  {
+    "path": "tests/test_pdf_text.py",
+    "language": "python",
+    "nodeCount": 12,
+    "size": 1744
+  },
+  {
+    "path": "tests/test_product_entities.py",
+    "language": "python",
+    "nodeCount": 4,
+    "size": 1093
+  },
+  {
+    "path": "tests/test_product_grade_utils.py",
+    "language": "python",
+    "nodeCount": 10,
+    "size": 2507
+  },
+  {
+    "path": "tests/test_product_money_utils.py",
+    "language": "python",
+    "nodeCount": 8,
+    "size": 1686
+  },
+  {
+    "path": "tests/test_product_routes_sqlite.py",
+    "language": "python",
+    "nodeCount": 31,
+    "size": 20264
+  },
+  {
+    "path": "tests/test_sqlite_persistence.py",
+    "language": "python",
+    "nodeCount": 14,
+    "size": 12125
+  }
+]

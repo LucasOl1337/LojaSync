@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LojaSync CodeGraph Visual</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --ink: #1d2733;
+      --muted: #667085;
+      --line: #cbd5e1;
+      --api: #2f6f73;
+      --front: #7a4f01;
+      --data: #4d5a80;
+      --risk: #9a3412;
+      --ok: #166534;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    header {
+      padding: 20px 24px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    p { margin: 0; color: var(--muted); line-height: 1.45; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
+      padding: 16px;
+    }
+    .canvas, aside {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .canvas { min-height: 720px; }
+    svg { display: block; width: 100%; height: 720px; }
+    .node rect {
+      fill: #fff;
+      stroke: #334155;
+      stroke-width: 1.4;
+      rx: 8;
+    }
+    .node.front rect { stroke: var(--front); }
+    .node.api rect { stroke: var(--api); }
+    .node.data rect { stroke: var(--data); }
+    .node.risk rect { stroke: var(--risk); }
+    .node text { fill: var(--ink); font-size: 12px; pointer-events: none; }
+    .node .title { font-weight: 700; font-size: 13px; }
+    .edge { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    .edge.dashed { stroke-dasharray: 6 5; }
+    aside { padding: 16px; }
+    h2 { margin: 0 0 8px; font-size: 17px; }
+    h3 { margin: 18px 0 8px; font-size: 14px; }
+    ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    li { margin: 6px 0; }
+    a { color: #155e75; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .pill {
+      display: inline-block;
+      margin: 4px 4px 0 0;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      svg { height: 920px; }
+      .canvas { min-height: 920px; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LojaSync - mapa CodeGraph</h1>
+    <p>Indice final: 209 arquivos, 4.298 nos, 10.364 arestas. Clique nos modulos para abrir arquivos relativos no repositorio.</p>
+  </header>
+  <main>
+    <section class="canvas" aria-label="Grafo visual dos modulos">
+      <svg viewBox="0 0 1120 720" role="img" aria-labelledby="title desc">
+        <title id="title">Grafo de fluxos principais do LojaSync</title>
+        <desc id="desc">Mostra frontend React, API FastAPI, servicos, SQLite, importacao, automacao e legado.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#64748b"></path>
+          </marker>
+        </defs>
+
+        <path class="edge" d="M210 120 C285 120 305 120 370 120"></path>
+        <path class="edge" d="M210 230 C285 230 305 210 370 200"></path>
+        <path class="edge" d="M210 340 C285 340 305 310 370 280"></path>
+        <path class="edge" d="M210 450 C285 450 305 395 370 360"></path>
+        <path class="edge" d="M540 120 C600 120 615 170 670 190"></path>
+        <path class="edge" d="M540 200 C600 200 615 200 670 200"></path>
+        <path class="edge" d="M540 280 C600 280 615 245 670 225"></path>
+        <path class="edge" d="M540 360 C600 360 615 300 670 255"></path>
+        <path class="edge" d="M840 205 C905 205 925 205 980 205"></path>
+        <path class="edge" d="M840 300 C905 300 925 335 980 360"></path>
+        <path class="edge dashed" d="M840 390 C905 430 930 475 980 520"></path>
+        <path class="edge dashed" d="M670 385 C610 440 570 500 515 545"></path>
+        <path class="edge" d="M515 595 C455 640 375 650 250 640"></path>
+
+        <a href="../../frontend-ts/src/AuthShell.tsx" class="node front">
+          <g transform="translate(40 70)">
+            <rect width="170" height="86"></rect>
+            <text x="14" y="24" class="title">AuthShell</text>
+            <text x="14" y="46">login, setup</text>
+            <text x="14" y="64">troca de senha</text>
+          </g>
+        </a>
+        <a href="../../frontend-ts/src/App.tsx" class="node front">
+          <g transform="translate(40 180)">
+            <rect width="170" height="88"></rect>
+            <text x="14" y="24" class="title">App.tsx</text>
+            <text x="14" y="46">estado central</text>
+            <text x="14" y="64">socket + polling</text>
+          </g>
+        </a>
+        <a href="../../frontend-ts/src/importStagePanel.tsx" class="node front">
+          <g transform="translate(40 290)">
+            <rect width="170" height="88"></rect>
+            <text x="14" y="24" class="title">Import UI</text>
+            <text x="14" y="46">upload romaneio</text>
+            <text x="14" y="64">diagnosticos</text>
+          </g>
+        </a>
+        <a href="../../frontend-ts/src/executionCenterPanel.tsx" class="node front">
+          <g transform="translate(40 400)">
+            <rect width="170" height="88"></rect>
+            <text x="14" y="24" class="title">Exec Center</text>
+            <text x="14" y="46">automacao</text>
+            <text x="14" y="64">GradeBot</text>
+          </g>
+        </a>
+
+        <a href="../../frontend-ts/src/api.ts" class="node front">
+          <g transform="translate(370 90)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">api.ts</text>
+            <text x="14" y="46">fetch + WS URL</text>
+          </g>
+        </a>
+        <a href="../../app/interfaces/api/http/route_auth.py" class="node api">
+          <g transform="translate(370 170)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">Auth Routes</text>
+            <text x="14" y="46">/auth/*</text>
+          </g>
+        </a>
+        <a href="../../app/interfaces/api/http/route_products.py" class="node api">
+          <g transform="translate(370 250)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">Product Routes</text>
+            <text x="14" y="46">/products + /actions</text>
+          </g>
+        </a>
+        <a href="../../app/interfaces/api/http/route_imports.py" class="node api">
+          <g transform="translate(370 330)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">Import Routes</text>
+            <text x="14" y="46">jobs de importacao</text>
+          </g>
+        </a>
+        <a href="../../app/interfaces/api/http/route_automation.py" class="node api">
+          <g transform="translate(370 410)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">Automation Routes</text>
+            <text x="14" y="46">/automation/*</text>
+          </g>
+        </a>
+
+        <a href="../../app/application/auth/service.py" class="node api">
+          <g transform="translate(670 90)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">AuthService</text>
+            <text x="14" y="46">sessao local</text>
+          </g>
+        </a>
+        <a href="../../app/application/products/service.py" class="node api">
+          <g transform="translate(670 175)">
+            <rect width="170" height="96"></rect>
+            <text x="14" y="24" class="title">ProductService</text>
+            <text x="14" y="46">produto, grades</text>
+            <text x="14" y="64">bulk, undo/redo</text>
+            <text x="14" y="82">metricas</text>
+          </g>
+        </a>
+        <a href="../../app/interfaces/api/http/jobs/runtime.py" class="node api">
+          <g transform="translate(670 290)">
+            <rect width="170" height="86"></rect>
+            <text x="14" y="24" class="title">Import Jobs</text>
+            <text x="14" y="46">parser local</text>
+            <text x="14" y="64">LLM fallback</text>
+          </g>
+        </a>
+        <a href="../../app/application/automation/service.py" class="node risk">
+          <g transform="translate(670 395)">
+            <rect width="170" height="92"></rect>
+            <text x="14" y="24" class="title">AutomationService</text>
+            <text x="14" y="46">threads</text>
+            <text x="14" y="64">pyautogui</text>
+            <text x="14" y="82">cancel/failsafe</text>
+          </g>
+        </a>
+
+        <a href="../../app/infrastructure/persistence/sqlite/stores.py" class="node data">
+          <g transform="translate(980 165)">
+            <rect width="120" height="92"></rect>
+            <text x="14" y="24" class="title">SQLite</text>
+            <text x="14" y="46">products</text>
+            <text x="14" y="64">settings</text>
+            <text x="14" y="82">auth</text>
+          </g>
+        </a>
+        <a href="../../app/application/imports/local_experiment.py" class="node api">
+          <g transform="translate(980 320)">
+            <rect width="120" height="86"></rect>
+            <text x="14" y="24" class="title">Parser local</text>
+            <text x="14" y="46">PDF/OCR</text>
+            <text x="14" y="64">layouts</text>
+          </g>
+        </a>
+        <a href="../../Legacy/automation/gradebot/gradebot.py" class="node risk">
+          <g transform="translate(980 485)">
+            <rect width="120" height="86"></rect>
+            <text x="14" y="24" class="title">Legacy</text>
+            <text x="14" y="46">GradeBot</text>
+            <text x="14" y="64">Byte Empresa</text>
+          </g>
+        </a>
+        <a href="../../app/shared/ui_events.py" class="node data">
+          <g transform="translate(345 545)">
+            <rect width="170" height="74"></rect>
+            <text x="14" y="24" class="title">UI Events</text>
+            <text x="14" y="46">WebSocket/polling</text>
+          </g>
+        </a>
+      </svg>
+    </section>
+    <aside>
+      <h2>Leitura rapida</h2>
+      <p>O nucleo atual e React + FastAPI + SQLite. Automacao e LLM ainda dependem de codigo legado e ambiente Windows.</p>
+      <h3>Artefatos</h3>
+      <ul>
+        <li><a href="./inventory.md">inventory.md</a></li>
+        <li><a href="./codegraph-status.txt">codegraph-status.txt</a></li>
+        <li><a href="./codegraph-files.json">codegraph-files.json</a></li>
+        <li><a href="./codegraph-context.md">codegraph-context.md</a></li>
+      </ul>
+      <h3>Status por area</h3>
+      <span class="pill">Produtos: funcional</span>
+      <span class="pill">Grades: funcional</span>
+      <span class="pill">Undo/redo: funcional</span>
+      <span class="pill">Auth: funcional</span>
+      <span class="pill">Imports: parcial</span>
+      <span class="pill">Automacao: parcial</span>
+      <span class="pill">Legacy: duplicado/parcial</span>
+      <h3>Pontos de atencao</h3>
+      <ul>
+        <li>`App.tsx` e `ProductService` concentram muita logica.</li>
+        <li>Jobs ficam em memoria.</li>
+        <li>Automacao depende de desktop Windows configurado.</li>
+        <li>Parte de `Legacy/` ainda e carregada dinamicamente.</li>
+      </ul>
+    </aside>
+  </main>
+</body>
+</html>

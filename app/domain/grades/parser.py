@@ -19,18 +19,32 @@ def _load_json_payload(text: str) -> Any | None:
     candidate = (text or "").strip()
     if not candidate:
         return None
-    try:
-        if candidate.startswith("{") or candidate.startswith("["):
-            return json.loads(candidate)
-    except Exception:
-        pass
+    payload = _decode_first_json_payload(candidate)
+    if payload is not None:
+        return payload
 
     blocks = re.findall(r"```(?:json)?\s*(.*?)```", text or "", flags=re.IGNORECASE | re.DOTALL)
     for block in blocks:
-        try:
-            return json.loads(block)
-        except Exception:
+        payload = _decode_first_json_payload(block.strip())
+        if payload is not None:
+            return payload
+    return None
+
+
+def _decode_first_json_payload(candidate: str) -> Any | None:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(candidate):
+        if char not in "{[":
             continue
+        try:
+            payload, _ = decoder.raw_decode(candidate[index:])
+        except ValueError:
+            continue
+        has_leading_text = bool(candidate[:index].strip())
+        if not has_leading_text or isinstance(payload, dict):
+            return payload
+        if isinstance(payload, list) and any(isinstance(item, dict) for item in payload):
+            return payload
     return None
 
 

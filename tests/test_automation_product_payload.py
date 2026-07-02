@@ -65,6 +65,24 @@ def test_prepare_grade_tasks_skips_invalid_or_zero_quantities_without_losing_val
     assert prepare_grade_tasks([product]) == [{"grades": {"G": 2}}]
 
 
+def test_prepare_grade_tasks_combines_repeated_sizes() -> None:
+    product = Product(
+        nome="CALCA",
+        codigo="C10",
+        quantidade=4,
+        preco="30,00",
+        categoria="Feminino",
+        marca="Loja",
+        grades=[
+            GradeItem(tamanho="M", quantidade=1),
+            GradeItem(tamanho="M", quantidade=2),
+            GradeItem(tamanho=" G ", quantidade=1),
+        ],
+    )
+
+    assert prepare_grade_tasks([product]) == [{"grades": {"M": 3, "G": 1}}]
+
+
 def test_find_incomplete_grade_products_treats_invalid_quantities_as_zero() -> None:
     product = Product(
         nome="CALCA",

@@ -69,7 +69,7 @@ def prepare_grade_tasks(products: list[Product]) -> list[dict[str, Any]]:
             size = str(getattr(item, "tamanho", "")).strip()
             qty = coerce_nonnegative_int(getattr(item, "quantidade", 0))
             if size and qty > 0:
-                grades_map[size] = qty
+                grades_map[size] = grades_map.get(size, 0) + qty
         if grades_map:
             tasks.append({"grades": grades_map})
     return tasks

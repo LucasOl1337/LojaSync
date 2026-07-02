@@ -6,6 +6,14 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function parseTotalsQuantity(value: unknown) {
+  const quantity = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(quantity) || quantity < 0) {
+    return 0;
+  }
+  return quantity;
+}
+
 function normalizePriceText(value: string) {
   const text = value.trim().replace(/^R\$\s*/i, "").replace(/\s+/g, "").replace(/\u00a0/g, "");
   if (!text || !/^-?[0-9.,]+$/.test(text)) {
@@ -90,7 +98,7 @@ export function computeCurrentTotals(products: PriceProduct[], marginPercentual:
   let custo = 0;
   let venda = 0;
   for (const product of products) {
-    const quantity = Number(product.quantidade || 0);
+    const quantity = parseTotalsQuantity(product.quantidade);
     const cost = parseNonNegativePriceInput(product.preco) || 0;
     const sale =
       parseNonNegativePriceInput(product.preco_final || undefined) ??

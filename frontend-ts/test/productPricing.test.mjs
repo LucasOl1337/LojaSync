@@ -76,3 +76,21 @@ test("ignores negative prices in totals and falls back to previews for invalid f
     venda: 11.9,
   });
 });
+
+test("ignores invalid quantities when computing current totals", () => {
+  const totals = pricing.computeCurrentTotals(
+    [
+      { quantidade: Number.NaN, preco: "10,00", preco_final: "15,00" },
+      { quantidade: -2, preco: "10,00", preco_final: "15,00" },
+      { quantidade: 1.5, preco: "10,00", preco_final: "15,00" },
+      { quantidade: 2, preco: "10,00", preco_final: null },
+    ],
+    10,
+  );
+
+  assert.deepEqual(totals, {
+    quantidade: 2,
+    custo: 20,
+    venda: 23.8,
+  });
+});

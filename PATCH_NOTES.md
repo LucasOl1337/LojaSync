@@ -1,103 +1,43 @@
-# LojaSync v1.2.0 - Patch Notes
+# LojaSync v1.2.2 - Patch Notes
 
-Data: 2026-06-19
+Data: 2026-07-02
 
-Esta release consolida o LojaSync como uma aplicacao local mais resiliente: persistencia SQLite, historico real de desfazer/refazer, importacao com validacao mais forte, melhor tratamento de grades e um painel React mais operacional para uso diario no cadastro de produtos.
+Esta release fecha a coleta pos-enxame com correcoes pequenas e auditadas em busca, totais, jobs, parser de grades, automacao e normalizacao monetaria. Tambem atualiza a versao exposta pelo backend/frontend e registra a documentacao de release.
 
 ## Destaques
 
-- Persistencia principal migrada para SQLite local em `data/lojasync.db`.
-- Desfazer/refazer persistente para edicoes e acoes em lote de produtos.
-- Importacao de romaneios com validacao local antes do fallback por LLM.
-- Pipeline LLM com chunks estruturados, retry de trechos incompletos e fallback visual por recortes verticais.
-- Consolidacao de grades por lote de importacao, preservando diferencas de preco e nome.
-- Centro de execucao no frontend com status de automacao, prontidao e botao de parada sempre acessivel.
-- Patch notes, README expandido e documentacao tecnica em `DocsDev/`.
+- Busca de produtos mais tolerante a codigos digitados sem separadores ou com separadores diferentes.
+- Totais atuais do frontend ignoram quantidades invalidas, negativas ou fracionarias para manter custo/venda finitos.
+- Jobs em erro agora registram horario de conclusao, facilitando polling e diagnostico.
+- Parser de grades atual e legado aceitam JSON embutido em texto retornado por LLM.
+- GradeBot soma tamanhos repetidos antes de montar tarefas de cadastro.
+- Normalizador de preco aceita marcadores OCR `r$` e `RS` no inicio do valor.
 
-## Backend e persistencia
+## Correcoes
 
-- Adicionado `SQLiteProductRepository`, `SQLiteBrandRepository`, `SQLiteMarginSettingsStore`, `SQLiteMetricsStore` e `SQLiteAuthStore`.
-- Produtos ativos, historico de produtos, marcas, margem, metricas e autenticacao agora compartilham a mesma base SQLite local.
-- A primeira inicializacao migra dados legados de `products_active.jsonl`, `products_history.jsonl`, `brands.json`, `margem.json`, `metrics.json` e `auth.json` quando as tabelas ainda estao vazias.
-- A tabela de produtos passou a preservar `source_type`, `import_batch_id`, `import_source_name` e `pending_grade_import`.
-- A ordenacao de produtos ativos ganhou coluna `position`, reduzindo instabilidade visual apos reordenar a lista.
-- O endpoint `/health` e o metadata FastAPI agora reportam a versao `1.2.0`.
+- `frontend-ts/src/productFilters.ts`: compacta campos de busca e termos digitados para encontrar codigos como `090840002`, `090.840.002` e `orig88`.
+- `frontend-ts/src/productPricing.ts`: passa a aceitar apenas quantidades inteiras seguras e nao negativas nos totais correntes.
+- `app/shared/jobs/in_memory.py`: marca jobs em stage `error` com `completed_at` sem criar resultado falso.
+- `app/domain/grades/parser.py` e `Legacy/engine/modules/parsers/parser_grades.py`: usam `JSONDecoder.raw_decode` para encontrar o primeiro payload JSON util dentro do texto.
+- `app/application/automation/product_payload.py`: agrega quantidades quando o mesmo tamanho aparece mais de uma vez.
+- `app/domain/products/money.py`: remove `R$`, `r$` ou `RS` como marcador inicial de moeda antes de normalizar o decimal.
 
-## Desfazer/refazer
+## Sistemas e documentacao
 
-- Adicionado store de historico em `app/infrastructure/persistence/files/undo_history.py`.
-- O backend passou a expor:
-  - `GET /actions/history`
-  - `POST /actions/history/snapshot`
-  - `POST /actions/history/undo`
-  - `POST /actions/history/redo`
-- O historico e limitado aos 50 snapshots mais recentes.
-- Snapshots sao clonados antes de serem armazenados, evitando mutacao acidental por referencia.
-- O arquivo `data/undo_redo_history.json` e local de runtime e foi incluido no `.gitignore`.
-
-## Produtos, grades e limpeza
-
-- `ProductService` passou a centralizar snapshots, restauracao, reordenacao, aplicacao de margem, formatacao de codigos, restauracao de codigos originais e melhoria de descricoes.
-- A consolidacao de grades agora trabalha por lotes pendentes e nao mistura produtos manuais com produtos importados.
-- Produtos com mesmo codigo e nome, mas precos diferentes, ficam em grupos separados.
-- Pequenas diferencas numericas de preco vindas de LLM podem ser reunidas quando ficam dentro da tolerancia configurada.
-- Adicionada acao para criar conjunto a partir de dois itens selecionados.
-- Adicionada limpeza de descricoes por numeros, caracteres especiais e termos informados/sugeridos.
-- Removidos os modulos antigos de pos-processamento de produtos e seus testes especificos, substituidos por fluxo integrado ao `ProductService`.
-
-## Importacao de romaneios e NF-e
-
-- O job de importacao agora tenta parser local primeiro e aprova o lote quando a validacao da nota fecha.
-- Quando o parser local nao e suficiente, o job registra fallback LLM com eventos e metricas mais claras.
-- O texto estruturado da nota e dividido em chunks com faixa esperada de codigos e quantidade esperada de linhas.
-- Chunks incompletos podem ser subdivididos e reprocessados automaticamente.
-- Em PDFs/imagens, o pipeline pode tentar paginas completas e depois recortes verticais para reduzir perdas de linhas.
-- A resposta de importacao passou a retornar:
-  - `grades_disponiveis`
-  - `total_grades_disponiveis`
-  - `imported_keys`
-  - `import_batch_id`
-  - `metrics`
-- Itens importados passam a carregar origem, nome do arquivo e lote para diagnostico e acoes posteriores.
-
-## Frontend React
-
-- Adicionado centro de execucao dedicado para automacao, cadastro completo, cadastro em massa, grades e parada.
-- Adicionados controles de desfazer/refazer na lista de produtos, com labels e estado vindos do backend.
-- Atalhos globais de undo/redo respeitam foco em campos editaveis.
-- O painel de ferramentas de produtos ganhou sugestoes de termos suspeitos para limpeza de descricao.
-- A tela passou a destacar produtos importados, pendencias de grades e diagnosticos de importacao.
-- O historico recente de importacoes e o diario operacional usam `localStorage` com limites e coercao defensiva.
-- A formatacao de valores, labels de status, mensagens de importacao e resumo operacional foi reforcada por testes.
-- O CSS do frontend TypeScript foi expandido para uma interface mais densa, legivel e orientada a operacao.
-
-## Auth e runtime
-
-- A autenticacao passa a usar `SQLiteAuthStore`, mantendo compatibilidade com `data/auth.json` para migracao inicial.
-- O container principal injeta SQLite, historico de undo/redo e conector HTTP de autenticacao de forma explicita.
-- O runtime segue separado entre API principal e auth runtime, com portas padrao `8800` e `8810`.
-
-## Documentacao
-
-- README atualizado com visao geral, stack, estrutura, comandos, URLs, dados locais, fluxos e validacao.
-- Adicionado este `PATCH_NOTES.md` como historico detalhado da release.
-- Adicionada pasta `DocsDev/` com blueprint, auditorias, plano de produto, handoff tecnico e materiais de divulgacao/dev.
-- `frontend-ts/dist/` passa a ser incluido como build estatico versionado da release.
-
-## Arquivos locais e compatibilidade
-
-- `data/lojasync.db`, `data/lojasync.db-*`, `data/auth.json` e `data/undo_redo_history.json` nao devem ser versionados.
-- Os JSON/JSONL antigos continuam sendo usados como fonte de migracao quando o banco SQLite esta vazio.
-- Maquinas ja clonadas podem atualizar com `patchatt.bat`, desde que a arvore local esteja limpa.
+- Versao atualizada para `1.2.2` em `pyproject.toml`, `frontend-ts/package.json`, `frontend-ts/package-lock.json`, metadata FastAPI e `/health`.
+- `README.md` atualizado para apontar a release atual `v1.2.2`.
+- Adicionados materiais CodeGraph em `DocsDev/codegraph/` e instrucoes locais em `AGENTS.md` para orientar futuros agentes.
+- Incluido reparo de asset/documentacao da release `v1.2.1` em `DocsDev/releases/` e `release-assets/`.
 
 ## Validacao da release
 
-- `python -m pytest`: 131 passed, 5 deselected.
-- `cd frontend-ts && npm run build`: passou.
-- `cd frontend-ts && npm run test:logic`: 88 passed.
+- `python -m pytest`: 135 passed, 5 deselected.
+- `cd frontend-ts && npm run test:logic`: 89 passed.
+- `cd frontend-ts && npm run build`: passou; bundle `frontend-ts/dist/assets/index-B2jZET8s.js`.
+- `codegraph status .`: OK, indice atualizado com 210 arquivos.
 
 ## Riscos conhecidos
 
 - A automacao desktop continua dependente de Windows, posicoes de tela e disponibilidade do Byte Empresa.
 - O fallback por LLM depende do servico configurado em `LLM_BASE_URL`/`LLM_HOST`/`LLM_PORT`.
-- Bases locais existentes em SQLite nao sao sobrescritas pelos arquivos JSONL legados; a migracao so ocorre quando as tabelas estao vazias.
+- O fluxo de auth/senha segue tratado como infraestrutura opcional/legada, nao como melhoria ativa do produto principal.

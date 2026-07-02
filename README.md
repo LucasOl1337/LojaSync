@@ -1,6 +1,6 @@
 # LojaSync
 
-Release atual: v1.2.0, 2026-06-19
+Release atual: v1.2.2, 2026-07-02
 
 LojaSync e uma plataforma desktop-web para cadastro assistido de produtos no Byte Empresa. O sistema combina painel web em React, API FastAPI, leitura de romaneios/NF-e, consolidacao de grades, persistencia local e automacao desktop para reduzir trabalho manual em cadastros de estoque.
 
@@ -95,7 +95,7 @@ O diretorio `frontend-ts/dist/` e versionado nesta aplicacao para que a release 
 
 ## Dados locais e migracao
 
-A release v1.2.0 usa SQLite como base operacional principal. Na primeira execucao, os repositorios SQLite carregam dados legados de JSON/JSONL quando a base ainda esta vazia.
+A linha v1.2.x usa SQLite como base operacional principal. Na primeira execucao, os repositorios SQLite carregam dados legados de JSON/JSONL quando a base ainda esta vazia.
 
 Arquivos locais importantes:
 

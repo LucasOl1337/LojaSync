@@ -1,0 +1,66 @@
+{
+  "brand": {
+    "name": "LojaSync",
+    "vendor": "LojaSync",
+    "footer": "PLATAFORMA DESKTOP-WEB LOCAL",
+    "masthead": "NOTAS DA ATUALIZACAO",
+    "footerLeft": "Notas completas no GitHub Releases",
+    "bgGradient": ["#101820", "#17313A", "#1F4A4D"],
+    "pillGradient": ["#0F766E", "#22C55E"]
+  },
+  "version": "v1.2.2",
+  "date": "2 de julho de 2026 · Release oficial",
+  "categories": [
+    {
+      "label": "Operacao",
+      "title": "OPERACAO",
+      "color": "#38BDF8",
+      "items": [
+        {
+          "name": "Busca por codigo",
+          "desc": "encontra codigos mesmo sem separadores iguais aos do cadastro",
+          "tag": "BUSCA"
+        },
+        {
+          "name": "Totais estaveis",
+          "desc": "ignora quantidades invalidas nos totais correntes",
+          "tag": "FRONTEND"
+        }
+      ]
+    },
+    {
+      "label": "Importacao",
+      "title": "IMPORTACAO",
+      "color": "#A78BFA",
+      "items": [
+        {
+          "name": "Grades LLM",
+          "desc": "aceita JSON embutido em texto explicativo",
+          "tag": "GRADES"
+        },
+        {
+          "name": "Preco OCR",
+          "desc": "aceita marcadores r$ e RS no inicio do valor",
+          "tag": "OCR"
+        }
+      ]
+    },
+    {
+      "label": "Sistemas",
+      "title": "SISTEMAS",
+      "color": "#22C55E",
+      "items": [
+        {
+          "name": "Jobs em erro",
+          "desc": "registram completed_at para polling e diagnostico",
+          "tag": "JOBS"
+        },
+        {
+          "name": "CodeGraph",
+          "desc": "indice e inventario locais atualizados para futuras auditorias",
+          "tag": "DOCS"
+        }
+      ]
+    }
+  ]
+}

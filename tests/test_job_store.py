@@ -77,6 +77,20 @@ class JobStoreTests(unittest.TestCase):
         self.assertEqual(result.total, 1)
         self.assertTrue(self.store.remove(job.job_id))
 
+    def test_job_store_marks_error_jobs_as_finished(self) -> None:
+        job = self.store.create()
+
+        self.store.update(job.job_id, "error", error="Falha no processamento")
+
+        stored = self.store.get_job(job.job_id)
+        result = self.store.get_result(job.job_id)
+
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored.stage, "error")
+        self.assertEqual(stored.error, "Falha no processamento")
+        self.assertIsNotNone(stored.completed_at)
+        self.assertIsNone(result)
+
 
 if __name__ == "__main__":
     unittest.main()

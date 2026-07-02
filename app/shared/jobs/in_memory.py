@@ -58,7 +58,7 @@ class InMemoryJobStore(Generic[StatusT, ResultT]):
                 merged = dict(getattr(job, "metrics", {}) or {})
                 merged.update(metrics)
                 setattr(job, "metrics", merged)
-            if result is not None or stage == "completed":
+            if result is not None or stage in {"completed", "error"}:
                 setattr(job, "completed_at", getattr(job, "updated_at"))
             if result is not None:
                 self._results[job_id] = result

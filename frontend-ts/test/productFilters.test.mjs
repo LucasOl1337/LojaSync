@@ -52,6 +52,9 @@ test("searches products by visible catalog fields", () => {
   assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "k2b").map((product) => product.ordering_key), ["flare", "jaqueta"]);
   assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "calça").map((product) => product.ordering_key), ["flare"]);
   assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "orig 88").map((product) => product.ordering_key), ["bolsa"]);
+  assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "b300").map((product) => product.ordering_key), ["bolsa"]);
+  assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "orig88").map((product) => product.ordering_key), ["bolsa"]);
+  assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "090.840.002").map((product) => product.ordering_key), ["jaqueta"]);
   assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "feminino solira").map((product) => product.ordering_key), ["jaqueta"]);
 });
 

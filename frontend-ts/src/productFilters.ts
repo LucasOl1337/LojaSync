@@ -173,6 +173,10 @@ function normalizeProductSearchValue(value: unknown) {
     .toLowerCase();
 }
 
+function compactProductSearchValue(value: string) {
+  return value.replace(/[^a-z0-9]/g, "");
+}
+
 function getProductSearchHaystack(product: Product) {
   return normalizeProductSearchValue([
     product.nome,
@@ -184,13 +188,21 @@ function getProductSearchHaystack(product: Product) {
   ].join(" "));
 }
 
+function productSearchTermMatches(haystack: string, compactHaystack: string, term: string) {
+  if (haystack.includes(term)) return true;
+
+  const compactTerm = compactProductSearchValue(term);
+  return Boolean(compactTerm && compactHaystack.includes(compactTerm));
+}
+
 export function filterProductsBySearch(products: Product[], query: string) {
   const terms = normalizeProductSearchValue(query).split(/\s+/g).filter(Boolean);
   if (!terms.length) return products;
 
   return products.filter((product) => {
     const haystack = getProductSearchHaystack(product);
-    return terms.every((term) => haystack.includes(term));
+    const compactHaystack = compactProductSearchValue(haystack);
+    return terms.every((term) => productSearchTermMatches(haystack, compactHaystack, term));
   });
 }
 

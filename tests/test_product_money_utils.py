@@ -8,6 +8,8 @@ from app.domain.products.money import normalize_decimal_price, normalize_raw_pri
 def test_parse_price_decimal_accepts_brazilian_and_plain_decimal_formats() -> None:
     assert parse_price_decimal(0) == Decimal("0")
     assert parse_price_decimal("R$ 1.234,56") == Decimal("1234.56")
+    assert parse_price_decimal("r$ 19,90") == Decimal("19.90")
+    assert parse_price_decimal("RS 1.234,56") == Decimal("1234.56")
     assert parse_price_decimal("1,234.56") == Decimal("1234.56")
     assert parse_price_decimal("1.234.567") == Decimal("1234567")
     assert parse_price_decimal("33,495") == Decimal("33.495")

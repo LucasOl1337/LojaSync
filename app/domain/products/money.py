@@ -10,7 +10,10 @@ def parse_price_decimal(raw: Any) -> Decimal | None:
     text = str(raw).strip()
     if not text:
         return None
-    normalized = text.replace("R$", "").replace(" ", "").replace("\u00a0", "")
+    normalized = text.replace(" ", "").replace("\u00a0", "")
+    currency_marker = normalized[:2].upper()
+    if currency_marker in {"R$", "RS"}:
+        normalized = normalized[2:]
     if "." in normalized and "," in normalized:
         if normalized.rfind(",") > normalized.rfind("."):
             normalized = normalized.replace(".", "").replace(",", ".")

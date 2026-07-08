@@ -92,3 +92,26 @@ Evidencia:
 
 Observacao para proximas rodadas:
 - Evitar repetir kit de FAQ/confianca. Bons proximos escopos disjuntos: pagina de oferta/precos, QA comercial completo, performance percebida da primeira visita, checklist final de venda controlada ou implementacao concreta de paywall/plano quando o modelo comercial estiver definido.
+
+### Rodada: Onboarding e primeiro lote operacional
+
+- Agente: enxame-cont-nuo-lojasync
+- Escopo reivindicado: `frontend-ts/src/App.tsx`, `frontend-ts/src/productTable.tsx`, `frontend-ts/src/styles.css`, `frontend-ts/dist/index.html`, `frontend-ts/dist/assets/*`
+- Area comercial: Onboarding e primeira experiencia do usuario
+
+Antes:
+- Quando a lista estava vazia, a tabela apenas dizia para importar ou adicionar produto manualmente, sem transformar isso em acao direta.
+- O usuario novo precisava descobrir no painel lateral onde iniciar o primeiro romaneio ou onde clicar para cadastrar o primeiro item.
+
+Depois:
+- O estado vazio da tabela virou um roteiro de primeiro lote com checklist curto: importar romaneio pequeno, conferir campos essenciais, cadastrar excecoes e revisar marcas/categorias/grades.
+- A tela vazia agora oferece CTA direto para `Importar primeiro romaneio`, usando o seletor real de arquivo, e `Cadastrar manualmente`, focando o campo de nome do formulario existente.
+- O build versionado foi atualizado com novos assets de frontend.
+
+Evidencia:
+- `cd frontend-ts && npm run build` passou.
+- `cd frontend-ts && npm run test:logic` passou com 89 testes.
+- `git diff --check -- frontend-ts/src/App.tsx frontend-ts/src/productTable.tsx frontend-ts/src/styles.css` passou.
+
+Observacao para proximas rodadas:
+- Evitar repetir estado vazio da tabela. Bons proximos escopos disjuntos: QA navegavel visitante -> oferta -> contato, mensagens pos-compra/pos-contato, ou configuracao operacional de canal real de CTA.

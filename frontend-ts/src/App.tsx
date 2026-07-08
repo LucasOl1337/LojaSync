@@ -332,7 +332,7 @@ export default function App({ authSession = null }: AppProps) {
           title: state.products.length ? "Nenhum item visível" : "Lista vazia",
           detail: state.products.length
             ? "A lista atual não tem itens disponíveis no momento."
-            : "Importe um romaneio ou adicione um produto manualmente para preencher a tabela.",
+            : "Escolha um caminho para gerar o primeiro lote revisavel dentro do LojaSync.",
           actions: [],
         },
     [orderedProducts.length, productSearchQuery, state.products.length],
@@ -1142,6 +1142,13 @@ export default function App({ authSession = null }: AppProps) {
   const handleFilePickerClick = () => {
     if (importing || localExperimentLoading) return;
     importModeRef.current = "llm";
+  };
+
+  const handleStartManualEntry = () => {
+    setProductSearchQuery("");
+    window.requestAnimationFrame(() => {
+      focusProductField("nome");
+    });
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2457,6 +2464,8 @@ export default function App({ authSession = null }: AppProps) {
             onInlineEditChange={handleInlineEditChange}
             onCommitInlineEdit={commitInlineEdit}
             onInlineEditKeyDown={handleInlineEditKeyDown}
+            onStartImport={handleImportPrimaryClick}
+            onStartManualEntry={handleStartManualEntry}
             onToggleBulkBrandMenu={() => setShowBulkBrandMenu((current) => !current)}
             onToggleBulkCategoryMenu={() => setShowBulkCategoryMenu((current) => !current)}
             onCloseBulkBrandMenu={() => setShowBulkBrandMenu(false)}

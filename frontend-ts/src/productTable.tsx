@@ -37,6 +37,8 @@ type ProductTableProps = {
   onInlineEditChange: (value: string) => void;
   onCommitInlineEdit: () => Promise<void>;
   onInlineEditKeyDown: (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onStartImport: () => void;
+  onStartManualEntry: () => void;
   onToggleBulkBrandMenu: () => void;
   onToggleBulkCategoryMenu: () => void;
   onCloseBulkBrandMenu: () => void;
@@ -84,9 +86,13 @@ function LoadingTableState({ columnCount }: { columnCount: number }) {
 function EmptyTableState({
   emptyState,
   onProductSearchChange,
+  onStartImport,
+  onStartManualEntry,
 }: {
   emptyState: ProductQuickFilterEmptyState;
   onProductSearchChange: (query: string) => void;
+  onStartImport: () => void;
+  onStartManualEntry: () => void;
 }) {
   const checklistItems = emptyState.searchActive
     ? [
@@ -94,13 +100,13 @@ function EmptyTableState({
         "Limpe a busca para voltar ao recorte atual da lista.",
       ]
     : [
-        "Importe um romaneio pelo painel lateral para preencher a tabela.",
-        "Use a entrada manual quando houver poucos itens fora do arquivo.",
-        "A busca fica disponível assim que houver produtos ativos.",
+        "Comece com um romaneio pequeno e confira nome, quantidade e custo antes de automatizar.",
+        "Use o cadastro manual para incluir excecoes que ficaram fora do arquivo.",
+        "Depois do primeiro lote, revise marcas, categorias e grades pendentes pela tabela.",
       ];
   const stateKicker = emptyState.searchActive
     ? "Busca sem resultado"
-    : "Lista vazia";
+    : "Primeiro lote";
 
   const stateClassName = ["tableStateTs", emptyState.searchActive ? "tableStateSearchTs" : ""].filter(Boolean).join(" ");
 
@@ -116,7 +122,16 @@ function EmptyTableState({
               Limpar busca
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="tableStateActionsTs tableStatePrimaryActionsTs" role="group" aria-label="Acoes para iniciar o primeiro lote">
+            <button className="tableStatePrimaryButtonTs" type="button" onClick={onStartImport}>
+              Importar primeiro romaneio
+            </button>
+            <button className="quickFilterContextButtonTs" type="button" onClick={onStartManualEntry}>
+              Cadastrar manualmente
+            </button>
+          </div>
+        )}
       </div>
 
       <ul className="tableStateChecklistTs" aria-label="Próximos passos da lista">
@@ -157,6 +172,8 @@ export function ProductTable({
   onInlineEditChange,
   onCommitInlineEdit,
   onInlineEditKeyDown,
+  onStartImport,
+  onStartManualEntry,
   onToggleBulkBrandMenu,
   onToggleBulkCategoryMenu,
   onCloseBulkBrandMenu,
@@ -434,6 +451,8 @@ export function ProductTable({
                   <EmptyTableState
                     emptyState={emptyState}
                     onProductSearchChange={onProductSearchChange}
+                    onStartImport={onStartImport}
+                    onStartManualEntry={onStartManualEntry}
                   />
                 </td>
               </tr>

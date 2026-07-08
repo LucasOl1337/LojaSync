@@ -2,6 +2,29 @@
 
 ## 2026-07-08 - Enxame Continuo Comercial
 
+### Rodada: Oferta early access e pagina de preco controlado
+
+- Agente: enxame-cont-nuo-lojasync
+- Escopo reivindicado: `frontend-ts/public/oferta.html`, `frontend-ts/public/early-access-hero.png`, `frontend-ts/dist/oferta.html`, `frontend-ts/dist/early-access-hero.png`
+- Area comercial: Pagina de preços, planos ou oferta early access
+
+Antes:
+- O material publico tinha promessa, SEO e kit de confianca, mas nao havia uma oferta concreta de piloto pago com preco sugerido, escopo de entrega, limites e proximo passo.
+- O vendedor ainda precisava explicar oralmente quanto cobrar no primeiro teste, o que incluir e como transformar interesse em uma validacao real.
+
+Depois:
+- Foi criada uma pagina publica estatica em `/oferta.html` com oferta Early Access, investimento sugerido de R$ 497, CTA de validacao, inclusos do piloto, fluxo de venda e limites honestos.
+- A pagina usa um asset bitmap proprio gerado para campanha, salvo em `frontend-ts/public/early-access-hero.png` e copiado pelo build para `frontend-ts/dist/early-access-hero.png`.
+- O build versionado passou a incluir `frontend-ts/dist/oferta.html`, pronto para distribuicao local junto com o app.
+
+Evidencia:
+- Image Gen gerou o asset de campanha salvo a partir de `C:\Users\user\.codex\generated_images\019f42c8-c870-70a0-b857-104284f4a6fe\ig_04e302b503dc9a32016a4e89dadf2c8191a85df3244d40d8d7.png`.
+- `cd frontend-ts && npm run build` passou.
+- `git diff --check -- frontend-ts/public/oferta.html frontend-ts/dist/oferta.html` passou sem erros.
+
+Observacao para proximas rodadas:
+- Evitar repetir pagina de oferta/preco basico. Bons proximos escopos disjuntos: CTA real com canal configuravel, QA comercial do fluxo visitante -> oferta -> contato, checklist de venda controlada ou analytics de conversao da pagina publica.
+
 ### Rodada: SEO basico, meta tags e preview social
 
 - Agente: enxame-cont-nuo-lojasync

@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LojaSync Early Access | Piloto pago para lojas Byte Empresa</title>
+    <meta
+      name="description"
+      content="Piloto pago do LojaSync para lojas que usam Byte Empresa e querem transformar romaneios em produtos revisados sem cadastro manual item por item."
+    />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#10233f" />
+    <meta property="og:site_name" content="LojaSync" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="LojaSync Early Access para lojas Byte Empresa" />
+    <meta
+      property="og:description"
+      content="Uma oferta controlada para validar romaneio real, revisar produtos e cadastrar com acompanhamento inicial."
+    />
+    <meta property="og:image" content="/early-access-hero.png" />
+    <meta property="og:image:alt" content="Mesa de operacao de loja com notebook, romaneios e etiquetas de produto" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LojaSync Early Access" />
+    <meta
+      name="twitter:description"
+      content="Piloto pago para reduzir cadastro manual de produtos no Byte Empresa com revisao e suporte inicial."
+    />
+    <meta name="twitter:image" content="/early-access-hero.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #5d6a7f;
+        --line: #d9e0ea;
+        --paper: #f7f9fc;
+        --white: #ffffff;
+        --blue: #10233f;
+        --teal: #0d9488;
+        --green: #16a34a;
+        --amber: #b7791f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: var(--paper);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        min-height: 100vh;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 14px clamp(18px, 4vw, 56px);
+        border-bottom: 1px solid rgba(16, 35, 63, 0.1);
+        background: rgba(247, 249, 252, 0.92);
+        backdrop-filter: blur(12px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+      }
+
+      .brand img {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+      }
+
+      .topbar nav {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+
+      .topbar nav a {
+        text-decoration: none;
+      }
+
+      .topbar nav a:hover {
+        color: var(--blue);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+        gap: clamp(28px, 5vw, 64px);
+        align-items: center;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: clamp(48px, 8vw, 92px) clamp(18px, 4vw, 56px) 36px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 18px;
+        padding: 7px 10px;
+        border: 1px solid rgba(13, 148, 136, 0.3);
+        border-radius: 999px;
+        color: #0f766e;
+        background: rgba(13, 148, 136, 0.08);
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        max-width: 760px;
+        margin: 0;
+        color: var(--blue);
+        font-size: clamp(2.35rem, 5vw, 5rem);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 690px;
+        margin: 22px 0 0;
+        color: #3f4d63;
+        font-size: clamp(1.05rem, 2vw, 1.28rem);
+        line-height: 1.58;
+      }
+
+      .heroActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 12px 17px;
+        border: 1px solid var(--blue);
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 800;
+      }
+
+      .button.primary {
+        color: var(--white);
+        background: var(--blue);
+      }
+
+      .button.secondary {
+        color: var(--blue);
+        background: var(--white);
+      }
+
+      .proof {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 28px 0 0;
+        padding: 0;
+        list-style: none;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .proof li {
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .heroVisual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        object-fit: cover;
+        border: 1px solid rgba(16, 35, 63, 0.16);
+        border-radius: 8px;
+        box-shadow: 0 24px 70px rgba(16, 35, 63, 0.18);
+      }
+
+      .heroVisual figcaption {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      .band {
+        border-top: 1px solid var(--line);
+        background: var(--white);
+      }
+
+      .section {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: clamp(42px, 7vw, 78px) clamp(18px, 4vw, 56px);
+      }
+
+      .sectionHeader {
+        max-width: 760px;
+        margin-bottom: 28px;
+      }
+
+      h2 {
+        margin: 0;
+        color: var(--blue);
+        font-size: clamp(1.7rem, 3vw, 2.65rem);
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      .sectionHeader p,
+      .offerNote {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card,
+      .priceBox {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+      }
+
+      .card {
+        padding: 22px;
+      }
+
+      .card h3,
+      .priceBox h3 {
+        margin: 0 0 10px;
+        color: var(--blue);
+        font-size: 1.08rem;
+      }
+
+      .card p,
+      .card li,
+      .priceBox li {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .card ul,
+      .priceBox ul {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding-left: 19px;
+      }
+
+      .offerLayout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .priceBox {
+        padding: 26px;
+      }
+
+      .price {
+        margin: 8px 0 4px;
+        color: var(--blue);
+        font-size: clamp(2rem, 5vw, 3.6rem);
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .price small {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      .tag {
+        display: inline-flex;
+        width: fit-content;
+        margin-top: 14px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        color: #7c4a03;
+        background: rgba(183, 121, 31, 0.13);
+        font-weight: 800;
+        font-size: 0.88rem;
+      }
+
+      .steps {
+        counter-reset: steps;
+        display: grid;
+        gap: 12px;
+      }
+
+      .step {
+        counter-increment: steps;
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        gap: 14px;
+        align-items: start;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+      }
+
+      .step::before {
+        content: counter(steps);
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        color: var(--white);
+        background: var(--teal);
+        font-weight: 900;
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--blue);
+      }
+
+      .step span {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .closing {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 22px;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        background: var(--blue);
+        color: var(--white);
+      }
+
+      .closing h2,
+      .closing p {
+        color: var(--white);
+      }
+
+      .closing p {
+        margin-bottom: 0;
+        opacity: 0.82;
+      }
+
+      .closing .button {
+        border-color: var(--white);
+        color: var(--blue);
+        background: var(--white);
+      }
+
+      @media (max-width: 860px) {
+        .topbar nav {
+          display: none;
+        }
+
+        .hero,
+        .offerLayout,
+        .closing {
+          grid-template-columns: 1fr;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding-top: 34px;
+        }
+
+        h1 {
+          font-size: clamp(2.1rem, 12vw, 3.6rem);
+        }
+
+        .closing {
+          justify-items: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar" aria-label="Navegacao principal">
+        <a class="brand" href="/">
+          <img src="/logo_icon.png" alt="" />
+          <span>LojaSync</span>
+        </a>
+        <nav>
+          <a href="#oferta">Oferta</a>
+          <a href="#inclui">O que inclui</a>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#proximo-passo">Proximo passo</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Early access para lojas Byte Empresa</p>
+          <h1>Transforme o primeiro romaneio real em produtos revisados antes de pagar mensalidade.</h1>
+          <p class="lead">
+            O LojaSync reduz cadastro manual de produtos no Byte Empresa. No piloto pago, a loja testa com um lote pequeno,
+            recebe configuracao acompanhada e decide com base em resultado real, nao em promessa generica.
+          </p>
+          <div class="heroActions">
+            <a class="button primary" href="#proximo-passo">Quero validar minha loja</a>
+            <a class="button secondary" href="#oferta">Ver oferta do piloto</a>
+          </div>
+          <ul class="proof" aria-label="Garantias comerciais">
+            <li>Dados operacionais ficam no computador da loja</li>
+            <li>Revisao antes de cadastrar em lote</li>
+            <li>Primeiro uso com acompanhamento</li>
+          </ul>
+        </div>
+        <figure class="heroVisual">
+          <img
+            src="/early-access-hero.png"
+            alt="Notebook em mesa de loja com romaneios, etiquetas e lista de produtos organizada"
+            width="1536"
+            height="1024"
+          />
+          <figcaption>
+            Oferta criada para validar compatibilidade com um romaneio real antes de assumir uso recorrente.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="band" id="oferta">
+        <div class="section offerLayout">
+          <div class="sectionHeader">
+            <h2>Piloto pago controlado, com escopo claro.</h2>
+            <p>
+              A proposta comercial inicial nao e vender assinatura no escuro. E validar se o LojaSync le o material da
+              loja, organiza produtos e ajuda a cadastrar com seguranca no fluxo atual do Byte Empresa.
+            </p>
+          </div>
+          <article class="priceBox" aria-label="Oferta de early access">
+            <h3>Pacote Early Access</h3>
+            <p class="price">R$ 497 <small>/ piloto inicial</small></p>
+            <p class="offerNote">Valor sugerido para venda controlada. Pode virar credito na primeira mensalidade se o cliente seguir.</p>
+            <span class="tag">Vagas limitadas para implantacao acompanhada</span>
+            <ul>
+              <li>Analise previa de 1 romaneio ou nota real enviada pela loja.</li>
+              <li>Instalacao e configuracao inicial em 1 computador com Byte Empresa.</li>
+              <li>Teste acompanhado com lote pequeno, idealmente 10 a 30 produtos.</li>
+              <li>Revisao de produtos, grades e campos antes de automacao.</li>
+              <li>Resumo do resultado: aprovado, aprovado com ajustes ou nao indicado.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="inclui">
+        <div class="sectionHeader">
+          <h2>O que a loja compra no primeiro passo.</h2>
+          <p>O piloto vende uma decisao segura: descobrir se o LojaSync resolve a dor daquela operacao antes de ampliar uso.</p>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>Diagnostico do material</h3>
+            <p>
+              A loja envia um arquivo real. O suporte valida legibilidade, fornecedor, grade, campos e chance de automacao.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Uso acompanhado</h3>
+            <p>
+              O primeiro lote roda pequeno, com revisao humana e orientacao para evitar cadastro errado em volume.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Proximo plano honesto</h3>
+            <p>
+              Depois do piloto, a loja recebe recomendacao clara: seguir, ajustar layout ou nao contratar agora.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="band" id="como-funciona">
+        <div class="section">
+          <div class="sectionHeader">
+            <h2>Fluxo de venda sem promessa exagerada.</h2>
+            <p>Quatro etapas simples para sair da curiosidade e chegar no primeiro valor operacional.</p>
+          </div>
+          <div class="steps">
+            <div class="step">
+              <div>
+                <strong>Confirmar Byte Empresa</strong>
+                <span>A loja confirma que usa Byte Empresa no computador onde pretende cadastrar produtos.</span>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <strong>Enviar romaneio recente</strong>
+                <span>Um arquivo real mostra se o LojaSync entende o fornecedor e evita demo artificial.</span>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <strong>Rodar lote pequeno</strong>
+                <span>Produtos e grades sao revisados antes de qualquer automacao no Byte Empresa.</span>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <strong>Decidir continuidade</strong>
+                <span>Com resultado na tela, a loja escolhe assinatura, novo ajuste ou pausa sem surpresa.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="sectionHeader">
+          <h2>Limites ditos antes da venda.</h2>
+          <p>Essa pagina tambem protege a expectativa do cliente e reduz suporte ruim depois do fechamento.</p>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>Nao substitui conferencia</h3>
+            <p>O cliente continua responsavel por revisar precos, codigos, grades e descricoes antes de confirmar cadastro.</p>
+          </article>
+          <article class="card">
+            <h3>Depende do layout</h3>
+            <p>Arquivos legiveis funcionam melhor. Fornecedores novos podem exigir ajuste ou correcao manual no primeiro uso.</p>
+          </article>
+          <article class="card">
+            <h3>Automacao precisa de calibragem</h3>
+            <p>O Byte Empresa deve estar aberto, acessivel e com campos calibrados antes de cadastrar em volume.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section closing" id="proximo-passo">
+        <div>
+          <h2>Proximo passo: validar um arquivo real.</h2>
+          <p>
+            Envie um romaneio ou nota recente, confirme o computador com Byte Empresa e agende o primeiro teste acompanhado.
+          </p>
+        </div>
+        <a
+          class="button"
+          href="mailto:?subject=Quero%20validar%20o%20LojaSync%20Early%20Access&body=Minha%20loja%20usa%20Byte%20Empresa%20e%20quero%20validar%20um%20romaneio%20real%20no%20piloto%20pago%20do%20LojaSync."
+        >
+          Pedir validacao
+        </a>
+      </section>
+    </main>
+  </body>
+</html>

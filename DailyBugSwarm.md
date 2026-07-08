@@ -59,7 +59,7 @@ Aumentar progressivamente a confiabilidade dos fluxos usados por uma loja no dia
 
 | ID | Titulo | Arquivos | Commit | Validacao |
 |---|---|---|---|---|
-| DBS-001 | Ledger inicial do enxame diario | `DailyBugSwarm.md` | `389dad1` | `codegraph status .`; `python -m pytest`; `npm run test:logic`; `npm run build` |
+| DBS-001 | Ledger inicial do enxame diario | `DailyBugSwarm.md` | `acae87d` | `codegraph status .`; `python -m pytest`; `npm run test:logic`; `npm run build` |
 
 ## Bugs pendentes
 

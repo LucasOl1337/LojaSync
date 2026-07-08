@@ -1,0 +1,66 @@
+{
+  "brand": {
+    "name": "LojaSync",
+    "vendor": "LojaSync",
+    "footer": "PLATAFORMA DESKTOP-WEB LOCAL",
+    "masthead": "NOTAS DA ATUALIZACAO",
+    "footerLeft": "Notas completas no GitHub Releases",
+    "bgGradient": ["#101820", "#17313A", "#1F4A4D"],
+    "pillGradient": ["#0F766E", "#22C55E"]
+  },
+  "version": "v1.2.3",
+  "date": "8 de julho de 2026 · Release oficial",
+  "categories": [
+    {
+      "label": "Comercial",
+      "title": "COMERCIAL",
+      "color": "#38BDF8",
+      "items": [
+        {
+          "name": "Oferta Early Access",
+          "desc": "pagina publica com piloto inicial de R$ 497 e limites claros",
+          "tag": "OFERTA"
+        },
+        {
+          "name": "Kit de confianca",
+          "desc": "FAQ, privacidade resumida e checklist de venda controlada",
+          "tag": "VENDAS"
+        }
+      ]
+    },
+    {
+      "label": "Experiencia",
+      "title": "EXPERIENCIA",
+      "color": "#A78BFA",
+      "items": [
+        {
+          "name": "Primeiro lote",
+          "desc": "lista vazia guia importacao ou cadastro manual inicial",
+          "tag": "ONBOARD"
+        },
+        {
+          "name": "Carga inicial",
+          "desc": "painel operacional separado do bundle do gate inicial",
+          "tag": "FRONTEND"
+        }
+      ]
+    },
+    {
+      "label": "Sistemas",
+      "title": "SISTEMAS",
+      "color": "#22C55E",
+      "items": [
+        {
+          "name": "Smoke de assets",
+          "desc": "dist/index.html protegido contra CSS/JS inexistentes",
+          "tag": "QA"
+        },
+        {
+          "name": "Docs canonicos",
+          "desc": "pontes reduzem drift e historicos ficam marcados",
+          "tag": "DOCS"
+        }
+      ]
+    }
+  ]
+}

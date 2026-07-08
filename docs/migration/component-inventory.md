@@ -1,31 +1,12 @@
-# Inventario Inicial de Componentes
+# Ponte: inventario inicial de componentes
 
-## Essenciais no runtime atual
+Este arquivo era uma copia de `DocsDev/migration/component-inventory.md`.
+Para evitar duas fontes concorrentes, use:
 
-- launcher do webapp
-- backend FastAPI
-- frontend estatico real
-- persistencia JSONL de produtos
-- persistencia de marcas, margem e metricas
-- importacao de romaneio
-- parser de grades
-- automacao local PyAutoGUI
-- automacao remota por websocket
-- LLM3
-- monitor do LLM
+- Estado vivo do produto e banco: `README.md`
+- Inventario tecnico atual: `DocsDev/codegraph/inventory.md`
+- Registro historico desta fase de migracao: `DocsDev/migration/component-inventory.md`
 
-## Legado fora da nova base
-
-- desktop GUI antigo
-- parser managers antigos
-- artefatos historicos de build
-- sistema de temas nao conectado ao frontend real
-- utilitarios manuais fora do runtime principal
-
-## Nucleo iniciado nesta fase
-
-- dominio de produtos
-- repositorio de produtos
-- persistencia JSONL
-- settings de margem
-- API HTTP inicial
+Classificacao: DUPLICADO resolvido como ponte. O documento original e
+HISTORICO / SUPERSEDED porque menciona JSONL como runtime atual; em v1.2.x,
+SQLite e a fonte operacional principal e JSON/JSONL sao legado de migracao.

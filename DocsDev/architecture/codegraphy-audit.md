@@ -1,5 +1,7 @@
 # Auditoria CodeGraphy - 2026-06-14
 
+Status documental: VIVO SECUNDARIO / AUDITORIA HISTORICA. Este documento registra hotspots, decisoes e provas de fatias arquiteturais desde o snapshot de 2026-06-14. Para o estado real atual do codigo, use `DocsDev/codegraph/inventory.md` e `codegraph status .` antes de inferir arquitetura vigente.
+
 ## Snapshot
 
 Fonte: indice local `.codegraph/codegraph.db`, atualizado com `codegraph sync .`.

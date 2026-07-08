@@ -1,6 +1,17 @@
 # Kit de confianca para venda controlada do LojaSync
 
+> Status documental: CANONICO para limites comerciais, FAQ de venda,
+> privacidade resumida e checklist do primeiro piloto pago.
+> Fonte de oferta/preco atual: `frontend-ts/public/oferta.html`, pacote
+> Early Access com valor sugerido de R$ 497 por piloto inicial.
+
 Este material existe para reduzir atrito na primeira venda: ele da ao vendedor respostas claras sobre dados, instalacao, suporte, limite de responsabilidade e o que o cliente pode esperar antes de pagar ou instalar.
+
+## Oferta comercial atual
+
+A oferta publica viva para primeira venda e o pacote Early Access em `frontend-ts/public/oferta.html`: piloto pago controlado, valor sugerido de R$ 497, validacao com romaneio real, revisao antes de automacao e recomendacao de seguir, ajustar layout ou nao contratar naquele momento.
+
+Nao tratar esse piloto como assinatura recorrente, paywall, billing automatizado, licenciamento remoto ou plano implementado no app. Licenciamento comercial remoto segue apenas como plano aspiracional em `DocsDev/distribution/productization-plan.md`.
 
 ## Resumo para o cliente
 
@@ -126,4 +137,3 @@ O LojaSync roda localmente no computador da loja e os dados operacionais ficam a
 | Layout/fornecedor testado | Saber se o parser ja cobre aquele caso. |
 | Quantidade de produtos no teste | Medir valor real sem superprometer. |
 | Resultado do lote | Registrar sucesso, ajustes e pendencias. |
-

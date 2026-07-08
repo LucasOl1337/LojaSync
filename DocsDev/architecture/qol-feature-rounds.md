@@ -1,5 +1,7 @@
 # Planejamento De Features E QoL - 2026-06-14
 
+Status documental: VIVO SECUNDARIO / PLANEJAMENTO. Este documento registra intencoes e fatias de QoL. Use `DocsDev/codegraph/inventory.md` e o codigo atual para confirmar quais itens ja viraram comportamento real.
+
 ## Objetivo
 
 Criar uma nova rodada de evolucao do LojaSync focada em recursos novos e
@@ -115,12 +117,12 @@ primeiro prototipo reversivel, depois promocao para fluxo principal.
 - Checklist inicial de prontidao para Cadastro Completo derivado de produtos,
   grades pendentes, automacao e targets ja expostos por `/automation/targets`,
   sem novo endpoint e sem mudar o handler atual de bloqueio por grade pendente.
-  Prova registrada em `docs/architecture/codegraphy-audit.md`.
+  Prova registrada em `DocsDev/architecture/codegraphy-audit.md`.
 - Diario local de operacao derivado de eventos ja confirmados pela UI:
   importacao/parser local, revisao com IA, automacao e bloqueio por grades
   pendentes. O recurso usa `localStorage`, limite curto e renderizacao
   recolhivel, sem novo endpoint, sem migracao e sem alterar payloads atuais.
-  Prova registrada em `docs/architecture/codegraphy-audit.md`.
+  Prova registrada em `DocsDev/architecture/codegraphy-audit.md`.
 - Complemento do diario para edicoes relevantes: criacao/edicao/remocao de
   produtos, acoes em massa de marca/categoria, margem, ordenacao, conjuntos,
   codigos e descricoes. O registro acontece somente apos sucesso da API e
@@ -159,7 +161,7 @@ primeiro prototipo reversivel, depois promocao para fluxo principal.
    virar definitivo.
 3. Antes de fechar a fatia: rodar teste, build, `git diff --check` e, para UI,
    Chrome.
-4. Depois de fechar a fatia: atualizar `docs/architecture/codegraphy-audit.md`
+4. Depois de fechar a fatia: atualizar `DocsDev/architecture/codegraphy-audit.md`
    com regra seguida, motivacao, prova e impacto no CodeGraphy quando houver.
 
 ## Primeira Fatia Recomendada

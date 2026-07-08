@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -10,6 +11,21 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.interfaces.api.http.app import _cors_origins, create_app
+
+
+class _FrontendAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.assets: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = dict(attrs)
+        if tag == "script" and attr_map.get("type") == "module" and attr_map.get("src"):
+            self.assets.append(attr_map["src"] or "")
+        if tag == "link" and attr_map.get("rel") == "stylesheet" and attr_map.get("href"):
+            href = attr_map["href"] or ""
+            if href.startswith("/"):
+                self.assets.append(href)
 
 
 class HttpFrontendRoutingTests(unittest.TestCase):
@@ -111,6 +127,20 @@ class HttpFrontendRoutingTests(unittest.TestCase):
 
         self.assertIn("http://[::1]:8800", origins)
         self.assertNotIn("http://::1:8800", origins)
+
+    def test_bundled_frontend_index_references_existing_assets(self) -> None:
+        dist_dir = Path(__file__).resolve().parents[1] / "frontend-ts" / "dist"
+        index_file = dist_dir / "index.html"
+        self.assertTrue(index_file.exists(), "frontend-ts/dist/index.html precisa estar versionado")
+
+        parser = _FrontendAssetParser()
+        parser.feed(index_file.read_text(encoding="utf-8"))
+
+        self.assertGreaterEqual(len(parser.assets), 2)
+        for asset in parser.assets:
+            self.assertTrue(asset.startswith("/"), asset)
+            asset_path = dist_dir / asset.lstrip("/")
+            self.assertTrue(asset_path.exists(), f"asset referenciado nao existe: {asset}")
 
 
 if __name__ == "__main__":

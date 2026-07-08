@@ -1,5 +1,13 @@
 # Productization Plan
 
+> Status documental: VIVO SECUNDARIO / PLANO ASPIRACIONAL.
+> Este documento descreve uma evolucao comercial futura. O estado operacional
+> atual continua sendo o app desktop-web local iniciado pelo repositorio, com
+> SQLite em `data/lojasync.db`, `frontend-ts/dist/` versionado para distribuicao
+> local e atualizacao via `patchatt.bat`. Nao trate instalador Windows,
+> licenciamento remoto, telemetria em nuvem ou dados em `%ProgramData%` como
+> implementados sem validar no codigo e nos scripts atuais.
+
 ## Objetivo
 
 Levar o LojaSync do modo "projeto operado pela equipe" para o modo "produto distribuivel para terceiros", com foco em:
@@ -17,7 +25,7 @@ O repositorio ja tem uma boa base para isso:
 - `launcher.py` centraliza a subida do backend, frontend e auth runtime
 - `Iniciar LojaSync.bat` prepara `.venv` e dependencias automaticamente
 - o frontend TypeScript ja pode ser servido pelo backend
-- existe autenticacao remota separada (`auth runtime`)
+- existe auth runtime local opcional/legado (`--enable-auth`), nao requisito do fluxo principal
 - os dados da instancia ficam centralizados em `data/`
 
 Hoje, porem, o modelo ainda e de "aplicacao Python rodando a partir do repositorio". Isso funciona internamente, mas ainda nao e o formato ideal para entrega comercial.

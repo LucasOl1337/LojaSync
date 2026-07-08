@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-07-08] - LojaSync v1.2.3
+
+**Project:** LojaSync  |  **Branch:** main  |  **State:** release-multiagente
+
+### Summary
+- Integrados os itens aprovados da rodada pos-`v1.2.2`: SEO publico, pagina Early Access, kit de confianca, code split inicial, onboarding de lista vazia, ledger QA, smoke test de assets e higiene documental.
+- Auditados agentes/sessoes citados pelo humano: houve evidencia local de Codex; nao houve sessao ou commit atribuivel a Claude, ZCode, Wispr Flow, OpenCode ou Trae Work desde `v1.2.2`.
+- Mantidos fora do release: `f87b1d1` por conflito com a regra de produto sem auth como prioridade, branch `swarm` por conflito/supersedencia e `lojasync-concepts-visual/` por falta de integracao/validacao.
+- Release `v1.2.3` preparada com versoes runtime/frontend, patch notes, docs de release e card PNG.
+
+### Validation
+- `git diff --check`: passou.
+- `python -m pytest`: 135 passed, 5 deselected.
+- `cd frontend-ts && npm run build`: passou.
+- `cd frontend-ts && npm run test:logic`: 89 passed.
+
+---
+
 ## [2026-07-02] - LojaSync v1.2.2
 
 **Project:** LojaSync  |  **Branch:** main  |  **State:** coletor-pos-enxame

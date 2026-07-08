@@ -1,5 +1,7 @@
 # Handoff - CodeGraphy, Arquitetura e QoL
 
+Status documental: HISTORICO / HANDOFF DATADO. Este arquivo registra o estado de uma sessao longa de 2026-06-15 e nao deve ser usado como regra viva sozinho. Para frontend/UI atual, confirme em `DocsDev/codegraph/inventory.md`, `DocsDev/architecture/qol-feature-rounds.md`, `frontend-ts/src/` e `frontend-ts/test/`.
+
 Data/hora local da geracao: 2026-06-15 06:49:43 -03:00  
 Projeto: `C:\Projetos\LojaSync`  
 Tema principal: rodada longa de manutencao com CodeGraphy, investigacao de arquitetura/eficiencia e melhorias de qualidade de vida do usuario final.

@@ -1,6 +1,6 @@
 # LojaSync
 
-Release atual: v1.2.2, 2026-07-02
+Release atual: v1.2.3, 2026-07-08
 
 LojaSync e uma plataforma desktop-web para cadastro assistido de produtos no Byte Empresa. O sistema combina painel web em React, API FastAPI, leitura de romaneios/NF-e, consolidacao de grades, persistencia local e automacao desktop para reduzir trabalho manual em cadastros de estoque.
 
@@ -89,7 +89,7 @@ O diretorio `frontend-ts/dist/` e versionado nesta aplicacao para que a release 
 - Aplicacao principal: `http://127.0.0.1:8800`
 - Backend/API: `http://127.0.0.1:8800`
 - Swagger: `http://127.0.0.1:8800/docs`
-- Auth runtime: `http://127.0.0.1:8810`
+- Auth runtime opcional: `http://127.0.0.1:8810` somente quando o launcher e iniciado com `--enable-auth`.
 - Frontend legado: `http://127.0.0.1:8800/legacy/`
 - LLM Monitor: `http://127.0.0.1:5174`
 

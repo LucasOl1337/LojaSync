@@ -67,7 +67,7 @@ LojaSync
 | "Parece complicado" | "É mais simples que o próprio ByteEmpresa — você só manda o arquivo e o sistema faz o resto." |
 | "Não tenho tempo agora" | "Leva 2 minutos ver o vídeo. Se não fizer sentido, sem compromisso nenhum." |
 | "Já tenho alguém que faz isso" | "Entendo. O LojaSync não substitui a pessoa — ajuda ela a fazer em minutos o que hoje leva horas." |
-| "Quanto custa?" | "Trabalhamos com planos acessíveis para pequenas lojas. Posso te mandar os detalhes depois de mostrar como funciona?" |
+| "Quanto custa?" | "A primeira venda hoje é um piloto Early Access sugerido em R$ 497 para validar um romaneio real com acompanhamento. Se fizer sentido depois do teste, combinamos o próximo passo." |
 | "Tenho medo de perder dados" | "O sistema não apaga nada do ByteEmpresa — ele só adiciona os produtos que você mandar. Pode revisar antes de confirmar." |
 
 ---

@@ -1,3 +1,15 @@
+# HISTORICO / EXPERIMENTAL - Crawler de outreach
+
+Este documento registra um experimento antigo de geracao de leads em `automation/`.
+Nao e fonte viva para runtime do LojaSync, importacao de romaneio, LLM/OCR do produto
+ou automacao Byte Empresa. Antes de instalar Selenium/Playwright, abrir Chrome CDP,
+alterar banco de leads ou integrar LLM para qualificacao comercial, valide uma demanda
+humana atual e consulte as fontes vivas:
+
+- `README.md` para estado do produto e comandos de uso.
+- `DocsDev/codegraph/inventory.md` para LLM/OCR, importacao e automacao reais.
+- `PATCH_NOTES.md` para limites atuais do fallback LLM.
+
 # LojaSync Crawler - Documentação de Instalação
 
 ## Status Atual

@@ -1,41 +1,12 @@
-# Matriz de Equivalencia Funcional
+# Ponte: matriz de equivalencia funcional
 
-Esta matriz define o que a nova base precisa reproduzir para ser considerada equivalente ao runtime atual.
+Este arquivo era uma copia de `DocsDev/migration/equivalence-matrix.md`.
+Para evitar duas fontes concorrentes, use:
 
-## Runtime
+- Estado vivo do produto e banco: `README.md`
+- Inventario tecnico atual: `DocsDev/codegraph/inventory.md`
+- Registro historico desta fase de migracao: `DocsDev/migration/equivalence-matrix.md`
 
-- entrypoint principal via `launcher.py`
-- API backend em porta local
-- persistencia ativa em JSONL
-- leitura de configuracoes de margem e targets
-
-## Produtos
-
-- listar produtos ativos
-- inserir produto
-- atualizar produto
-- remover produto
-- limpar lista atual
-- calcular preco final por margem padrao
-- manter codigo original quando necessario
-
-## Marcas e Totais
-
-- listar marcas
-- adicionar marca
-- totais atuais
-- totais historicos
-- metricas agregadas
-
-## Etapas Futuras Obrigatorias
-
-- importacao de romaneio via LLM
-- extracao de grades
-- automacao local ByteEmpresa
-- agentes remotos
-- websocket de eventos de UI
-- frontend completo
-
-## Regra
-
-Nenhum componente sera marcado como concluido sem teste ou validacao comparativa contra o projeto atual.
+Classificacao: DUPLICADO resolvido como ponte. O documento original e
+HISTORICO / SUPERSEDED porque menciona JSONL como runtime atual; em v1.2.x,
+SQLite e a fonte operacional principal e JSON/JSONL sao legado de migracao.

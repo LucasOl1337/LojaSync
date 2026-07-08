@@ -1,5 +1,7 @@
 # Blueprint Arquitetural
 
+Status documental: VIVO SECUNDARIO / DIRETRIZ. Este documento orienta a arquitetura desejada, mas nao substitui o inventario real em `DocsDev/codegraph/inventory.md`. Quando houver divergencia sobre runtime, stack, persistencia ou fluxos existentes, confirme pelo CodeGraph e pelo codigo atual.
+
 ## Objetivo
 
 Reconstruir o LojaSync em uma base limpa, modular e testavel, mantendo o comportamento real do fluxo atual.
@@ -45,7 +47,7 @@ Coordena dominio e portas de infraestrutura.
 
 Implementa adaptadores:
 
-- persistencia JSONL
+- persistencia SQLite e migracao JSON/JSONL legada
 - arquivos de configuracao
 - clientes LLM
 - automacao local

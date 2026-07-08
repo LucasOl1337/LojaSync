@@ -23,3 +23,25 @@ Evidencia:
 
 Observacao para proximas rodadas:
 - Evitar repetir SEO/public preview basico. Bons proximos escopos disjuntos: FAQ/confianca, pagina de oferta/precos, checklist de venda controlada, QA comercial completo ou performance percebida da primeira visita.
+
+### Rodada: Kit de confianca para venda controlada
+
+- Agente: enxame-cont-nuo-lojasync
+- Escopo reivindicado: `docs/loja-sync-divulgacao/kit-confianca-venda-controlada.md`
+- Area comercial: Termos, privacidade, FAQ e confianca minima
+
+Antes:
+- O material comercial tinha pitch e ICP, mas nao havia um texto pronto para responder medo de dados, limites de automacao, funcionamento local, suporte e primeiro piloto pago.
+- A venda dependia do vendedor explicar riscos e expectativas oralmente, com chance de prometer compatibilidade universal ou tratar senha/login como requisito.
+
+Depois:
+- Foi criado um kit de confianca com FAQ de venda, promessas seguras, termos resumidos, politica de privacidade resumida, checklist de piloto pago e scripts de WhatsApp.
+- O documento orienta primeiro teste controlado com lote pequeno, revisao humana antes da automacao e dados operacionais locais.
+- O texto preserva a decisao de produto de nao vender senha/login como fluxo principal.
+
+Evidencia:
+- `rg "FAQ de venda|Politica de privacidade resumida|Checklist para fechar primeiro piloto pago|Preciso criar senha" docs/loja-sync-divulgacao/kit-confianca-venda-controlada.md` encontrou as secoes esperadas.
+- `git diff --check -- docs/loja-sync-divulgacao/kit-confianca-venda-controlada.md ShipSwarm.md` passou sem erros.
+
+Observacao para proximas rodadas:
+- Evitar repetir kit de FAQ/confianca. Bons proximos escopos disjuntos: pagina de oferta/precos, QA comercial completo, performance percebida da primeira visita, checklist final de venda controlada ou implementacao concreta de paywall/plano quando o modelo comercial estiver definido.

@@ -1,12 +1,32 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, lazy, useEffect, useState } from "react";
 
-import App from "./App";
 import { bootstrapAuth, changePassword, fetchAuthSession, login, logout } from "./api";
 import type { AuthSessionResponse } from "./types";
 
 type ScreenMode = "loading" | "login" | "setup" | "app";
 
 const MIN_PASSWORD_HINT = 8;
+const App = lazy(() => import("./App"));
+
+function AppLoadingFallback() {
+  return (
+    <div className="authGateShell">
+      <div className="authCard authLoadingCard" role="status" aria-live="polite" aria-busy="true">
+        <span className="authEyebrow">LojaSync</span>
+        <h1>Carregando painel operacional</h1>
+        <p>Preparando produtos, importacao e automacao para uso.</p>
+      </div>
+    </div>
+  );
+}
+
+function renderApp(session: AuthSessionResponse | null) {
+  return (
+    <Suspense fallback={<AppLoadingFallback />}>
+      <App authSession={session} />
+    </Suspense>
+  );
+}
 
 export default function AuthShell() {
   const [session, setSession] = useState<AuthSessionResponse | null>(null);
@@ -127,7 +147,7 @@ export default function AuthShell() {
   }
 
   if (mode === "app" && session && !session.auth_enabled) {
-    return <App authSession={session} />;
+    return renderApp(session);
   }
 
   if (mode === "loading") {
@@ -250,7 +270,7 @@ export default function AuthShell() {
       {error ? <div className="authInlineMessage message error">{error}</div> : null}
       {message ? <div className="authInlineMessage message success">{message}</div> : null}
 
-      <App authSession={session} />
+      {renderApp(session)}
     </div>
   );
 }

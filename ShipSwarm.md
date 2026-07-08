@@ -2,6 +2,30 @@
 
 ## 2026-07-08 - Enxame Continuo Comercial
 
+### Rodada: Performance perceptivel da primeira visita
+
+- Agente: enxame-cont-nuo-lojasync
+- Escopo reivindicado: `frontend-ts/src/AuthShell.tsx`, `frontend-ts/dist/index.html`, `frontend-ts/dist/assets/App-BaLGwEXP.js`, `frontend-ts/dist/assets/index-xhuoX2G4.js`
+- Area comercial: Performance perceptivel da primeira visita
+
+Antes:
+- O shell inicial importava o `App.tsx` de forma estatica, entao o visitante carregava um bundle unico de aproximadamente 296 KB de JS antes mesmo de a sessao decidir entre loading, login, setup ou painel.
+- A primeira visita carregava codigo operacional pesado do painel de produtos/importacao/automacao mesmo quando o usuario ainda estava no portao de acesso.
+
+Depois:
+- `AuthShell` passou a carregar o painel operacional com `React.lazy` e `Suspense`, mantendo o gate inicial separado do app pesado.
+- O build passou a gerar um chunk inicial de aproximadamente 154 KB e um chunk do painel de aproximadamente 144 KB, carregado apenas quando o modo `app` e renderizado.
+- O `frontend-ts/dist/` foi reconstruido com os novos assets versionados para distribuicao local.
+
+Evidencia:
+- `codegraph status .` retornou indice saudavel e atualizado para `C:\projetos\LojaSync`.
+- `cd frontend-ts && npm run build` passou.
+- Build antes observado: `dist/assets/index-B2jZET8s.js` com 295.889 bytes.
+- Build depois observado: `dist/assets/index-xhuoX2G4.js` com 153.725 bytes e `dist/assets/App-BaLGwEXP.js` com 144.474 bytes.
+
+Observacao para proximas rodadas:
+- Evitar repetir code splitting do `AuthShell`. Bons proximos escopos disjuntos: QA comercial completo do fluxo visitante -> oferta -> contato, CTA com canal configuravel, analytics de conversao da pagina publica ou checklist final de venda controlada.
+
 ### Rodada: Oferta early access e pagina de preco controlado
 
 - Agente: enxame-cont-nuo-lojasync

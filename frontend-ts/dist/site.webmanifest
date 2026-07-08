@@ -1,0 +1,23 @@
+{
+  "name": "LojaSync",
+  "short_name": "LojaSync",
+  "description": "Cadastro assistido de produtos e automacao local para lojas que usam Byte Empresa.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#10233f",
+  "icons": [
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

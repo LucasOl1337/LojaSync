@@ -1,5 +1,13 @@
 # SwarmLedger - migracao-visual
 
+## 2026-07-09T12:54Z - governor
+
+- Branch: `swarm-gov/lojasync/migracao-visual`.
+- Mudanca: migrei badges/linhas de revisao da tabela para os tokens `--status-warning/danger-*`, com faixa lateral discreta para pendencias.
+- Direcao visual: conceito bitmap gerado pelo Image Gen para UI desktop operacional compacta, com tabela densa, linhas escaneaveis e acentos por severidade.
+- Validacao: `cd frontend-ts && npm run build`; `git diff --check`.
+- Risco: baixo; altera apenas CSS de revisao visual e recompila o `frontend-ts/dist` versionado.
+
 ## 2026-07-09T09:34Z
 
 - Branch: `swarm-gov/lojasync/migracao-visual`.

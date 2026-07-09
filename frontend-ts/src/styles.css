@@ -3498,6 +3498,20 @@ tbody tr:hover {
   color: #bfdbfe;
 }
 
+.productsTableTs tbody tr:has(.tableFieldStatusTs, .productReviewBadgeTs) {
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.06), transparent 24%),
+    rgba(var(--status-warning-rgb), 0.025);
+  box-shadow: inset 3px 0 0 rgba(var(--status-warning-rgb), 0.42);
+}
+
+.productsTableTs tbody tr:has(.productReviewBadgeTs.reviewBadge-error) {
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.065), transparent 24%),
+    rgba(var(--status-danger-rgb), 0.026);
+  box-shadow: inset 3px 0 0 rgba(var(--status-danger-rgb), 0.46);
+}
+
 .orderingModeActive tbody tr,
 .createSetModeActive tbody tr {
   cursor: pointer;
@@ -3662,15 +3676,19 @@ tbody tr:hover .rowDeleteButtonTs {
 }
 
 .productReviewBadgeTs.reviewBadge-warning {
-  color: rgba(203, 213, 225, 0.74);
-  border-color: rgba(148, 163, 184, 0.14);
-  background: rgba(15, 23, 42, 0.34);
+  color: var(--status-warning-text);
+  border-color: rgba(var(--status-warning-rgb), 0.24);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.14), rgba(15, 23, 42, 0.36) 64%),
+    var(--status-warning-bg);
 }
 
 .productReviewBadgeTs.reviewBadge-error {
-  color: #fecaca;
-  border-color: rgba(239, 68, 68, 0.32);
-  background: rgba(127, 29, 29, 0.36);
+  color: var(--status-danger-text);
+  border-color: rgba(var(--status-danger-rgb), 0.34);
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.16), rgba(15, 23, 42, 0.36) 64%),
+    var(--status-danger-bg);
 }
 
 .tableFieldStatusTs {
@@ -3708,13 +3726,15 @@ tbody tr:hover .rowDeleteButtonTs {
 }
 
 .tableFieldStatusTs.fieldStatus-warning {
-  color: rgba(203, 213, 225, 0.7);
-  border-color: rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.28);
+  color: var(--status-warning-text);
+  border-color: rgba(var(--status-warning-rgb), 0.22);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.12), rgba(15, 23, 42, 0.32) 64%),
+    var(--status-warning-bg);
 }
 
 .tableFieldStatusTs.fieldStatus-warning .tableFieldStatusDotTs {
-  opacity: 0.55;
+  opacity: 0.8;
 }
 
 .cellEditInput {

@@ -1,5 +1,13 @@
 # Swarm Ledger - geral
 
+## 2026-07-09 06:09 - governor
+
+- Branch: `swarm-gov/lojasync/geral`
+- Entrega: `tools/agent_run.py` agora trata JSON invalido em `--body` como erro de uso do CLI, sem traceback e sem disparar requisicao HTTP.
+- Validacao: `python -m pytest tests\test_agent_run_cli.py -q`.
+- Resultado: 3 testes passaram.
+- Risco: baixo; mudanca restrita ao tratamento de entrada invalida no CLI Agent-First.
+
 ## 2026-07-09 01:33 - executor
 
 - Branch: `swarm-gov/lojasync/geral`

@@ -1,5 +1,12 @@
 # Swarm Ledger - performance
 
+## 2026-07-09T09:23Z - governor
+
+- Branch: `swarm-gov/lojasync/performance`
+- Mudanca: `buildDisplayedProducts` agora monta a ordenacao visual em passagens diretas sobre rascunho/produtos, sem criar a lista intermediaria de chaves originais nem fazer `map/filter` final para recuperar produtos.
+- Testes: `cd frontend-ts && npm run test:logic` => 89 passed.
+- Risco: baixo; contrato existente de ordenacao foi preservado pela suite logica do frontend.
+
 ## 2026-07-09T06:56Z - executor
 
 - Branch: `swarm-gov/lojasync/performance`

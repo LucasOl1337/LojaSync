@@ -88,6 +88,27 @@
         color: inherit;
       }
 
+      .skipLink {
+        position: absolute;
+        top: 10px;
+        left: clamp(18px, 4vw, 56px);
+        z-index: 30;
+        padding: 10px 12px;
+        border-radius: 8px;
+        color: var(--white);
+        background: var(--blue);
+        font-weight: 800;
+        text-decoration: none;
+        transform: translateY(-140%);
+        transition: transform 150ms ease;
+      }
+
+      .skipLink:focus-visible {
+        transform: translateY(0);
+        outline: 3px solid rgba(13, 148, 136, 0.45);
+        outline-offset: 3px;
+      }
+
       .page {
         min-height: 100vh;
       }
@@ -446,6 +467,7 @@
     </style>
   </head>
   <body>
+    <a class="skipLink" href="#oferta">Pular para oferta</a>
     <main class="page">
       <header class="topbar" aria-label="Navegacao principal">
         <a class="brand" href="/">

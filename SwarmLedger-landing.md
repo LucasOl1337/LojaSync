@@ -1,5 +1,12 @@
 # Swarm Ledger - landing
 
+## 2026-07-09T09:25Z - governor
+
+- Branch: `swarm-gov/lojasync/landing`
+- Entrega: `frontend-ts/public/oferta.html` ganhou um skip link acessivel por teclado para pular direto para a oferta; `frontend-ts/dist/oferta.html` foi atualizado pelo build.
+- Validacao: `cd frontend-ts && npm run build` passou.
+- Risco: baixo; alteracao limitada a acessibilidade da landing estatica, sem mudar copy, preco ou fluxo de CTA.
+
 ## 2026-07-09 - Governor executor
 
 - Branch: `swarm-gov/lojasync/landing`

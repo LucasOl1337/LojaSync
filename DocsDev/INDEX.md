@@ -2,6 +2,12 @@
 
 Este indice aponta para a documentacao viva mais util para manutencao, releases e operacao Agent-First do LojaSync.
 
+## Fonte canonica
+
+- `DocsDev/` e a fonte operacional canonica para manutencao, releases, arquitetura, migracao visual, validacoes e handoffs.
+- `docs/` pode conter pontes ou material publico/externo; antes de editar um documento duplicado, confirme se existe versao correspondente em `DocsDev/`.
+- Quando houver divergencia entre `docs/` e `DocsDev/`, trate `DocsDev/` como referencia viva e atualize ou converta o arquivo de `docs/` em ponte para evitar drift.
+
 ## Operacao Agent-First
 
 - `agent/PLAYBOOK.md`: sequencia segura para agentes, dry-run, snapshots e verificacao.

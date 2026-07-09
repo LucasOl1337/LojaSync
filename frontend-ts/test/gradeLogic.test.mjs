@@ -15,6 +15,12 @@ test("orders slash sizes before extended letter sizes", () => {
   assert.deepEqual(ordered, ["GG", "P/M", "M/G", "XG"]);
 });
 
+test("orders adult numeric sizes from 32 before larger adult sizes", () => {
+  const ordered = ["38", "34", "32", "36"].sort(logic.compareGradeSizeLabels);
+
+  assert.deepEqual(ordered, ["32", "34", "36", "38"]);
+});
+
 test("builds visual grade order from config, catalog, and product sizes", () => {
   const order = logic.buildVisualSizeOrder(
     { ui_size_order: ["M/G"], erp_size_order: ["P/M"] },

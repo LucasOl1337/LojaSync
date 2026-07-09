@@ -1,5 +1,13 @@
 # SwarmLedger-ready-to-ship
 
+## 2026-07-09 - Gate de versao de release e OpenAPI atualizado
+
+- Branch: `swarm-gov/lojasync/ready-to-ship`.
+- Mudanca: `DocsDev/agent/openapi.json` foi regenerado para `1.2.4` e um teste novo garante consistencia entre `pyproject.toml`, frontend, lockfile, README, OpenAPI versionado e metadata runtime da API.
+- Arquivos tocados: `DocsDev/agent/openapi.json`, `tests/test_release_metadata.py`.
+- Validacao: `python -m pytest tests/test_http_frontend.py tests/test_release_metadata.py` passou com 6 testes; `git diff --check` passou.
+- Risco: baixo; altera contrato versionado Agent-First e adiciona gate test-only, sem seed, deploy, migracao remota ou auth ativo.
+
 ## 2026-07-09 - agent_run rejeita JSON invalido sem stack trace
 
 - Branch: `swarm-gov/lojasync/ready-to-ship`.

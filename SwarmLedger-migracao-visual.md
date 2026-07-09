@@ -1,4 +1,12 @@
-# Swarm Ledger - migracao-visual
+# SwarmLedger - migracao-visual
+
+## 2026-07-09T09:34Z
+
+- Branch: `swarm-gov/lojasync/migracao-visual`.
+- Mudanca: reforco visual dos chips de status e do painel de prontidao com fundos tonais, faixa lateral e contraste de texto em `frontend-ts/src/styles.css`.
+- Direcao visual: conceito bitmap gerado pelo Image Gen para uma UI desktop operacional compacta, com superficie escura, texto claro e acentos teal/amber/vermelho por estado.
+- Validacao: `cd frontend-ts && npm run build`; `git diff --check`.
+- Risco: baixo; alteracao restrita a CSS de indicadores existentes, sem mudar estado, auth, endpoints ou dados.
 
 ## 2026-07-09T08:54Z - governor
 

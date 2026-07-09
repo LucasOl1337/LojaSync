@@ -51,6 +51,9 @@
   --status-success-text: #caffdf;
   --status-warning-text: #ffe6b6;
   --status-danger-text: #ffd6d6;
+  --status-success-bg: rgba(10, 64, 38, 0.56);
+  --status-warning-bg: rgba(79, 48, 8, 0.56);
+  --status-danger-bg: rgba(74, 18, 24, 0.58);
 }
 
 * {
@@ -630,14 +633,36 @@ button {
 
 .importInsightChipTs.chip-success {
   border-color: rgba(var(--status-success-rgb), 0.28);
+  background:
+    linear-gradient(90deg, rgba(var(--status-success-rgb), 0.18), rgba(17, 28, 47, 0.84) 62%),
+    var(--status-success-bg);
+  color: var(--status-success-text);
+  box-shadow: inset 3px 0 0 rgba(var(--status-success-rgb), 0.62);
 }
 
 .importInsightChipTs.chip-warning {
   border-color: rgba(var(--status-warning-rgb), 0.28);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.18), rgba(17, 28, 47, 0.84) 62%),
+    var(--status-warning-bg);
+  color: var(--status-warning-text);
+  box-shadow: inset 3px 0 0 rgba(var(--status-warning-rgb), 0.62);
 }
 
 .importInsightChipTs.chip-error {
   border-color: rgba(var(--status-danger-rgb), 0.32);
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.18), rgba(17, 28, 47, 0.84) 62%),
+    var(--status-danger-bg);
+  color: var(--status-danger-text);
+  box-shadow: inset 3px 0 0 rgba(var(--status-danger-rgb), 0.66);
+}
+
+.importInsightChipTs.chip-success span,
+.importInsightChipTs.chip-warning span,
+.importInsightChipTs.chip-error span {
+  color: currentColor;
+  opacity: 0.76;
 }
 
 .importValidationBadge.validation-approved {
@@ -1985,14 +2010,26 @@ button {
 
 .executionReadinessTs.readiness-success {
   border-color: rgba(var(--status-success-rgb), 0.2);
+  background:
+    linear-gradient(90deg, rgba(var(--status-success-rgb), 0.13), rgba(9, 16, 29, 0.68) 58%),
+    rgba(9, 16, 29, 0.62);
+  box-shadow: inset 3px 0 0 rgba(var(--status-success-rgb), 0.58);
 }
 
 .executionReadinessTs.readiness-warning {
   border-color: rgba(var(--status-warning-rgb), 0.22);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.14), rgba(9, 16, 29, 0.68) 58%),
+    rgba(9, 16, 29, 0.62);
+  box-shadow: inset 3px 0 0 rgba(var(--status-warning-rgb), 0.58);
 }
 
 .executionReadinessTs.readiness-error {
   border-color: rgba(var(--status-danger-rgb), 0.26);
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.14), rgba(9, 16, 29, 0.68) 58%),
+    rgba(9, 16, 29, 0.62);
+  box-shadow: inset 3px 0 0 rgba(var(--status-danger-rgb), 0.62);
 }
 
 .executionReadinessMainTs {

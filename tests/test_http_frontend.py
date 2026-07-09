@@ -142,6 +142,25 @@ class HttpFrontendRoutingTests(unittest.TestCase):
             asset_path = dist_dir / asset.lstrip("/")
             self.assertTrue(asset_path.exists(), f"asset referenciado nao existe: {asset}")
 
+        with tempfile.TemporaryDirectory() as tmpdir:
+            legacy_dir = Path(tmpdir) / "legacy"
+            legacy_dir.mkdir(parents=True, exist_ok=True)
+            (legacy_dir / "index.html").write_text("<!doctype html><title>Legacy</title>", encoding="utf-8")
+
+            fake_paths = SimpleNamespace(web_ts_dist_dir=dist_dir, web_static_dir=legacy_dir)
+            fake_container = SimpleNamespace(paths=fake_paths)
+
+            with patch("app.interfaces.api.http.app.build_container", return_value=fake_container):
+                client = TestClient(create_app())
+
+                root_response = client.get("/")
+                self.assertEqual(root_response.status_code, 200)
+                self.assertIn("LojaSync", root_response.text)
+
+                for asset in parser.assets:
+                    asset_response = client.get(asset)
+                    self.assertEqual(asset_response.status_code, 200, asset)
+
 
 if __name__ == "__main__":
     unittest.main()

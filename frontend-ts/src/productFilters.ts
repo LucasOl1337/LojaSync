@@ -188,15 +188,25 @@ function getProductSearchHaystack(product: Product) {
   ].join(" "));
 }
 
-function productSearchTermMatches(haystack: string, compactHaystack: string, term: string) {
-  if (haystack.includes(term)) return true;
+type ProductSearchTerm = {
+  normalized: string;
+  compact: string;
+};
 
-  const compactTerm = compactProductSearchValue(term);
-  return Boolean(compactTerm && compactHaystack.includes(compactTerm));
+function productSearchTermMatches(haystack: string, compactHaystack: string, term: ProductSearchTerm) {
+  if (haystack.includes(term.normalized)) return true;
+
+  return Boolean(term.compact && compactHaystack.includes(term.compact));
 }
 
 export function filterProductsBySearch(products: Product[], query: string) {
-  const terms = normalizeProductSearchValue(query).split(/\s+/g).filter(Boolean);
+  const terms = normalizeProductSearchValue(query)
+    .split(/\s+/g)
+    .filter(Boolean)
+    .map((term) => ({
+      normalized: term,
+      compact: compactProductSearchValue(term),
+    }));
   if (!terms.length) return products;
 
   return products.filter((product) => {

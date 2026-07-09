@@ -43,6 +43,14 @@ python tools/agent_run.py run actions.join_duplicates --dry-run
 python tools/export_openapi.py
 ```
 
+## Gate para agentes headless
+
+1. Leitura: `health.check`, `products.list`, `totals.get`, `brands.list`, `margin.get`, `automation.status`.
+2. Simulacao: toda acao com `dry_run` deve ser executada primeiro com `--dry-run` ou payload equivalente.
+3. Mutacao real: execute somente depois de revisar o plano do dry-run e garanta verificacao por `products.list` ou `totals.get`.
+4. Recuperacao: se a verificacao falhar apos mutacao com snapshot, rode `history.undo` antes de tentar nova correcao.
+5. Desktop: nunca chame `automation.execute*` se `automation.status` nao indicar runtime ocioso/pronto.
+
 ## Nao fazer
 
 - Auth/login (opcional; nao e fluxo de produto)

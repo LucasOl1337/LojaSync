@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 
@@ -20,7 +21,11 @@ class CorItem:
 
 def parse_non_negative_quantity(value: Any) -> int:
     try:
-        parsed = int(value or 0)
+        if value in (None, ""):
+            parsed = 0
+        else:
+            normalized = str(value).strip().replace(",", ".")
+            parsed = int(Decimal(normalized or "0"))
     except Exception:
         return 0
     return max(parsed, 0)

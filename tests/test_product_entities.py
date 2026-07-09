@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.domain.products.entities import Product
+from app.domain.products.entities import Product, parse_non_negative_quantity
+
+
+def test_parse_non_negative_quantity_accepts_decimal_strings() -> None:
+    assert parse_non_negative_quantity("2.0") == 2
+    assert parse_non_negative_quantity("3,0") == 3
 
 
 def test_product_from_dict_coerces_invalid_or_negative_quantity_to_zero() -> None:

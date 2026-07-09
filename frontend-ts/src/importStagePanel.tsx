@@ -76,7 +76,14 @@ export function ImportStagePanel({
           </>
         )}
       </button>
-      <button className="ghostButton fullButton importSecondaryButtonTs" type="button" disabled={disabled} onClick={onLocalExperimentClick}>
+      <button
+        className="ghostButton fullButton importSecondaryButtonTs"
+        type="button"
+        disabled={disabled}
+        onClick={onLocalExperimentClick}
+        title="Opcao tecnica sem IA para testar o parser local"
+        aria-label="Executar leitura local avancada sem IA"
+      >
         {localExperimentLoading ? (
           "Executando leitura local..."
         ) : (
@@ -85,7 +92,7 @@ export function ImportStagePanel({
               <polyline points="16 18 22 12 16 6" />
               <polyline points="8 6 2 12 8 18" />
             </svg>
-            Importar com leitura local
+            Leitura local (avancado)
           </>
         )}
       </button>

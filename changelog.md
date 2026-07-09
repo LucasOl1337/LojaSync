@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-07-09] - LojaSync v1.2.4
+
+**Project:** LojaSync  |  **Branch:** main  |  **State:** minimax-guard-release
+
+### Summary
+- Minimax `minimax-m3` fixado como rota padrao de IA via LLM3/Ollama compativel.
+- Removido fallback padrao para Gemma; configuracoes antigas podem tentar modelo configurado, mas o fallback seguro volta para Minimax.
+- Adicionada guarda local para todo resultado Minimax que nao tenha aprovacao automatica antes de persistir produtos.
+- Reforcados fatiamento de PDF imagem, erros de IA, UI de importacao e evidencias Agent-First.
+- Release `v1.2.4` preparada com versoes runtime/frontend, patch notes, docs de release e card PNG.
+
+### Validation
+- `python -m pytest -q`: 152 passed, 5 deselected, 5 subtests passed.
+- `cd frontend-ts && npm run test:logic`: 89 passed.
+- `git diff --check`: passou.
+- `2866.pdf` repetido 3 vezes: 3/3 aprovado com guarda local.
+- Super Romaneios parcial final: 15/15 aprovados antes da interrupcao manual.
+
+---
+
 ## [2026-07-08] - LojaSync v1.2.3
 
 **Project:** LojaSync  |  **Branch:** main  |  **State:** release-multiagente

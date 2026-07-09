@@ -35,7 +35,13 @@ from app.application.imports.job_validation import (
 )
 from app.domain.grades.parser import parse_grade_extraction
 from app.domain.products.entities import Product
-from app.interfaces.api.http.jobs.llm import coerce_int_env, llm_base_url, llm_timeout_seconds, post_llm_chat
+from app.interfaces.api.http.jobs.llm import (
+    coerce_int_env,
+    llm_base_url,
+    llm_timeout_seconds,
+    post_llm_chat,
+    upload_llm_file,
+)
 from app.interfaces.api.http.jobs.store import update_grade_job, update_import_job
 from app.interfaces.api.http.route_models import (
     GradeExtractionProduct,
@@ -276,6 +282,31 @@ def _run_import_image_batches(
     return parts, saved_file, candidates
 
 
+def _build_no_usable_content_error(*, skip_local_parser: bool, metrics: dict[str, Any]) -> str:
+    if not skip_local_parser:
+        return "Nao foi possivel extrair conteudo util do arquivo enviado."
+
+    llm_last_error = str(metrics.get("llm_last_error") or "").strip()
+    normalized_error = llm_last_error.lower()
+    if (
+        "insufficient balance" in normalized_error
+        or "no resource package" in normalized_error
+        or "余额不足" in llm_last_error
+        or "资源包" in llm_last_error
+    ):
+        return "Nao foi possivel usar a IA da Z.AI: a chave configurada esta sem saldo ou pacote ativo."
+    if "http 429" in normalized_error or "too many requests" in normalized_error:
+        return "Nao foi possivel usar a IA da Z.AI: limite de uso atingido no momento."
+    if "http 401" in normalized_error or "unauthorized" in normalized_error:
+        return "Nao foi possivel usar a IA da Z.AI: a chave configurada foi recusada."
+    if "zai api" in normalized_error and llm_last_error:
+        return f"Nao foi possivel usar a IA da Z.AI: {llm_last_error}"
+    return (
+        "Nao foi possivel concluir a importacao com IA. "
+        "Verifique se o provedor de IA esta configurado e tente novamente."
+    )
+
+
 def run_grade_extraction_job(
     *,
     job_id: str,
@@ -290,22 +321,14 @@ def run_grade_extraction_job(
     update_grade_job(job_id, "uploading")
     try:
         timeout = httpx.Timeout(llm_timeout_seconds(), connect=10.0)
-        files = {
-            "files": (
-                filename or "nota_fiscal",
-                contents,
-                content_type or "application/octet-stream",
-            )
-        }
         with httpx.Client(timeout=timeout) as client:
-            upload_response = client.post(
-                f"{llm_base_url()}/api/upload",
-                files=files,
-                headers={"X-Job-Id": job_id},
+            upload_data = upload_llm_file(
+                client,
+                job_id=job_id,
+                contents=contents,
+                filename=filename or "nota_fiscal",
+                content_type=content_type,
             )
-            upload_response.raise_for_status()
-            parsed_upload: Any = upload_response.json()
-            upload_data = parsed_upload if isinstance(parsed_upload, dict) else {}
 
             upload_errors = upload_data.get("errors") if isinstance(upload_data.get("errors"), list) else []
             warnings.extend([str(item) for item in upload_errors if str(item).strip()])
@@ -439,6 +462,7 @@ def run_import_job(
     service: object,
     data_dir: Path,
     prefer_llm: bool = False,
+    skip_local_parser: bool = False,
 ) -> None:
     warnings: list[str] = []
     llm_text = ""
@@ -462,86 +486,93 @@ def run_import_job(
         update_import_job(job_id, stage, message=message, metrics=metrics)
 
     _append_process_event(metrics, source="system", level="info", message="Import started.")
-    _update_stage("processing", "Tentando parser local e validacao da nota")
-
-    local_payload: dict[str, Any] | None = None
-    try:
-        local_started = time.perf_counter()
-        local_payload = parse_local_romaneio_experiment(
-            contents=contents,
-            filename=filename,
-            content_type=content_type,
-        )
-        local_decode_ms = int((time.perf_counter() - local_started) * 1000)
-        local_attempt = _evaluate_local_parser_attempt(local_payload, decode_ms=local_decode_ms)
-        metrics.update(local_attempt.metrics)
-
-        if local_attempt.approved_for_import and not prefer_llm:
-            parsed_items = local_attempt.products
-            selected_source = "local"
-            selected_text = products_to_text(parsed_items)
-            _append_process_event(
-                metrics,
-                source="local",
-                level="success",
-                message="Local parser approved by invoice validation. Skipping the LLM fallback.",
-            )
-            _update_stage("parsing", "Parser local aprovado; preparando importacao")
-        elif local_attempt.approved_for_import:
-            metrics["local_parser_preapproved"] = True
-            metrics["llm_requested"] = True
-            _append_process_event(
-                metrics,
-                source="local",
-                level="success",
-                message="Validacao local aprovada; importacao via LLM solicitada.",
-            )
-            _update_stage("uploading", "Validacao local aprovada; enviando arquivo para servico LLM")
-        else:
-            fallback_message = local_attempt.fallback_message or "Local parser not approved: automatic approval was not reached."
-            warnings.append(fallback_message)
-            _append_process_event(metrics, source="local", level="warning", message=fallback_message)
-            for item in local_attempt.payload_warnings:
-                detail = str(item).strip()
-                if detail:
-                    _append_process_event(metrics, source="local", level="warning", message=detail)
-            metrics["llm_fallback_triggered"] = True
-    except Exception as exc:
-        logger.warning("Falha ao executar parser local de romaneio (job_id=%s): %s", job_id, exc)
-        metrics["local_validation_status"] = "error"
-        metrics["llm_fallback_triggered"] = True
-        warnings.append(f"Local parser failed before approval: {exc}")
+    metrics["local_parser_skipped"] = bool(skip_local_parser)
+    if skip_local_parser:
+        metrics["llm_requested"] = True
         _append_process_event(
             metrics,
-            source="local",
-            level="error",
-            message=f"Local parser failed before approval: {exc}",
+            source="llm",
+            level="info",
+            message="Local parser skipped because IA import was requested.",
         )
+        _update_stage("uploading", "Enviando arquivo para servico de IA")
+    else:
+        _update_stage("processing", "Tentando parser local e validacao da nota")
+
+    local_payload: dict[str, Any] | None = None
+    if not skip_local_parser:
+        try:
+            local_started = time.perf_counter()
+            local_payload = parse_local_romaneio_experiment(
+                contents=contents,
+                filename=filename,
+                content_type=content_type,
+            )
+            local_decode_ms = int((time.perf_counter() - local_started) * 1000)
+            local_attempt = _evaluate_local_parser_attempt(local_payload, decode_ms=local_decode_ms)
+            metrics.update(local_attempt.metrics)
+
+            if local_attempt.approved_for_import and not prefer_llm:
+                parsed_items = local_attempt.products
+                selected_source = "local"
+                selected_text = products_to_text(parsed_items)
+                _append_process_event(
+                    metrics,
+                    source="local",
+                    level="success",
+                    message="Local parser approved by invoice validation. Skipping the LLM fallback.",
+                )
+                _update_stage("parsing", "Parser local aprovado; preparando importacao")
+            elif local_attempt.approved_for_import:
+                metrics["local_parser_preapproved"] = True
+                metrics["llm_requested"] = True
+                _append_process_event(
+                    metrics,
+                    source="local",
+                    level="success",
+                    message="Validacao local aprovada; importacao via LLM solicitada.",
+                )
+                _update_stage("uploading", "Validacao local aprovada; enviando arquivo para servico LLM")
+            else:
+                fallback_message = local_attempt.fallback_message or "Local parser not approved: automatic approval was not reached."
+                warnings.append(fallback_message)
+                _append_process_event(metrics, source="local", level="warning", message=fallback_message)
+                for item in local_attempt.payload_warnings:
+                    detail = str(item).strip()
+                    if detail:
+                        _append_process_event(metrics, source="local", level="warning", message=detail)
+                metrics["llm_fallback_triggered"] = True
+        except Exception as exc:
+            logger.warning("Falha ao executar parser local de romaneio (job_id=%s): %s", job_id, exc)
+            metrics["local_validation_status"] = "error"
+            metrics["llm_fallback_triggered"] = True
+            warnings.append(f"Local parser failed before approval: {exc}")
+            _append_process_event(
+                metrics,
+                source="local",
+                level="error",
+                message=f"Local parser failed before approval: {exc}",
+            )
 
     if not parsed_items:
         _append_process_event(metrics, source="llm", level="info", message="Falling back to the LLM import pipeline.")
-        _update_stage("uploading", "Parser local reprovado; enviando arquivo para servico LLM")
+        if skip_local_parser:
+            _update_stage("uploading", "Enviando arquivo para servico de IA")
+        else:
+            _update_stage("uploading", "Parser local reprovado; enviando arquivo para servico LLM")
         try:
             timeout = httpx.Timeout(llm_timeout_seconds(), connect=10.0)
-            files = {
-                "files": (
-                    filename or "romaneio",
-                    contents,
-                    content_type or "application/octet-stream",
-                )
-            }
             upload_started = time.perf_counter()
             with httpx.Client(timeout=timeout) as client:
-                upload_response = client.post(
-                    f"{llm_base_url()}/api/upload",
-                    files=files,
-                    headers={"X-Job-Id": job_id},
+                upload_data = upload_llm_file(
+                    client,
+                    job_id=job_id,
+                    contents=contents,
+                    filename=filename or "romaneio",
+                    content_type=content_type,
                 )
                 metrics["llm_upload_ms"] = int((time.perf_counter() - upload_started) * 1000)
                 metrics["llm_upload_used"] = True
-                upload_response.raise_for_status()
-                parsed_upload: Any = upload_response.json()
-                upload_data = parsed_upload if isinstance(parsed_upload, dict) else {}
 
                 upload_summary = _summarize_llm_upload_payload(upload_data)
                 warnings.extend(upload_summary.warnings)
@@ -661,6 +692,7 @@ def run_import_job(
                     warnings.append("Upload do LLM nao retornou documentos ou imagens.")
         except Exception as exc:
             logger.warning("Falha no pipeline de importacao LLM (job_id=%s): %s", job_id, exc)
+            metrics["llm_last_error"] = str(exc)
             warnings.append(f"Falha ao processar com o servico LLM: {exc}")
             _append_process_event(
                 metrics,
@@ -707,6 +739,102 @@ def run_import_job(
         selected_source=selected_source,
     )
     final_validation = final_decision.validation
+
+    if (
+        skip_local_parser
+        and (not selected_source or selected_source == "llm")
+        and not final_validation.get("approved")
+        and bool(metrics.get("llm_upload_used") or metrics.get("llm_chat_used"))
+    ):
+        metrics["local_guard_used"] = True
+        _append_process_event(
+            metrics,
+            source="local",
+            level="warning",
+            message="Minimax import was not automatically approved; running local validation guard.",
+        )
+        try:
+            guard_started = time.perf_counter()
+            guard_payload = parse_local_romaneio_experiment(
+                contents=contents,
+                filename=filename,
+                content_type=content_type,
+            )
+            guard_decode_ms = int((time.perf_counter() - guard_started) * 1000)
+            guard_attempt = _evaluate_local_parser_attempt(guard_payload, decode_ms=guard_decode_ms)
+            metrics.update(guard_attempt.metrics)
+            metrics["local_guard_status"] = "approved" if guard_attempt.approved_for_import else "not_approved"
+
+            if guard_attempt.approved_for_import:
+                parsed_items = guard_attempt.products
+                selected_source = "local_guard"
+                selected_text = products_to_text(parsed_items)
+                metrics["selected_source"] = selected_source
+                metrics["selected_items"] = len(parsed_items)
+                metrics["selected_items_raw"] = len(parsed_items)
+                metrics["remessa_quantity"] = guard_payload.get("remessa_quantity")
+                metrics["quantity_matches_remessa"] = guard_payload.get("quantity_matches_remessa")
+                metrics["document_total_products"] = guard_payload.get("document_total_products")
+                metrics["document_total_note"] = guard_payload.get("document_total_note")
+                metrics["extracted_total_products"] = guard_payload.get("extracted_total_products")
+                metrics["products_value_matches_document"] = guard_payload.get("products_value_matches_document")
+                warnings.append("Minimax ficou sem aprovacao automatica; importacao protegida por leitura validada.")
+                _append_process_event(
+                    metrics,
+                    source="local",
+                    level="success",
+                    message="Local validation guard approved the Minimax import result.",
+                )
+                final_decision = _evaluate_final_import_validation(
+                    total_items=len(parsed_items),
+                    remessa_quantity=metrics.get("remessa_quantity"),
+                    quantity_matches_remessa=metrics.get("quantity_matches_remessa"),
+                    document_total_products=metrics.get("document_total_products"),
+                    document_total_note=metrics.get("document_total_note"),
+                    products_value_matches_document=metrics.get("products_value_matches_document"),
+                    selected_source=selected_source,
+                )
+                final_validation = final_decision.validation
+            else:
+                guard_reason = guard_attempt.fallback_message or "local validation guard was not approved"
+                warnings.append(f"Minimax sem aprovacao automatica; guarda local tambem reprovou: {guard_reason}")
+                _append_process_event(
+                    metrics,
+                    source="local",
+                    level="error",
+                    message=f"Local validation guard rejected the Minimax import result: {guard_reason}",
+                )
+                final_decision = _evaluate_final_import_validation(
+                    total_items=0,
+                    remessa_quantity=None,
+                    quantity_matches_remessa=None,
+                    document_total_products=None,
+                    document_total_note=None,
+                    products_value_matches_document=None,
+                    selected_source="local",
+                )
+                final_validation = final_decision.validation
+        except Exception as exc:
+            metrics["local_guard_status"] = "error"
+            metrics["local_guard_error"] = str(exc)
+            warnings.append(f"Minimax sem aprovacao automatica; guarda local falhou: {exc}")
+            _append_process_event(
+                metrics,
+                source="local",
+                level="error",
+                message=f"Local validation guard failed: {exc}",
+            )
+            final_decision = _evaluate_final_import_validation(
+                total_items=0,
+                remessa_quantity=None,
+                quantity_matches_remessa=None,
+                document_total_products=None,
+                document_total_note=None,
+                products_value_matches_document=None,
+                selected_source="local",
+            )
+            final_validation = final_decision.validation
+
     metrics.update(final_decision.metrics)
     warnings.extend(final_decision.warnings)
     _append_process_event(
@@ -765,7 +893,7 @@ def run_import_job(
         update_import_job(
             job_id,
             "error",
-            error="Nao foi possivel extrair conteudo util do arquivo enviado.",
+            error=_build_no_usable_content_error(skip_local_parser=skip_local_parser, metrics=metrics),
             metrics=metrics,
         )
         return

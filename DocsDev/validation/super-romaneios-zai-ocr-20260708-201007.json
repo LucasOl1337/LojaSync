@@ -1,0 +1,381 @@
+{
+  "folder": "C:\\Users\\user\\Downloads\\SuperRomaneios\\notas",
+  "generated_at": "2026-07-08T20:10:14",
+  "mode": "ZAI Coding vision via glm-4.6v, PDF rendered to 2 vertical slices per page, no local text fallback",
+  "files_total": 53,
+  "passed": 0,
+  "failed": 53,
+  "results": [
+    {
+      "file": "2866.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 145,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "35250967555391000181550010001251521978488811-nfe.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 127,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "35260105335896000183550010000001081107564151-nfe.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 322,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "35260105335896000183550010000001091330975643-nfe.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 139,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "6882300fb3bc32ac69997aec-doc-22-09-2025,-15-10-49-nf-2283-5542d165-0642-4b66-93c7-66cb7a1ca81b.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 143,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "DANFE-NFe42260280959513000163550010010548561032990622-25.02.2026.082700.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 144,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "DANFE.PDF",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 142,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF 1356.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 141,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF JULIANA.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 128,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_1054194.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 136,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_1055812.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 135,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_2292.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 144,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_328998.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 127,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_329113.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 126,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_337264.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 126,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_344094.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 121,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_356525.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 116,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_370618.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 132,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_378017.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 169,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_392659.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 132,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_396892.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 136,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_400186.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 127,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_438197.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 118,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_441502.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 122,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_453073.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 124,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_460903.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 138,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_467623.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 151,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_664145 (1).pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 136,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_664145.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 125,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_672114.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 122,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_677156.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 121,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_693870.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 117,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_808944.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 120,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_811599.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 127,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_814291.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 141,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_816732.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 141,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_819615.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 138,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_823185.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 147,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_826455.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 141,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_830209.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 135,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_832207.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 136,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_833722.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 188,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_836409.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 138,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_839167 (1).pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 140,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_839167.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 132,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_844754.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 149,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF-e_862303.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 139,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF_Devolucao_32491 (1).pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 136,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF_Devolucao_32491.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 126,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "NF_Devolucao_39488.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 116,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "ROMANEIO NF 67196 JULIANA MARIA HERREIRO.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 124,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "ROMANEIO NF 68350 JULIANA MARIA HERREIRO DE OLIVEIRA.pdf",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 123,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    },
+    {
+      "file": "Romaneio-Nota-0331403.PDF",
+      "passed": false,
+      "stage": "worker_error",
+      "elapsed_ms": 122,
+      "error": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\AppData\\Local\\Temp\\lojasync-superromaneios-zai\\worker.py\", line 11, in <module>\n    from app.application.imports.local_experiment import parse_local_romaneio_experiment\nModuleNotFoundError: No module named 'app'\n"
+    }
+  ]
+}

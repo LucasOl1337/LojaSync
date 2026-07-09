@@ -280,7 +280,10 @@ button {
 
 .leftPanelTs {
   justify-content: flex-start;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .rightPanelTs {

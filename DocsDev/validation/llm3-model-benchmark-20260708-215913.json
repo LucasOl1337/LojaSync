@@ -1,0 +1,375 @@
+{
+  "generated_at": "2026-07-08T22:11:05",
+  "folder": "C:\\Users\\user\\Downloads\\SuperRomaneios\\notas",
+  "models": [
+    "minimax-m3",
+    "gemma4:31b",
+    "gemma3:27b",
+    "gemma3:12b",
+    "gemma3:4b",
+    "ministral-3:14b"
+  ],
+  "files": [
+    "2866.pdf",
+    "NF-e_862303.pdf",
+    "NF-e_2292.pdf"
+  ],
+  "baselines": {
+    "2866.pdf": {
+      "total_rows": 12,
+      "total_itens": 2,
+      "total_quantity": 12,
+      "extracted_total_products": "1258,80",
+      "products_value_matches_document": true
+    },
+    "NF-e_862303.pdf": {
+      "total_rows": 18,
+      "total_itens": 18,
+      "total_quantity": 30,
+      "extracted_total_products": "2724,70",
+      "products_value_matches_document": true
+    },
+    "NF-e_2292.pdf": {
+      "total_rows": 16,
+      "total_itens": 16,
+      "total_quantity": 24,
+      "extracted_total_products": "4613,76",
+      "products_value_matches_document": true
+    }
+  },
+  "results": [
+    {
+      "model": "minimax-m3",
+      "file": "2866.pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 103104,
+      "items": 12,
+      "qty": 12,
+      "total": "1258.80",
+      "expected_qty": 12,
+      "expected_total": "1258,80",
+      "validation_status": "unverified",
+      "upload_documents_chars": 0,
+      "upload_images": 4,
+      "llm_chat_calls": 4,
+      "warnings": [
+        "Import completed without printed totals or remessa quantity to validate against."
+      ],
+      "sample": [
+        {
+          "codigo": "CO.FEM.00018",
+          "nome": "COLETE ALFAIATARIA C-BOLSO EMBUTIDO",
+          "quantidade": 1,
+          "preco": "79,90"
+        },
+        {
+          "codigo": "CO.FEM.00018",
+          "nome": "COLETE ALFAIATARIA C-BOLSO EMBUTIDO",
+          "quantidade": 1,
+          "preco": "79,90"
+        },
+        {
+          "codigo": "CO.FEM.00018",
+          "nome": "COLETE ALFAIATARIA C-BOLSO EMBUTIDO",
+          "quantidade": 1,
+          "preco": "79,90"
+        },
+        {
+          "codigo": "CA.FEM.00327",
+          "nome": "CALCA ALFAIATARIA PANTALONA C-PREGAS",
+          "quantidade": 1,
+          "preco": "129,90"
+        }
+      ]
+    },
+    {
+      "model": "minimax-m3",
+      "file": "NF-e_862303.pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 39587,
+      "items": 4,
+      "qty": 30,
+      "total": "2724.70",
+      "expected_qty": 30,
+      "expected_total": "2724,70",
+      "validation_status": "approved",
+      "upload_documents_chars": 5329,
+      "upload_images": 0,
+      "llm_chat_calls": 1,
+      "warnings": [],
+      "sample": [
+        {
+          "codigo": "07249600200",
+          "nome": "CALCA BOLSO RETO ESSENCIAL",
+          "quantidade": 10,
+          "preco": "84,99"
+        },
+        {
+          "codigo": "07249600200",
+          "nome": "CALCA BOLSO RETO ESSENCIAL",
+          "quantidade": 5,
+          "preco": "79,99"
+        },
+        {
+          "codigo": "02649601000",
+          "nome": "JAQUETA C/ ZIPER TRAD ESSE",
+          "quantidade": 10,
+          "preco": "99,99"
+        },
+        {
+          "codigo": "02649601000",
+          "nome": "JAQUETA C/ ZIPER TRAD ESSE",
+          "quantidade": 5,
+          "preco": "94,99"
+        }
+      ]
+    },
+    {
+      "model": "minimax-m3",
+      "file": "NF-e_2292.pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 92127,
+      "items": 16,
+      "qty": 24,
+      "total": "4613.76",
+      "expected_qty": 24,
+      "expected_total": "4613,76",
+      "validation_status": "approved",
+      "upload_documents_chars": 5124,
+      "upload_images": 0,
+      "llm_chat_calls": 1,
+      "warnings": [],
+      "sample": [
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM FORRADA",
+          "quantidade": 1,
+          "preco": "211,99"
+        },
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM FORRADA",
+          "quantidade": 2,
+          "preco": "211,99"
+        },
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM FORRADA",
+          "quantidade": 2,
+          "preco": "211,99"
+        },
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM FORRADA",
+          "quantidade": 1,
+          "preco": "211,99"
+        }
+      ]
+    },
+    {
+      "model": "gemma4:31b",
+      "file": "2866.pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 68894,
+      "items": 9,
+      "qty": 9,
+      "total": "1019.10",
+      "expected_qty": 12,
+      "expected_total": "1258,80",
+      "validation_status": "unverified",
+      "upload_documents_chars": 0,
+      "upload_images": 4,
+      "llm_chat_calls": 4,
+      "warnings": [
+        "Import completed without printed totals or remessa quantity to validate against."
+      ],
+      "sample": [
+        {
+          "codigo": "CA.FEM.00018",
+          "nome": "COLETE ALFAIATARIA FEM C-BOLSO EMBUTIDO",
+          "quantidade": 1,
+          "preco": "79,90"
+        },
+        {
+          "codigo": "CA.FEM.00327",
+          "nome": "CALCA ALFAIATARIA PANTALONA FEM C-PREGAS",
+          "quantidade": 1,
+          "preco": "129,90"
+        },
+        {
+          "codigo": "CA.FEM.00327",
+          "nome": "CALCA ALFAIATARIA PANTALONA FEM C-PREGAS",
+          "quantidade": 1,
+          "preco": "129,90"
+        },
+        {
+          "codigo": "CA.FEM.00327",
+          "nome": "CALCA ALFAIATARIA PANTALONA FEM C-PREGAS",
+          "quantidade": 1,
+          "preco": "129,90"
+        }
+      ]
+    },
+    {
+      "model": "gemma4:31b",
+      "file": "NF-e_862303.pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 21155,
+      "items": 4,
+      "qty": 30,
+      "total": "2724.70",
+      "expected_qty": 30,
+      "expected_total": "2724,70",
+      "validation_status": "approved",
+      "upload_documents_chars": 5329,
+      "upload_images": 0,
+      "llm_chat_calls": 1,
+      "warnings": [],
+      "sample": [
+        {
+          "codigo": "07249600200",
+          "nome": "CALCA BOLSO RETO",
+          "quantidade": 10,
+          "preco": "84,99"
+        },
+        {
+          "codigo": "07249600200",
+          "nome": "CALCA BOLSO RETO",
+          "quantidade": 5,
+          "preco": "79,99"
+        },
+        {
+          "codigo": "02649601000",
+          "nome": "JAQUETA ZIPER TRAD",
+          "quantidade": 10,
+          "preco": "99,99"
+        },
+        {
+          "codigo": "02649601000",
+          "nome": "JAQUETA ZIPER TRAD",
+          "quantidade": 5,
+          "preco": "94,99"
+        }
+      ]
+    },
+    {
+      "model": "gemma4:31b",
+      "file": "NF-e_2292.pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 71523,
+      "items": 16,
+      "qty": 24,
+      "total": "4613.76",
+      "expected_qty": 24,
+      "expected_total": "4613,76",
+      "validation_status": "approved",
+      "upload_documents_chars": 5124,
+      "upload_images": 0,
+      "llm_chat_calls": 1,
+      "warnings": [],
+      "sample": [
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM",
+          "quantidade": 1,
+          "preco": "211,99"
+        },
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM",
+          "quantidade": 2,
+          "preco": "211,99"
+        },
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM",
+          "quantidade": 2,
+          "preco": "211,99"
+        },
+        {
+          "codigo": "02753000100",
+          "nome": "JAQUETA CASUAL SLIM",
+          "quantidade": 1,
+          "preco": "211,99"
+        }
+      ]
+    },
+    {
+      "model": "gemma3:27b",
+      "file": "2866.pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 154087,
+      "items": 24,
+      "qty": 112,
+      "total": "3286.48",
+      "expected_qty": 12,
+      "expected_total": "1258,80",
+      "validation_status": "unverified",
+      "upload_documents_chars": 0,
+      "upload_images": 4,
+      "llm_chat_calls": 4,
+      "warnings": [
+        "Import completed without printed totals or remessa quantity to validate against."
+      ],
+      "sample": [
+        {
+          "codigo": "7005",
+          "nome": "CAMISETA GOLA V C/",
+          "quantidade": 12,
+          "preco": "19,98"
+        },
+        {
+          "codigo": "7006",
+          "nome": "CAMISETA GOLA V C/",
+          "quantidade": 12,
+          "preco": "19,98"
+        },
+        {
+          "codigo": "7007",
+          "nome": "CAMISETA GOLA V C/",
+          "quantidade": 12,
+          "preco": "19,98"
+        },
+        {
+          "codigo": "7008",
+          "nome": "CAMISETA GOLA V C/",
+          "quantidade": 12,
+          "preco": "19,98"
+        }
+      ]
+    },
+    {
+      "model": "gemma3:27b",
+      "file": "NF-e_862303.pdf",
+      "passed": false,
+      "stage": "error",
+      "error": "Importação bloqueada porque os dados extraídos não bateram com a validação da nota.",
+      "elapsed_ms": 128096,
+      "items": 0,
+      "qty": 0,
+      "total": "0.00",
+      "expected_qty": 30,
+      "expected_total": "2724,70",
+      "validation_status": "rejected",
+      "upload_documents_chars": 5329,
+      "upload_images": 0,
+      "llm_chat_calls": 1,
+      "warnings": [],
+      "sample": []
+    }
+  ]
+}

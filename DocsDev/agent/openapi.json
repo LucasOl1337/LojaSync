@@ -1,0 +1,3892 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LojaSync",
+    "version": "1.2.3"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/session": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Session",
+        "operationId": "auth_session_auth_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Auth Session Auth Session Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/bootstrap": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Bootstrap",
+        "operationId": "auth_bootstrap_auth_bootstrap_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Auth Bootstrap Auth Bootstrap Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Login",
+        "operationId": "auth_login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Auth Login Auth Login Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Logout",
+        "operationId": "auth_logout_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Auth Logout Auth Logout Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Change Password",
+        "operationId": "auth_change_password_auth_change_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Auth Change Password Auth Change Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "List Products",
+        "operationId": "list_products_products_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Product",
+        "operationId": "create_product_products_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear Products",
+        "operationId": "clear_products_products_delete",
+        "parameters": [
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dry Run"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Clear Products Products Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalog/sizes": {
+      "get": {
+        "summary": "Catalog Sizes",
+        "operationId": "catalog_sizes_catalog_sizes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "title": "Response Catalog Sizes Catalog Sizes Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{ordering_key}": {
+      "patch": {
+        "summary": "Patch Product",
+        "operationId": "patch_product_products__ordering_key__patch",
+        "parameters": [
+          {
+            "name": "ordering_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ordering Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductPatchPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Product",
+        "operationId": "delete_product_products__ordering_key__delete",
+        "parameters": [
+          {
+            "name": "ordering_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ordering Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Product Products  Ordering Key  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/brands": {
+      "get": {
+        "summary": "List Brands",
+        "operationId": "list_brands_brands_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Brand",
+        "operationId": "add_brand_brands_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/margin": {
+      "get": {
+        "summary": "Get Margin",
+        "operationId": "get_margin_settings_margin_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarginSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Set Margin",
+        "operationId": "set_margin_settings_margin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarginSettingsPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarginSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/totals": {
+      "get": {
+        "summary": "Get Totals",
+        "operationId": "get_totals_totals_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotalsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/apply-category": {
+      "post": {
+        "summary": "Apply Category",
+        "operationId": "apply_category_actions_apply_category_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkActionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Apply Category Actions Apply Category Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/apply-brand": {
+      "post": {
+        "summary": "Apply Brand",
+        "operationId": "apply_brand_actions_apply_brand_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkActionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Apply Brand Actions Apply Brand Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/join-duplicates": {
+      "post": {
+        "summary": "Join Duplicates",
+        "operationId": "join_duplicates_actions_join_duplicates_post",
+        "parameters": [
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dry Run"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Join Duplicates Actions Join Duplicates Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/reorder": {
+      "post": {
+        "summary": "Reorder Products",
+        "operationId": "reorder_products_actions_reorder_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Reorder Products Actions Reorder Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/join-grades": {
+      "post": {
+        "summary": "Join Grades",
+        "operationId": "join_grades_actions_join_grades_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinGradesPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Join Grades Actions Join Grades Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/restore-snapshot": {
+      "post": {
+        "summary": "Restore Snapshot",
+        "operationId": "restore_snapshot_actions_restore_snapshot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotRestorePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotRestoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/history": {
+      "get": {
+        "summary": "Get Undo Redo History",
+        "operationId": "get_undo_redo_history_actions_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoRedoHistoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/history/snapshot": {
+      "post": {
+        "summary": "Record Undo Snapshot",
+        "operationId": "record_undo_snapshot_actions_history_snapshot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/HistorySnapshotPayload"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoRedoHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/history/undo": {
+      "post": {
+        "summary": "Undo Last Snapshot",
+        "operationId": "undo_last_snapshot_actions_history_undo_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoRedoApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/history/redo": {
+      "post": {
+        "summary": "Redo Last Snapshot",
+        "operationId": "redo_last_snapshot_actions_history_redo_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoRedoApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/format-codes": {
+      "post": {
+        "summary": "Format Codes",
+        "operationId": "format_codes_actions_format_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormatCodesPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Format Codes Actions Format Codes Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/restore-original-codes": {
+      "post": {
+        "summary": "Restore Original Codes",
+        "operationId": "restore_original_codes_actions_restore_original_codes_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreCodesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/apply-margin": {
+      "post": {
+        "summary": "Apply Margin",
+        "operationId": "apply_margin_actions_apply_margin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarginPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Apply Margin Actions Apply Margin Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/create-set": {
+      "post": {
+        "summary": "Create Set",
+        "operationId": "create_set_actions_create_set_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSetPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSetResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/improve-descriptions": {
+      "post": {
+        "summary": "Improve Descriptions",
+        "operationId": "improve_descriptions_actions_improve_descriptions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImproveDescriptionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Improve Descriptions Actions Improve Descriptions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/export-json": {
+      "get": {
+        "summary": "Export Json",
+        "operationId": "export_json_actions_export_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/targets": {
+      "get": {
+        "summary": "Get Targets",
+        "operationId": "get_targets_automation_targets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Set Targets",
+        "operationId": "set_targets_automation_targets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TargetsPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/targets/capture": {
+      "post": {
+        "summary": "Capture Target",
+        "operationId": "capture_target_automation_targets_capture_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TargetCapturePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetCaptureResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/status": {
+      "get": {
+        "summary": "Automation Status",
+        "operationId": "automation_status_automation_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Automation Status Automation Status Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/execute": {
+      "post": {
+        "summary": "Automation Execute",
+        "operationId": "automation_execute_automation_execute_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Automation Execute Automation Execute Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/execute-complete": {
+      "post": {
+        "summary": "Automation Execute Complete",
+        "operationId": "automation_execute_complete_automation_execute_complete_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Automation Execute Complete Automation Execute Complete Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/cancel": {
+      "post": {
+        "summary": "Automation Cancel",
+        "operationId": "automation_cancel_automation_cancel_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Automation Cancel Automation Cancel Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/agents": {
+      "get": {
+        "summary": "Automation Agents",
+        "operationId": "automation_agents_automation_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "title": "Response Automation Agents Automation Agents Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/byteempresa/context": {
+      "get": {
+        "summary": "Byteempresa Context",
+        "operationId": "byteempresa_context_automation_byteempresa_context_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Byteempresa Context Automation Byteempresa Context Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/byteempresa/prepare": {
+      "post": {
+        "summary": "Byteempresa Prepare",
+        "operationId": "byteempresa_prepare_automation_byteempresa_prepare_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Byteempresa Prepare Automation Byteempresa Prepare Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/grades/config": {
+      "get": {
+        "summary": "Grades Config Get",
+        "operationId": "grades_config_get_automation_grades_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Grades Config Get Automation Grades Config Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Grades Config Set",
+        "operationId": "grades_config_set_automation_grades_config_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeConfigPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Grades Config Set Automation Grades Config Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/grades/run": {
+      "post": {
+        "summary": "Grades Run",
+        "operationId": "grades_run_automation_grades_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeRunPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Grades Run Automation Grades Run Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/grades/batch": {
+      "post": {
+        "summary": "Grades Batch",
+        "operationId": "grades_batch_automation_grades_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradesBatchPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Grades Batch Automation Grades Batch Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/grades/execute-products": {
+      "post": {
+        "summary": "Grades Execute Products",
+        "operationId": "grades_execute_products_automation_grades_execute_products_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Grades Execute Products Automation Grades Execute Products Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/grades/stop": {
+      "post": {
+        "summary": "Grades Stop",
+        "operationId": "grades_stop_automation_grades_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Grades Stop Automation Grades Stop Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/parser-grades": {
+      "post": {
+        "summary": "Start Grade Parser",
+        "operationId": "start_grade_parser_actions_parser_grades_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_start_grade_parser_actions_parser_grades_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradeExtractionStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/parser-grades/status/{job_id}": {
+      "get": {
+        "summary": "Parser Grades Status",
+        "operationId": "parser_grades_status_actions_parser_grades_status__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradeExtractionStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Parser Grades Cleanup",
+        "operationId": "parser_grades_cleanup_actions_parser_grades_status__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Parser Grades Cleanup Actions Parser Grades Status  Job Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/parser-grades/result/{job_id}": {
+      "get": {
+        "summary": "Parser Grades Result",
+        "operationId": "parser_grades_result_actions_parser_grades_result__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradeExtractionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/import-romaneio": {
+      "post": {
+        "summary": "Import Romaneio",
+        "operationId": "import_romaneio_actions_import_romaneio_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_romaneio_actions_import_romaneio_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRomaneioStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/import-romaneio/status/{job_id}": {
+      "get": {
+        "summary": "Import Romaneio Status",
+        "operationId": "import_romaneio_status_actions_import_romaneio_status__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRomaneioStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Import Romaneio Cleanup",
+        "operationId": "import_romaneio_cleanup_actions_import_romaneio_status__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Import Romaneio Cleanup Actions Import Romaneio Status  Job Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/import-romaneio/result/{job_id}": {
+      "get": {
+        "summary": "Import Romaneio Result",
+        "operationId": "import_romaneio_result_actions_import_romaneio_result__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRomaneioResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/import-romaneio-local-experiment": {
+      "post": {
+        "summary": "Import Romaneio Local Experiment",
+        "operationId": "import_romaneio_local_experiment_actions_import_romaneio_local_experiment_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_romaneio_local_experiment_actions_import_romaneio_local_experiment_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRomaneioResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_import_romaneio_actions_import_romaneio_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_romaneio_actions_import_romaneio_post"
+      },
+      "Body_import_romaneio_local_experiment_actions_import_romaneio_local_experiment_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_romaneio_local_experiment_actions_import_romaneio_local_experiment_post"
+      },
+      "Body_start_grade_parser_actions_parser_grades_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_start_grade_parser_actions_parser_grades_post"
+      },
+      "BrandPayload": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome"
+        ],
+        "title": "BrandPayload"
+      },
+      "BrandsResponse": {
+        "properties": {
+          "marcas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Marcas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "marcas"
+        ],
+        "title": "BrandsResponse"
+      },
+      "BulkActionPayload": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "valor": {
+            "type": "string",
+            "title": "Valor",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "BulkActionPayload"
+      },
+      "ChangePasswordPayload": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordPayload"
+      },
+      "CorItemPayload": {
+        "properties": {
+          "cor": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Cor"
+          },
+          "quantidade": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantidade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cor",
+          "quantidade"
+        ],
+        "title": "CorItemPayload"
+      },
+      "CreateSetPayload": {
+        "properties": {
+          "key_a": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Key A"
+          },
+          "key_b": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Key B"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key_a",
+          "key_b"
+        ],
+        "title": "CreateSetPayload"
+      },
+      "CreateSetResponse": {
+        "properties": {
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "removed": {
+            "type": "integer",
+            "title": "Removed"
+          },
+          "remaining_a": {
+            "type": "integer",
+            "title": "Remaining A"
+          },
+          "remaining_b": {
+            "type": "integer",
+            "title": "Remaining B"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "removed",
+          "remaining_a",
+          "remaining_b"
+        ],
+        "title": "CreateSetResponse"
+      },
+      "FormatCodesPayload": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "remover_prefixo5": {
+            "type": "boolean",
+            "title": "Remover Prefixo5",
+            "default": false
+          },
+          "remover_zeros_a_esquerda": {
+            "type": "boolean",
+            "title": "Remover Zeros A Esquerda",
+            "default": false
+          },
+          "ultimos_digitos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimos Digitos"
+          },
+          "primeiros_digitos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primeiros Digitos"
+          },
+          "remover_ultimos_numeros": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remover Ultimos Numeros"
+          },
+          "remover_primeiros_numeros": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remover Primeiros Numeros"
+          },
+          "manter_primeiros_caracteres": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manter Primeiros Caracteres"
+          },
+          "manter_ultimos_caracteres": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manter Ultimos Caracteres"
+          },
+          "remover_primeiros_caracteres": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remover Primeiros Caracteres"
+          },
+          "remover_ultimos_caracteres": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remover Ultimos Caracteres"
+          },
+          "remover_letras": {
+            "type": "boolean",
+            "title": "Remover Letras",
+            "default": false
+          },
+          "remover_numeros": {
+            "type": "boolean",
+            "title": "Remover Numeros",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "FormatCodesPayload"
+      },
+      "GradeConfigPayload": {
+        "properties": {
+          "buttons": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TargetPoint"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buttons"
+          },
+          "first_quant_cell": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "second_quant_cell": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "row_height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Height"
+          },
+          "model_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Index"
+          },
+          "model_hotkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Hotkey"
+          },
+          "erp_size_order": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erp Size Order"
+          },
+          "ui_size_order": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ui Size Order"
+          },
+          "ui_families": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ui Families"
+          },
+          "ui_family_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ui Family Version"
+          }
+        },
+        "type": "object",
+        "title": "GradeConfigPayload"
+      },
+      "GradeExtractionProduct": {
+        "properties": {
+          "codigo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo"
+          },
+          "nome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome"
+          },
+          "grades": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Grades"
+          },
+          "atualizado": {
+            "type": "boolean",
+            "title": "Atualizado"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "atualizado"
+        ],
+        "title": "GradeExtractionProduct"
+      },
+      "GradeExtractionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "total_itens": {
+            "type": "integer",
+            "title": "Total Itens"
+          },
+          "total_atualizados": {
+            "type": "integer",
+            "title": "Total Atualizados"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/GradeExtractionProduct"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "total_itens",
+          "total_atualizados"
+        ],
+        "title": "GradeExtractionResponse"
+      },
+      "GradeExtractionStartResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id"
+        ],
+        "title": "GradeExtractionStartResponse"
+      },
+      "GradeExtractionStatusResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "started_at": {
+            "type": "number",
+            "title": "Started At"
+          },
+          "updated_at": {
+            "type": "number",
+            "title": "Updated At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "stage",
+          "message",
+          "started_at",
+          "updated_at"
+        ],
+        "title": "GradeExtractionStatusResponse"
+      },
+      "GradeItemPayload": {
+        "properties": {
+          "tamanho": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tamanho"
+          },
+          "quantidade": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantidade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tamanho",
+          "quantidade"
+        ],
+        "title": "GradeItemPayload"
+      },
+      "GradeRunPayload": {
+        "properties": {
+          "grades": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grades"
+          },
+          "grades_json": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grades Json"
+          },
+          "model_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Index"
+          },
+          "pause": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          }
+        },
+        "type": "object",
+        "title": "GradeRunPayload"
+      },
+      "GradesBatchPayload": {
+        "properties": {
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/GradeRunPayload"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "pause": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          }
+        },
+        "type": "object",
+        "title": "GradesBatchPayload"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistorySnapshotPayload": {
+        "properties": {
+          "clear_redo": {
+            "type": "boolean",
+            "title": "Clear Redo",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "HistorySnapshotPayload"
+      },
+      "ImportRomaneioResultResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "saved_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved File"
+          },
+          "local_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local File"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "total_itens": {
+            "type": "integer",
+            "title": "Total Itens",
+            "default": 0
+          },
+          "grades_disponiveis": {
+            "type": "boolean",
+            "title": "Grades Disponiveis",
+            "default": false
+          },
+          "total_grades_disponiveis": {
+            "type": "integer",
+            "title": "Total Grades Disponiveis",
+            "default": 0
+          },
+          "imported_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Imported Keys"
+          },
+          "import_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Batch Id"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ImportRomaneioResultResponse"
+      },
+      "ImportRomaneioStartResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id"
+        ],
+        "title": "ImportRomaneioStartResponse"
+      },
+      "ImportRomaneioStatusResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "started_at": {
+            "type": "number",
+            "title": "Started At"
+          },
+          "updated_at": {
+            "type": "number",
+            "title": "Updated At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "stage",
+          "message",
+          "started_at",
+          "updated_at"
+        ],
+        "title": "ImportRomaneioStatusResponse"
+      },
+      "ImproveDescriptionPayload": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "remover_numeros": {
+            "type": "boolean",
+            "title": "Remover Numeros",
+            "default": false
+          },
+          "remover_especiais": {
+            "type": "boolean",
+            "title": "Remover Especiais",
+            "default": false
+          },
+          "remover_termos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Remover Termos"
+          }
+        },
+        "type": "object",
+        "title": "ImproveDescriptionPayload"
+      },
+      "JoinGradesPayload": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          }
+        },
+        "type": "object",
+        "title": "JoinGradesPayload"
+      },
+      "MarginPayload": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "percentual": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentual"
+          },
+          "margem": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margem"
+          }
+        },
+        "type": "object",
+        "title": "MarginPayload"
+      },
+      "MarginSettingsPayload": {
+        "properties": {
+          "percentual": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Percentual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "percentual"
+        ],
+        "title": "MarginSettingsPayload"
+      },
+      "MarginSettingsResponse": {
+        "properties": {
+          "margem": {
+            "type": "number",
+            "title": "Margem"
+          },
+          "percentual": {
+            "type": "number",
+            "title": "Percentual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "margem",
+          "percentual"
+        ],
+        "title": "MarginSettingsResponse"
+      },
+      "PasswordPayload": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "PasswordPayload"
+      },
+      "ProductItemResponse": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ProductResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item"
+        ],
+        "title": "ProductItemResponse"
+      },
+      "ProductListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ProductListResponse"
+      },
+      "ProductPatchPayload": {
+        "properties": {
+          "nome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome"
+          },
+          "codigo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo"
+          },
+          "quantidade": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantidade"
+          },
+          "preco": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "preco_final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Final"
+          },
+          "descricao_completa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao Completa"
+          },
+          "grades": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GradeItemPayload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grades"
+          },
+          "cores": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CorItemPayload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cores"
+          }
+        },
+        "type": "object",
+        "title": "ProductPatchPayload"
+      },
+      "ProductPayload": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nome"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "default": ""
+          },
+          "quantidade": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantidade",
+            "default": 1
+          },
+          "preco": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Preco"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria",
+            "default": ""
+          },
+          "marca": {
+            "type": "string",
+            "title": "Marca",
+            "default": ""
+          },
+          "preco_final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Final"
+          },
+          "descricao_completa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao Completa"
+          },
+          "grades": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GradeItemPayload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grades"
+          },
+          "cores": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CorItemPayload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "preco"
+        ],
+        "title": "ProductPayload"
+      },
+      "ProductResponse": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "codigo_original": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Original"
+          },
+          "quantidade": {
+            "type": "integer",
+            "title": "Quantidade"
+          },
+          "preco": {
+            "type": "string",
+            "title": "Preco"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "marca": {
+            "type": "string",
+            "title": "Marca"
+          },
+          "preco_final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Final"
+          },
+          "descricao_completa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao Completa"
+          },
+          "grades": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GradeItemPayload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grades"
+          },
+          "cores": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CorItemPayload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cores"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          },
+          "import_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Batch Id"
+          },
+          "import_source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Source Name"
+          },
+          "pending_grade_import": {
+            "type": "boolean",
+            "title": "Pending Grade Import",
+            "default": false
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "ordering_key": {
+            "type": "string",
+            "title": "Ordering Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "codigo",
+          "codigo_original",
+          "quantidade",
+          "preco",
+          "categoria",
+          "marca",
+          "preco_final",
+          "descricao_completa",
+          "timestamp",
+          "ordering_key"
+        ],
+        "title": "ProductResponse"
+      },
+      "ReorderPayload": {
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          }
+        },
+        "type": "object",
+        "title": "ReorderPayload"
+      },
+      "RestoreCodesResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "restaurados": {
+            "type": "integer",
+            "title": "Restaurados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "restaurados"
+        ],
+        "title": "RestoreCodesResponse"
+      },
+      "SnapshotProductPayload": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "title": "Nome",
+            "default": ""
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "default": ""
+          },
+          "ordering_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordering Key"
+          },
+          "codigo_original": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Original"
+          },
+          "quantidade": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantidade",
+            "default": 0
+          },
+          "preco": {
+            "type": "string",
+            "title": "Preco",
+            "default": ""
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria",
+            "default": ""
+          },
+          "marca": {
+            "type": "string",
+            "title": "Marca",
+            "default": ""
+          },
+          "preco_final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Final"
+          },
+          "descricao_completa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao Completa"
+          },
+          "grades": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grades"
+          },
+          "cores": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cores"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          },
+          "import_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Batch Id"
+          },
+          "import_source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Source Name"
+          },
+          "pending_grade_import": {
+            "type": "boolean",
+            "title": "Pending Grade Import",
+            "default": false
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "title": "SnapshotProductPayload"
+      },
+      "SnapshotRestorePayload": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotProductPayload"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "SnapshotRestorePayload"
+      },
+      "SnapshotRestoreResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "SnapshotRestoreResponse"
+      },
+      "TargetCapturePayload": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target"
+        ],
+        "title": "TargetCapturePayload"
+      },
+      "TargetCaptureResponse": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "point": {
+            "$ref": "#/components/schemas/TargetPoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target",
+          "point"
+        ],
+        "title": "TargetCaptureResponse"
+      },
+      "TargetPoint": {
+        "properties": {
+          "x": {
+            "type": "integer",
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "title": "Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "TargetPoint"
+      },
+      "TargetsPayload": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "byte_empresa_posicao": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "campo_descricao": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tres_pontinhos": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_1": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_2": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_3": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_4": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "TargetsPayload"
+      },
+      "TargetsResponse": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "byte_empresa_posicao": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "campo_descricao": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tres_pontinhos": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_1": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_2": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_3": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastro_completo_passo_4": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "TargetsResponse"
+      },
+      "TotalsInfo": {
+        "properties": {
+          "quantidade": {
+            "type": "integer",
+            "title": "Quantidade"
+          },
+          "custo": {
+            "type": "number",
+            "title": "Custo"
+          },
+          "venda": {
+            "type": "number",
+            "title": "Venda"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quantidade",
+          "custo",
+          "venda"
+        ],
+        "title": "TotalsInfo"
+      },
+      "TotalsResponse": {
+        "properties": {
+          "atual": {
+            "$ref": "#/components/schemas/TotalsInfo"
+          },
+          "historico": {
+            "$ref": "#/components/schemas/TotalsInfo"
+          },
+          "tempo_economizado": {
+            "type": "integer",
+            "title": "Tempo Economizado"
+          },
+          "caracteres_digitados": {
+            "type": "integer",
+            "title": "Caracteres Digitados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "atual",
+          "historico",
+          "tempo_economizado",
+          "caracteres_digitados"
+        ],
+        "title": "TotalsResponse"
+      },
+      "UndoRedoApplyResponse": {
+        "properties": {
+          "undo_count": {
+            "type": "integer",
+            "title": "Undo Count"
+          },
+          "redo_count": {
+            "type": "integer",
+            "title": "Redo Count"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "can_undo": {
+            "type": "boolean",
+            "title": "Can Undo"
+          },
+          "can_redo": {
+            "type": "boolean",
+            "title": "Can Redo"
+          },
+          "restored": {
+            "type": "boolean",
+            "title": "Restored"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "undo_count",
+          "redo_count",
+          "limit",
+          "can_undo",
+          "can_redo",
+          "restored"
+        ],
+        "title": "UndoRedoApplyResponse"
+      },
+      "UndoRedoHistoryResponse": {
+        "properties": {
+          "undo_count": {
+            "type": "integer",
+            "title": "Undo Count"
+          },
+          "redo_count": {
+            "type": "integer",
+            "title": "Redo Count"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "can_undo": {
+            "type": "boolean",
+            "title": "Can Undo"
+          },
+          "can_redo": {
+            "type": "boolean",
+            "title": "Can Redo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "undo_count",
+          "redo_count",
+          "limit",
+          "can_undo",
+          "can_redo"
+        ],
+        "title": "UndoRedoHistoryResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

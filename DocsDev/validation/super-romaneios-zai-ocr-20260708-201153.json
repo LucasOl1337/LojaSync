@@ -1,0 +1,1389 @@
+{
+  "folder": "C:\\Users\\user\\Downloads\\SuperRomaneios\\notas",
+  "generated_at": "2026-07-08T21:02:55",
+  "mode": "ZAI Coding vision via glm-4.6v, PDF rendered to 2 vertical slices per page, no local text fallback",
+  "files_total": 53,
+  "passed": 8,
+  "failed": 16,
+  "results": [
+    {
+      "file": "2866.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 64118,
+      "ai": {
+        "items": 12,
+        "qty": 12,
+        "total_value": "1258,80",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "CO.FEM.00018",
+            "nome": "COLETE ALFAIATARIA FEM C-BOLSO EMBULTIDO",
+            "quantidade": 1,
+            "preco": "79,90"
+          },
+          {
+            "codigo": "CO.FEM.00018",
+            "nome": "COLETE ALFAIATARIA FEM C-BOLSO EMBULTIDO",
+            "quantidade": 1,
+            "preco": "79,90"
+          },
+          {
+            "codigo": "CO.FEM.00018",
+            "nome": "COLETE ALFAIATARIA FEM C-BOLSO EMBULTIDO",
+            "quantidade": 1,
+            "preco": "79,90"
+          },
+          {
+            "codigo": "CA.FEM.00327",
+            "nome": "CALCA ALFAIATARIA PANTALONA FEM C-PREGAS",
+            "quantidade": 1,
+            "preco": "129,90"
+          },
+          {
+            "codigo": "CA.FEM.00327",
+            "nome": "CALCA ALFAIATARIA PANTALONA FEM C-PREGAS",
+            "quantidade": 1,
+            "preco": "129,90"
+          },
+          {
+            "codigo": "CA.FEM.00327",
+            "nome": "CALCA ALFAIATARIA PANTALONA FEM C-PREGAS",
+            "quantidade": 1,
+            "preco": "129,90"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 12,
+        "items": 2,
+        "qty": 12,
+        "doc_total_products": "1258,80",
+        "doc_total_note": "1132,92",
+        "extracted_total": "1258,80",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "1258,80"
+      }
+    },
+    {
+      "file": "35250967555391000181550010001251521978488811-nfe.pdf",
+      "passed": false,
+      "stage": "timeout",
+      "elapsed_ms": 240000,
+      "error": "timeout after 240s"
+    },
+    {
+      "file": "35260105335896000183550010000001081107564151-nfe.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 16375,
+      "ai": {
+        "items": 1,
+        "qty": 1,
+        "total_value": "120,10",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 2,
+          "llm_chat_calls": 2,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "28.16335A",
+            "nome": "BOLSA SIENNA RAFFITY",
+            "quantidade": 1,
+            "preco": "120,10"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 1,
+        "items": 1,
+        "qty": 1,
+        "doc_total_products": "120,10",
+        "doc_total_note": "127,91",
+        "extracted_total": "120,10",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "120,10"
+      }
+    },
+    {
+      "file": "35260105335896000183550010000001091330975643-nfe.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 11006,
+      "ai": {
+        "items": 1,
+        "qty": 1,
+        "total_value": "103,20",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 2,
+          "llm_chat_calls": 2,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "28.16177A",
+            "nome": "BOLSA RAFITTY",
+            "quantidade": 1,
+            "preco": "103,20"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 1,
+        "items": 1,
+        "qty": 1,
+        "doc_total_products": "103,20",
+        "doc_total_note": "109,91",
+        "extracted_total": "103,20",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "103,20"
+      }
+    },
+    {
+      "file": "6882300fb3bc32ac69997aec-doc-22-09-2025,-15-10-49-nf-2283-5542d165-0642-4b66-93c7-66cb7a1ca81b.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 48828,
+      "ai": {
+        "items": 12,
+        "qty": 58,
+        "total_value": "5390,80",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "0104321",
+            "nome": "BERMUDA MASC ECONOMIC BARRA NORMAL",
+            "quantidade": 6,
+            "preco": "70,00"
+          },
+          {
+            "codigo": "0113809",
+            "nome": "CAMISETA MASC BORDADA TAM GRANDE",
+            "quantidade": 3,
+            "preco": "44,90"
+          },
+          {
+            "codigo": "3052022",
+            "nome": "CALCA SLIM JEANS MASC BARRA NORMAL",
+            "quantidade": 5,
+            "preco": "119,90"
+          },
+          {
+            "codigo": "3112006",
+            "nome": "BERMUDA JEANS TRADICIONAL MASC C-BORDADO BOLSO",
+            "quantidade": 6,
+            "preco": "99,90"
+          },
+          {
+            "codigo": "BM.MAS.00037",
+            "nome": "BERMUDA TRADICIONAL JEANS MASC BARRA NORMAL",
+            "quantidade": 6,
+            "preco": "70,00"
+          },
+          {
+            "codigo": "CA.FEM.00114",
+            "nome": "CALCA FLARE JEANS FEM ABRERTURA ENTREPERNAS",
+            "quantidade": 4,
+            "preco": "129,90"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 12,
+        "items": 12,
+        "qty": 58,
+        "doc_total_products": "5390,80",
+        "doc_total_note": "4929,72",
+        "extracted_total": "5390,80",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "5390,80"
+      }
+    },
+    {
+      "file": "DANFE-NFe42260280959513000163550010010548561032990622-25.02.2026.082700.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 63196,
+      "ai": {
+        "items": 28,
+        "qty": 17011,
+        "total_value": "1954839,60",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "C60798-1014-18",
+            "nome": "BLUSA MANGA LONGA",
+            "quantidade": 1,
+            "preco": "40,60"
+          },
+          {
+            "codigo": "C60798-1014-20",
+            "nome": "BLUSA MANGA LONGA",
+            "quantidade": 1,
+            "preco": "40,60"
+          },
+          {
+            "codigo": "C60798-9003-14",
+            "nome": "BLUSA MANGA LONGA",
+            "quantidade": 1,
+            "preco": "40,60"
+          },
+          {
+            "codigo": "C60798-9003-16",
+            "nome": "BLUSA MANGA LONGA",
+            "quantidade": 1,
+            "preco": "40,60"
+          },
+          {
+            "codigo": "C60798-9003-18",
+            "nome": "BLUSA MANGA LONGA",
+            "quantidade": 1,
+            "preco": "40,60"
+          },
+          {
+            "codigo": "C60798-9003-20",
+            "nome": "BLUSA MANGA LONGA",
+            "quantidade": 1,
+            "preco": "40,60"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 28,
+        "items": 28,
+        "qty": 28,
+        "doc_total_products": "2394,00",
+        "doc_total_note": null,
+        "extracted_total": "2394,00",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "2394,00"
+      }
+    },
+    {
+      "file": "DANFE.PDF",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 42570,
+      "ai": {
+        "items": 19,
+        "qty": 87,
+        "total_value": "4965,30",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "6011",
+            "nome": "MACACAO BBO",
+            "quantidade": 3,
+            "preco": "64,30"
+          },
+          {
+            "codigo": "6022",
+            "nome": "SHORTS COMFORT SPORT",
+            "quantidade": 3,
+            "preco": "53,50"
+          },
+          {
+            "codigo": "6023",
+            "nome": "MACAQUINHO ESCURO BARRA VIRADA",
+            "quantidade": 5,
+            "preco": "71,00"
+          },
+          {
+            "codigo": "6024",
+            "nome": "SHORTS SAIA ELASTICO",
+            "quantidade": 2,
+            "preco": "53,90"
+          },
+          {
+            "codigo": "6031",
+            "nome": "JARDINEIRA CLAR",
+            "quantidade": 3,
+            "preco": "69,90"
+          },
+          {
+            "codigo": "6053",
+            "nome": "SHORTS ABOTOAMENTO",
+            "quantidade": 6,
+            "preco": "61,90"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 20,
+        "items": 20,
+        "qty": 87,
+        "doc_total_products": "4965,30",
+        "doc_total_note": null,
+        "extracted_total": "4965,30",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "4965,30"
+      }
+    },
+    {
+      "file": "NF 1356.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 37770,
+      "ai": {
+        "items": 3,
+        "qty": 15,
+        "total_value": "1548,50",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 2,
+          "llm_chat_calls": 2,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "CA.FEM.00028",
+            "nome": "CALCA FLARE JEANS FEM BARRA DESFIADA",
+            "quantidade": 5,
+            "preco": "129,90"
+          },
+          {
+            "codigo": "SH.FEM.00034",
+            "nome": "SHORT BOYFRIEND JEANS FEM BARRA DESFIADA",
+            "quantidade": 5,
+            "preco": "89,90"
+          },
+          {
+            "codigo": "SH.FEM.00049",
+            "nome": "SHORTS BOYFRIEND JEANS FEM BARRA NORMAL",
+            "quantidade": 5,
+            "preco": "89,90"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 3,
+        "items": 3,
+        "qty": 15,
+        "doc_total_products": "1548,50",
+        "doc_total_note": "1393,65",
+        "extracted_total": "1548,50",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "1548,50"
+      }
+    },
+    {
+      "file": "NF JULIANA.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 127202,
+      "ai": {
+        "items": 36,
+        "qty": 149,
+        "total_value": "13861,40",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "0035617",
+            "nome": "SHORTS BOYFRIEND ABERTURA",
+            "quantidade": 5,
+            "preco": "89,90"
+          },
+          {
+            "codigo": "0035630",
+            "nome": "BERMUDA JORTS BARRA CORTADA A FIO",
+            "quantidade": 5,
+            "preco": "99,90"
+          },
+          {
+            "codigo": "0035631",
+            "nome": "BERMUDA FEM JORTS",
+            "quantidade": 5,
+            "preco": "99,90"
+          },
+          {
+            "codigo": "0035663",
+            "nome": "SHORTS ELASTICO ATRAS BARRA NORMAL",
+            "quantidade": 5,
+            "preco": "99,90"
+          },
+          {
+            "codigo": "0035672",
+            "nome": "SHORTS BOYFRIEND DE GLITTER",
+            "quantidade": 5,
+            "preco": "99,90"
+          },
+          {
+            "codigo": "0072860",
+            "nome": "SAIA SHORTS FRENTE TRAD TRAS BOLSO LISO BARRA DESFIADA",
+            "quantidade": 5,
+            "preco": "109,90"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 36,
+        "items": 36,
+        "qty": 149,
+        "doc_total_products": "13861,40",
+        "doc_total_note": "12048,28",
+        "extracted_total": "13861,40",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "13861,40"
+      }
+    },
+    {
+      "file": "NF-e_1054194.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 204039,
+      "ai": {
+        "items": 88,
+        "qty": 40048,
+        "total_value": "3130226,40",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 6,
+          "llm_chat_calls": 6,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "C10937-9003-P",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "107,80"
+          },
+          {
+            "codigo": "C10937-9003-M",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "107,80"
+          },
+          {
+            "codigo": "C10937-9003-G",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "107,80"
+          },
+          {
+            "codigo": "C10937-9003-GG",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "107,80"
+          },
+          {
+            "codigo": "C10939-8387-P",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "105,00"
+          },
+          {
+            "codigo": "C10939-8387-M",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "105,00"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 88,
+        "items": 88,
+        "qty": 88,
+        "doc_total_products": "7152,60",
+        "doc_total_note": null,
+        "extracted_total": "7152,60",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "7152,60"
+      }
+    },
+    {
+      "file": "NF-e_1055812.pdf",
+      "suffix": ".pdf",
+      "passed": true,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 35295,
+      "ai": {
+        "items": 16,
+        "qty": 16,
+        "total_value": "1635,20",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 2,
+          "llm_chat_calls": 2,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "C10942-4710-P",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "110,60"
+          },
+          {
+            "codigo": "C10942-4710-G",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "110,60"
+          },
+          {
+            "codigo": "C10942-4710-GG",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "110,60"
+          },
+          {
+            "codigo": "C10942-4710-M",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "110,60"
+          },
+          {
+            "codigo": "C10942-9003-P",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "110,60"
+          },
+          {
+            "codigo": "C10942-9003-M",
+            "nome": "JAQUETA",
+            "quantidade": 1,
+            "preco": "110,60"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 16,
+        "items": 16,
+        "qty": 16,
+        "doc_total_products": "1635,20",
+        "doc_total_note": null,
+        "extracted_total": "1635,20",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": true,
+        "total_match": true,
+        "baseline_total": "1635,20"
+      }
+    },
+    {
+      "file": "NF-e_2292.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 55024,
+      "ai": {
+        "items": 1,
+        "qty": 1,
+        "total_value": "144,99",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "02751000200",
+            "nome": "JAQUETA ESSENCIAL PUFFER OGOCH",
+            "quantidade": 1,
+            "preco": "144,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 16,
+        "items": 16,
+        "qty": 24,
+        "doc_total_products": "4613,76",
+        "doc_total_note": "4613,76",
+        "extracted_total": "4613,76",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "4613,76"
+      }
+    },
+    {
+      "file": "NF-e_328998.pdf",
+      "passed": false,
+      "stage": "timeout",
+      "elapsed_ms": 240000,
+      "error": "timeout after 240s"
+    },
+    {
+      "file": "NF-e_329113.pdf",
+      "passed": false,
+      "stage": "timeout",
+      "elapsed_ms": 240000,
+      "error": "timeout after 240s"
+    },
+    {
+      "file": "NF-e_337264.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 102999,
+      "ai": {
+        "items": 11,
+        "qty": 22,
+        "total_value": "1673,78",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00654306514412M",
+            "nome": "CAMISETA MC CONCEPT SLIM DEC R",
+            "quantidade": 2,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "00654306514413G",
+            "nome": "CAMISETA MC CONCEPT SLIM DEC R",
+            "quantidade": 4,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "00654306514414E",
+            "nome": "CAMISETA MC CONCEPT SLIM DEC R",
+            "quantidade": 2,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "003539376000536",
+            "nome": "BERMUDA BOLSO FACA TRAD CASUAL",
+            "quantidade": 1,
+            "preco": "89,99"
+          },
+          {
+            "codigo": "003539376000538",
+            "nome": "BERMUDA BOLSO FACA TRAD CASUAL",
+            "quantidade": 2,
+            "preco": "89,99"
+          },
+          {
+            "codigo": "003539376000540",
+            "nome": "BERMUDA BOLSO FACA TRAD CASUAL",
+            "quantidade": 2,
+            "preco": "89,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 36,
+        "items": 36,
+        "qty": 117,
+        "doc_total_products": "6382,83",
+        "doc_total_note": "4859,83",
+        "extracted_total": "4859,83",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "4859,83"
+      }
+    },
+    {
+      "file": "NF-e_344094.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 67338,
+      "ai": {
+        "items": 5,
+        "qty": 60,
+        "total_value": "1243,40",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00454000398",
+            "nome": "BERMUDA BOXER CASUAL CURTA BOL",
+            "quantidade": 2,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "02347000400",
+            "nome": "KIT 3 MEIAS OGOCHI INVISIVEIS",
+            "quantidade": 24,
+            "preco": "18,99"
+          },
+          {
+            "codigo": "02351000500",
+            "nome": "KIT 3 MEIAS OGOCHI CANO CURTO",
+            "quantidade": 24,
+            "preco": "20,99"
+          },
+          {
+            "codigo": "02453100800",
+            "nome": "BONE BASICO METAL OG GRAFITE/U",
+            "quantidade": 5,
+            "preco": "19,99"
+          },
+          {
+            "codigo": "02453100801",
+            "nome": "BONE BASICO METAL OG CARAMELO/",
+            "quantidade": 5,
+            "preco": "19,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 23,
+        "items": 20,
+        "qty": 84,
+        "doc_total_products": "3200,16",
+        "doc_total_note": "2216,16",
+        "extracted_total": "2216,16",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "2216,16"
+      }
+    },
+    {
+      "file": "NF-e_356525.pdf",
+      "passed": false,
+      "stage": "timeout",
+      "elapsed_ms": 240000,
+      "error": "timeout after 240s"
+    },
+    {
+      "file": "NF-e_370618.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 218660,
+      "ai": {
+        "items": 17,
+        "qty": 50,
+        "total_value": "2533,50",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 8,
+          "llm_chat_calls": 8,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00654306900823G",
+            "nome": "CAMISETA MC CONCEPT SLIM DEC R",
+            "quantidade": 4,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "00654306900824E",
+            "nome": "CAMISETA MC CONCEPT SLIM DEC R",
+            "quantidade": 2,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "00652020300041P",
+            "nome": "CAMISETA MC SPORT SLIM DEC RED",
+            "quantidade": 1,
+            "preco": "33,99"
+          },
+          {
+            "codigo": "00652020300042M",
+            "nome": "CAMISETA MC SPORT SLIM DEC RED",
+            "quantidade": 2,
+            "preco": "33,99"
+          },
+          {
+            "codigo": "00652020300043G",
+            "nome": "CAMISETA MC SPORT SLIM DEC RED",
+            "quantidade": 3,
+            "preco": "33,99"
+          },
+          {
+            "codigo": "00652020300044E",
+            "nome": "CAMISETA MC SPORT SLIM DEC RED",
+            "quantidade": 3,
+            "preco": "33,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 83,
+        "items": 76,
+        "qty": 158,
+        "doc_total_products": "12141,42",
+        "doc_total_note": "10181,42",
+        "extracted_total": "10181,42",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "10181,42"
+      }
+    },
+    {
+      "file": "NF-e_378017.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 101681,
+      "ai": {
+        "items": 2,
+        "qty": 3,
+        "total_value": "248,97",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "07351400100",
+            "nome": "BERMUDA CASUAL HELANCA",
+            "quantidade": 2,
+            "preco": "82,99"
+          },
+          {
+            "codigo": "07353000100",
+            "nome": "BERMUDA CASUAL HELANCA BOLSO F",
+            "quantidade": 1,
+            "preco": "82,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 40,
+        "items": 34,
+        "qty": 68,
+        "doc_total_products": "4093,32",
+        "doc_total_note": "3353,32",
+        "extracted_total": "3353,32",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "3353,32"
+      }
+    },
+    {
+      "file": "NF-e_392659.pdf",
+      "passed": false,
+      "stage": "timeout",
+      "elapsed_ms": 240000,
+      "error": "timeout after 240s"
+    },
+    {
+      "file": "NF-e_396892.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 191820,
+      "ai": {
+        "items": 18,
+        "qty": 81,
+        "total_value": "3886,19",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 8,
+          "llm_chat_calls": 8,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00754400100",
+            "nome": "POLO MC CASUAL SLIM MALHA PV T",
+            "quantidade": 8,
+            "preco": "59,99"
+          },
+          {
+            "codigo": "00754303039",
+            "nome": "POLO MC CONCEPT SLIM HS TRI 19",
+            "quantidade": 2,
+            "preco": "59,99"
+          },
+          {
+            "codigo": "00754303039",
+            "nome": "POLO MC CONCEPT SLIM HS TRI 19",
+            "quantidade": 4,
+            "preco": "59,99"
+          },
+          {
+            "codigo": "00749000151",
+            "nome": "POLO MC ESSENCIAL SLIM PTL 16",
+            "quantidade": 4,
+            "preco": "58,99"
+          },
+          {
+            "codigo": "00749000151",
+            "nome": "POLO MC ESSENCIAL SLIM PTL 16",
+            "quantidade": 1,
+            "preco": "58,99"
+          },
+          {
+            "codigo": "00754400401",
+            "nome": "POLO MC CASUAL SLIM PQ NW BORD",
+            "quantidade": 1,
+            "preco": "49,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 81,
+        "items": 81,
+        "qty": 187,
+        "doc_total_products": "11589,13",
+        "doc_total_note": "9399,13",
+        "extracted_total": "9399,13",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "9399,13"
+      }
+    },
+    {
+      "file": "NF-e_400186.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 73686,
+      "ai": {
+        "items": 21,
+        "qty": 53,
+        "total_value": "3676,47",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00254304270",
+            "nome": "CALCA CONCEPT TRAD JEANS",
+            "quantidade": 3,
+            "preco": "92,99"
+          },
+          {
+            "codigo": "00250300370",
+            "nome": "CALCA CONCEPT SLIM JEANS",
+            "quantidade": 2,
+            "preco": "112,99"
+          },
+          {
+            "codigo": "00751000100",
+            "nome": "POLO MC ESSENCIAL SLIM",
+            "quantidade": 4,
+            "preco": "56,99"
+          },
+          {
+            "codigo": "00751000102",
+            "nome": "POLO MC ESSENCIAL SLIM",
+            "quantidade": 1,
+            "preco": "56,99"
+          },
+          {
+            "codigo": "00752000100",
+            "nome": "POLO MC ESSENCIAL SLIM",
+            "quantidade": 5,
+            "preco": "56,99"
+          },
+          {
+            "codigo": "00649000300",
+            "nome": "CAMISETA MC CASUAL SLIM",
+            "quantidade": 4,
+            "preco": "36,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 34,
+        "items": 34,
+        "qty": 62,
+        "doc_total_products": "5339,38",
+        "doc_total_note": "4384,38",
+        "extracted_total": "4384,38",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "4384,38"
+      }
+    },
+    {
+      "file": "NF-e_438197.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 94171,
+      "ai": {
+        "items": 13,
+        "qty": 72,
+        "total_value": "4787,28",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 4,
+          "llm_chat_calls": 4,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00251001900",
+            "nome": "CALCA BOLSO FACA SLIM ESSENCIA",
+            "quantidade": 8,
+            "preco": "112,99"
+          },
+          {
+            "codigo": "00251000900",
+            "nome": "CALCA 5 POCKETS SLIM ESSENCIAL",
+            "quantidade": 10,
+            "preco": "112,99"
+          },
+          {
+            "codigo": "00445000100",
+            "nome": "BERMUDA BOXER BOLSO FACA LONGA",
+            "quantidade": 17,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "00445000100",
+            "nome": "BERMUDA BOXER BOLSO FACA",
+            "quantidade": 3,
+            "preco": "41,99"
+          },
+          {
+            "codigo": "00454001300",
+            "nome": "BERMUDA BOXER LONGA ESSENCIAL",
+            "quantidade": 9,
+            "preco": "46,99"
+          },
+          {
+            "codigo": "00352401500",
+            "nome": "BERMUDA BOLSO FACA COS C/ ELAS",
+            "quantidade": 8,
+            "preco": "59,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 44,
+        "items": 43,
+        "qty": 83,
+        "doc_total_products": "6888,17",
+        "doc_total_note": "5713,17",
+        "extracted_total": "5713,17",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "5713,17"
+      }
+    },
+    {
+      "file": "NF-e_441502.pdf",
+      "suffix": ".pdf",
+      "passed": false,
+      "stage": "completed",
+      "error": null,
+      "elapsed_ms": 102486,
+      "ai": {
+        "items": 10,
+        "qty": 541,
+        "total_value": "3818,59",
+        "warnings": [
+          "Import completed without printed totals or remessa quantity to validate against."
+        ],
+        "metrics": {
+          "upload_images": 6,
+          "llm_chat_calls": 6,
+          "selected_source": "llm",
+          "final_validation_status": "unverified",
+          "llm_last_error": null
+        },
+        "sample": [
+          {
+            "codigo": "00251000900",
+            "nome": "CALCA 5 POCKETS SLIM ESSENCIAL",
+            "quantidade": 3,
+            "preco": "112,99"
+          },
+          {
+            "codigo": "00255313370",
+            "nome": "CALCA ENT 4 POCKETS SLIM ESSE",
+            "quantidade": 3,
+            "preco": "83,99"
+          },
+          {
+            "codigo": "00454001300",
+            "nome": "BERMUDA BOXER LONGA ESSENCIAL",
+            "quantidade": 13,
+            "preco": "46,99"
+          },
+          {
+            "codigo": "00452410200",
+            "nome": "BERMUDA RESORT BOLSO FACA CASU",
+            "quantidade": 8,
+            "preco": "42,99"
+          },
+          {
+            "codigo": "00353937500",
+            "nome": "BERMUDA BOLSO FACA TRAD CASUAL",
+            "quantidade": 8,
+            "preco": "89,99"
+          },
+          {
+            "codigo": "00300901501",
+            "nome": "BERMUDA BOLSO FACA TRAD ESSENC",
+            "quantidade": 3,
+            "preco": "92,99"
+          }
+        ]
+      },
+      "baseline": {
+        "status": "ok",
+        "rows": 50,
+        "items": 50,
+        "qty": 578,
+        "doc_total_products": "8898,22",
+        "doc_total_note": "7588,22",
+        "extracted_total": "7588,22",
+        "total_match": true,
+        "warnings": []
+      },
+      "baseline_error": null,
+      "comparisons": {
+        "qty_match": false,
+        "total_match": false,
+        "baseline_total": "7588,22"
+      }
+    }
+  ]
+}

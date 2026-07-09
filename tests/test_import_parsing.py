@@ -127,6 +127,17 @@ def _sample_invoice_rows() -> str:
 
 
 class ImportParsingTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._env_patcher = patch.dict(
+            os.environ,
+            {"LOJASYNC_LLM_PROVIDER": "legacy", "LLM_PROVIDER": "legacy"},
+            clear=False,
+        )
+        self._env_patcher.start()
+
+    def tearDown(self) -> None:
+        self._env_patcher.stop()
+
     def test_parse_candidate_content_reads_json_items(self) -> None:
         payload = """
         {"items":[
@@ -510,6 +521,199 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 1)
                 self.assertEqual(len(service.created), 8)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_skip_local_parser_does_not_probe_local_parser(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        approved_upload_text = "\n".join(["Qtd de PeÃ§as da Remessa: 12", _sample_invoice_rows()])
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [{"name": "parte_1", "content": approved_upload_text}],
+                        "images": [],
+                        "errors": [],
+                    }
+                )
+                with patch(
+                    "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
+                    side_effect=AssertionError("local parser should not run for IA import"),
+                ) as mocked_local_parser:
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            return_value=(_sample_invoice_rows(), None),
+                        ) as mocked_chat:
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=b"fake-pdf",
+                                filename="romaneio.pdf",
+                                content_type="application/pdf",
+                                service=service,
+                                data_dir=data_dir,
+                                prefer_llm=True,
+                                skip_local_parser=True,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertTrue(result.metrics["local_parser_skipped"])
+                self.assertEqual(result.metrics["selected_source"], "llm")
+                self.assertEqual(fake_client.upload_calls, 1)
+                self.assertEqual(mocked_chat.call_count, 1)
+                self.assertEqual(mocked_local_parser.call_count, 0)
+                self.assertEqual(len(service.created), 8)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_uses_local_guard_for_unverified_image_ocr(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        local_payload = {
+            "total_rows": 12,
+            "total_itens": 2,
+            "remessa_quantity": 12,
+            "quantity_matches_remessa": True,
+            "document_total_products": "1258,80",
+            "document_total_note": None,
+            "extracted_total_products": "1258,80",
+            "products_value_matches_document": True,
+            "items": [
+                {
+                    "nome": "COLETE ALFAIATARIA",
+                    "codigo": "CO.FEM.00018",
+                    "quantidade": 6,
+                    "preco": "79,90",
+                },
+                {
+                    "nome": "CALCA ALFAIATARIA",
+                    "codigo": "CA.FEM.00327",
+                    "quantidade": 6,
+                    "preco": "129,90",
+                },
+            ],
+            "metrics": {"text_chars": 1200, "ocr_pages_used": 2},
+        }
+        incomplete_ocr = """
+        {"items":[
+          {"codigo":"CO.FEM.00018","descricao_original":"COLETE ALFAIATARIA","nome_curto":"COLETE ALFAIATARIA","quantidade":5,"preco":79.90},
+          {"codigo":"CA.FEM.00327","descricao_original":"CALCA ALFAIATARIA","nome_curto":"CALCA ALFAIATARIA","quantidade":5,"preco":129.90}
+        ]}
+        """
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [],
+                        "images": [{"name": "romaneio.pdf#p1", "data": "not-a-real-image"}],
+                        "errors": [],
+                    }
+                )
+                with patch(
+                    "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
+                    return_value=local_payload,
+                ) as mocked_local_parser:
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            return_value=(incomplete_ocr, None),
+                        ) as mocked_chat:
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=b"fake-pdf-image",
+                                filename="romaneio.pdf",
+                                content_type="application/pdf",
+                                service=service,
+                                data_dir=data_dir,
+                                prefer_llm=True,
+                                skip_local_parser=True,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["selected_source"], "local_guard")
+                self.assertTrue(result.metrics["local_guard_used"])
+                self.assertEqual(result.metrics["local_guard_status"], "approved")
+                self.assertEqual(result.metrics["final_validation_status"], "approved")
+                self.assertEqual(result.metrics["selected_items"], 2)
+                self.assertEqual(mocked_local_parser.call_count, 1)
+                self.assertEqual(mocked_chat.call_count, 1)
+                self.assertEqual(sum(item.quantidade for item in service.created), 12)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_uses_local_guard_when_minimax_returns_no_items(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        local_payload = {
+            "total_rows": 1,
+            "total_itens": 1,
+            "remessa_quantity": 1,
+            "quantity_matches_remessa": True,
+            "document_total_products": "120,10",
+            "document_total_note": None,
+            "extracted_total_products": "120,10",
+            "products_value_matches_document": True,
+            "items": [
+                {
+                    "nome": "PRODUTO VALIDADO",
+                    "codigo": "OK-1",
+                    "quantidade": 1,
+                    "preco": "120,10",
+                }
+            ],
+            "metrics": {"text_chars": 500, "ocr_pages_used": 0},
+        }
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                data_dir = Path(tmpdir)
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [{"name": "parte_1", "content": "texto sem linhas suficientes"}],
+                        "images": [],
+                        "errors": [],
+                    }
+                )
+                with patch(
+                    "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
+                    return_value=local_payload,
+                ) as mocked_local_parser:
+                    with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                        with patch(
+                            "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                            return_value=('{"items":[]}', None),
+                        ):
+                            run_import_job(
+                                job_id=job.job_id,
+                                contents=b"fake-pdf",
+                                filename="romaneio.pdf",
+                                content_type="application/pdf",
+                                service=service,
+                                data_dir=data_dir,
+                                prefer_llm=True,
+                                skip_local_parser=True,
+                            )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["selected_source"], "local_guard")
+                self.assertEqual(result.metrics["local_guard_status"], "approved")
+                self.assertEqual(result.metrics["final_validation_status"], "approved")
+                self.assertEqual(mocked_local_parser.call_count, 1)
+                self.assertEqual(len(service.created), 1)
         finally:
             remove_import_job(job.job_id)
 

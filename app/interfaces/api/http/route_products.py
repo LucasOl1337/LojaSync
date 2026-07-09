@@ -44,6 +44,15 @@ from app.shared.ui_events import publish_state_changed
 router = APIRouter()
 
 
+def _maybe_record_undo(service, *, dry_run: bool) -> None:
+    if not dry_run:
+        service.record_undo_snapshot(clear_redo=True)
+
+
+def _with_dry_run_meta(payload: dict[str, object], *, dry_run: bool) -> dict[str, object]:
+    return {**payload, "dry_run": dry_run}
+
+
 def _history_response(state) -> UndoRedoHistoryResponse:
     return UndoRedoHistoryResponse(
         undo_count=state.undo_count,
@@ -109,16 +118,21 @@ async def patch_product(ordering_key: str, payload: ProductPatchPayload, request
 
 
 @router.delete("/products")
-async def clear_products(request: Request) -> dict[str, int]:
-    removed = get_product_service(request).clear_products()
-    if removed:
+async def clear_products(request: Request, dry_run: bool = False) -> dict[str, object]:
+    service = get_product_service(request)
+    if not dry_run:
+        _maybe_record_undo(service, dry_run=False)
+    removed = service.clear_products(persist=not dry_run)
+    if removed and not dry_run:
         publish_state_changed(["products", "totals", "brands"])
-    return {"removed": removed}
+    return _with_dry_run_meta({"removed": removed}, dry_run=dry_run)
 
 
 @router.delete("/products/{ordering_key:path}")
 async def delete_product(ordering_key: str, request: Request) -> dict[str, str]:
-    success = get_product_service(request).delete_product(ordering_key)
+    service = get_product_service(request)
+    service.record_undo_snapshot(clear_redo=True)
+    success = service.delete_product(ordering_key)
     if not success:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
     publish_state_changed(["products", "totals"])
@@ -172,26 +186,38 @@ async def get_totals(request: Request) -> TotalsResponse:
 
 @router.post("/actions/apply-category")
 async def apply_category(payload: BulkActionPayload, request: Request) -> dict[str, object]:
-    total = get_product_service(request).apply_category(payload.valor)
-    if total:
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=payload.dry_run)
+    total = service.apply_category(payload.valor, persist=not payload.dry_run)
+    if total and not payload.dry_run:
         publish_state_changed(["products", "totals"])
-    return {"status": "categoria aplicada", "categoria": payload.valor, "total": total}
+    return _with_dry_run_meta(
+        {"status": "categoria aplicada", "categoria": payload.valor, "total": total},
+        dry_run=payload.dry_run,
+    )
 
 
 @router.post("/actions/apply-brand")
 async def apply_brand(payload: BulkActionPayload, request: Request) -> dict[str, object]:
-    total = get_product_service(request).apply_brand(payload.valor)
-    if total:
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=payload.dry_run)
+    total = service.apply_brand(payload.valor, persist=not payload.dry_run)
+    if total and not payload.dry_run:
         publish_state_changed(["products", "totals", "brands"])
-    return {"status": "marca aplicada", "marca": payload.valor, "total": total}
+    return _with_dry_run_meta(
+        {"status": "marca aplicada", "marca": payload.valor, "total": total},
+        dry_run=payload.dry_run,
+    )
 
 
 @router.post("/actions/join-duplicates")
-async def join_duplicates(request: Request) -> dict[str, int]:
-    result = get_product_service(request).join_duplicates()
-    if result.get("removed"):
+async def join_duplicates(request: Request, dry_run: bool = False) -> dict[str, object]:
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=dry_run)
+    result = service.join_duplicates(persist=not dry_run)
+    if result.get("removidos") and not dry_run:
         publish_state_changed(["products", "totals"])
-    return result
+    return _with_dry_run_meta(result, dry_run=dry_run)
 
 
 @router.post("/actions/reorder")
@@ -203,11 +229,13 @@ async def reorder_products(payload: ReorderPayload, request: Request) -> dict[st
 
 
 @router.post("/actions/join-grades")
-async def join_grades(payload: JoinGradesPayload, request: Request) -> JoinGradesResponse:
-    result = get_product_service(request).join_with_grades(payload.keys)
-    if result.get("removidos") or result.get("atualizados_grades") or result.get("lotes_processados"):
+async def join_grades(payload: JoinGradesPayload, request: Request) -> dict[str, object]:
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=payload.dry_run)
+    result = service.join_with_grades(payload.keys, persist=not payload.dry_run)
+    if (result.get("removidos") or result.get("atualizados_grades") or result.get("lotes_processados")) and not payload.dry_run:
         publish_state_changed(["products", "totals"])
-    return JoinGradesResponse(**result)
+    return _with_dry_run_meta(JoinGradesResponse(**result).model_dump(), dry_run=payload.dry_run)
 
 
 @router.post("/actions/restore-snapshot", response_model=SnapshotRestoreResponse)
@@ -246,63 +274,78 @@ async def redo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
     return _history_apply_response(restored=restored, total=total, state=state)
 
 
-@router.post("/actions/format-codes", response_model=FormatCodesResponse)
-async def format_codes(payload: FormatCodesPayload, request: Request) -> FormatCodesResponse:
-    result = get_product_service(request).format_codes(payload.model_dump())
-    if result.get("alterados"):
+@router.post("/actions/format-codes")
+async def format_codes(payload: FormatCodesPayload, request: Request) -> dict[str, object]:
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=payload.dry_run)
+    options = payload.model_dump(exclude={"dry_run"})
+    result = service.format_codes(options, persist=not payload.dry_run)
+    if result.get("alterados") and not payload.dry_run:
         publish_state_changed(["products"])
-    return FormatCodesResponse(**result)
+    return _with_dry_run_meta(FormatCodesResponse(**result).model_dump(), dry_run=payload.dry_run)
 
 
 @router.post("/actions/restore-original-codes", response_model=RestoreCodesResponse)
 async def restore_original_codes(request: Request) -> RestoreCodesResponse:
-    result = get_product_service(request).restore_original_codes()
+    service = get_product_service(request)
+    service.record_undo_snapshot(clear_redo=True)
+    result = service.restore_original_codes()
     if result.get("restaurados"):
         publish_state_changed(["products"])
     return RestoreCodesResponse(**result)
 
 
-@router.post("/actions/apply-margin", response_model=MarginResponse)
-async def apply_margin(payload: MarginPayload, request: Request) -> MarginResponse:
+@router.post("/actions/apply-margin")
+async def apply_margin(payload: MarginPayload, request: Request) -> dict[str, object]:
     margin_factor = payload.margem if payload.margem is not None else None
     if margin_factor is None and payload.percentual is not None:
         margin_factor = 1 + payload.percentual / 100.0
     if margin_factor is None or margin_factor <= 0:
         raise HTTPException(status_code=400, detail="Margem invalida")
-    total = get_product_service(request).apply_margin_to_products(margin_factor)
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=payload.dry_run)
+    total = service.apply_margin_to_products(margin_factor, persist=not payload.dry_run)
     percentual = (margin_factor - 1) * 100
-    if total:
+    if total and not payload.dry_run:
         publish_state_changed(["products", "totals", "margin"])
-    return MarginResponse(
-        total_atualizados=total,
-        margem_utilizada=margin_factor,
-        percentual_utilizado=percentual,
+    return _with_dry_run_meta(
+        MarginResponse(
+            total_atualizados=total,
+            margem_utilizada=margin_factor,
+            percentual_utilizado=percentual,
+        ).model_dump(),
+        dry_run=payload.dry_run,
     )
 
 
 @router.post("/actions/create-set", response_model=CreateSetResponse)
 async def create_set(payload: CreateSetPayload, request: Request) -> CreateSetResponse:
-    result = get_product_service(request).create_set_by_keys(payload.key_a, payload.key_b)
+    service = get_product_service(request)
+    service.record_undo_snapshot(clear_redo=True)
+    result = service.create_set_by_keys(payload.key_a, payload.key_b)
     if not result:
         raise HTTPException(status_code=400, detail="Nao foi possivel criar o conjunto selecionado.")
     publish_state_changed(["products", "totals"])
     return CreateSetResponse(**result)
 
 
-@router.post("/actions/improve-descriptions", response_model=ImproveDescriptionResponse)
-async def improve_descriptions(payload: ImproveDescriptionPayload, request: Request) -> ImproveDescriptionResponse:
+@router.post("/actions/improve-descriptions")
+async def improve_descriptions(payload: ImproveDescriptionPayload, request: Request) -> dict[str, object]:
     has_terms = bool([term for term in payload.remover_termos if str(term).strip()])
     if not payload.remover_numeros and not payload.remover_especiais and not has_terms:
         raise HTTPException(status_code=400, detail="Selecione ao menos uma opcao de limpeza.")
-    result = get_product_service(request).improve_descriptions(
+    service = get_product_service(request)
+    _maybe_record_undo(service, dry_run=payload.dry_run)
+    result = service.improve_descriptions(
         payload.remover_numeros,
         payload.remover_especiais,
         False,
         payload.remover_termos,
+        persist=not payload.dry_run,
     )
-    if result.get("modificados"):
+    if result.get("modificados") and not payload.dry_run:
         publish_state_changed(["products"])
-    return ImproveDescriptionResponse(**result)
+    return _with_dry_run_meta(ImproveDescriptionResponse(**result).model_dump(), dry_run=payload.dry_run)
 
 
 @router.get("/actions/export-json")

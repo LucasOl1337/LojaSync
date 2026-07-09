@@ -1,0 +1,66 @@
+{
+  "brand": {
+    "name": "LojaSync",
+    "vendor": "LojaSync",
+    "footer": "PLATAFORMA DESKTOP-WEB LOCAL",
+    "masthead": "NOTAS DA ATUALIZACAO",
+    "footerLeft": "Notas completas no GitHub Releases",
+    "bgGradient": ["#101820", "#17313A", "#1F4A4D"],
+    "pillGradient": ["#0F766E", "#22C55E"]
+  },
+  "version": "v1.2.4",
+  "date": "9 de julho de 2026 - Release oficial",
+  "categories": [
+    {
+      "label": "IA",
+      "title": "IA + OCR",
+      "color": "#38BDF8",
+      "items": [
+        {
+          "name": "Minimax padrao",
+          "desc": "texto e visao via LLM3/Ollama compativel",
+          "tag": "MINIMAX"
+        },
+        {
+          "name": "Sem Gemma oculto",
+          "desc": "fallback padrao restrito ao caminho Minimax",
+          "tag": "ROTA"
+        }
+      ]
+    },
+    {
+      "label": "Validacao",
+      "title": "VALIDACAO",
+      "color": "#A78BFA",
+      "items": [
+        {
+          "name": "Guarda local",
+          "desc": "Minimax sem aprovacao cai em leitura validada",
+          "tag": "GUARD"
+        },
+        {
+          "name": "OCR fatiado",
+          "desc": "PDF imagem dividido em recortes verticais",
+          "tag": "OCR"
+        }
+      ]
+    },
+    {
+      "label": "Sistemas",
+      "title": "SISTEMAS",
+      "color": "#22C55E",
+      "items": [
+        {
+          "name": "Agent-First",
+          "desc": "acoes HTTP, OpenAPI, playbook e CLI",
+          "tag": "API"
+        },
+        {
+          "name": "Testes",
+          "desc": "152 pytest e 89 testes de logica frontend",
+          "tag": "QA"
+        }
+      ]
+    }
+  ]
+}

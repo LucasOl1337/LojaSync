@@ -150,18 +150,43 @@ def _parse_model_names(raw: Optional[str], default: List[str]) -> List[str]:
     return names or list(default)
 
 
+def _coerce_float_env(name: str, default: float) -> float:
+    try:
+        raw = str(os.getenv(name, "")).strip()
+        return float(raw) if raw else default
+    except Exception:
+        return default
+
+
+def _coerce_int_env(name: str, default: int) -> int:
+    try:
+        raw = str(os.getenv(name, "")).strip()
+        return int(raw) if raw else default
+    except Exception:
+        return default
+
+
+def _llm_request_options() -> Dict[str, int | float]:
+    return {
+        "temperature": LLM_TEMPERATURE,
+        "seed": LLM_SEED,
+    }
+
+
 TEXT_FALLBACK_MODEL_NAMES = _parse_model_names(
     os.getenv("LLM_TEXT_FALLBACK_MODEL_NAMES"),
-    [DEFAULT_TEXT_MODEL_NAME, "kimi-k2.7-code", "gemma4:31b", "gemma3:27b", "gemma3:12b", "gemma3:4b"],
+    [DEFAULT_TEXT_MODEL_NAME],
 )
 VISION_FALLBACK_MODEL_NAMES = _parse_model_names(
     os.getenv("LLM_VISION_FALLBACK_MODEL_NAMES"),
-    [DEFAULT_VISION_MODEL_NAME, "kimi-k2.7-code", "gemma4:31b", "gemma3:27b", "gemma3:12b", "gemma3:4b"],
+    [DEFAULT_VISION_MODEL_NAME],
 )
 LLM3_MAX_DOC_CHARS = int(os.getenv("LLM3_MAX_DOC_CHARS", "14000"))
 LLM3_MAX_PROMPT_CHARS = int(os.getenv("LLM3_MAX_PROMPT_CHARS", "20000"))
 LLM3_RETRY_STATUS_CODES = {500, 502, 503, 504}
 LLM3_MODEL_FALLBACK_STATUS_CODES = {400, 403, 404}
+LLM_TEMPERATURE = _coerce_float_env("LLM_TEMPERATURE", 0.0)
+LLM_SEED = _coerce_int_env("LLM_SEED", 42)
 ROMANEIO_PROMPT = (
     "You are an information extraction assistant for shipment manifests (romaneios). "
     "Return ONLY JSON in the form {\"items\": [...]}."
@@ -500,6 +525,7 @@ async def chat(request: ChatRequest, http_request: Request):
                 }
             ],
             "stream": False,
+            "options": _llm_request_options(),
         }
         if request.mode in {Mode.ROMANEIO, Mode.GRADE}:
             payload["format"] = "json"

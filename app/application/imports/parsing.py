@@ -15,21 +15,45 @@ from app.domain.products.entities import Product
 from app.domain.products.money import normalize_decimal_price, normalize_raw_price, parse_price_decimal
 
 ROMANEIO_IMAGE_MESSAGE = (
-    "The attached image is a scanned invoice product table. "
-    "Extract every visible product row and return JSON only in the format "
-    '{"items":[{"codigo":"","nome":"","quantidade":0,"preco":""}]}. '
+    "The attached image is a Brazilian invoice/romaneio product table. "
+    "Extract every visible fiscal product row and return JSON only in the format "
+    '{"items":[{"codigo":"","descricao_original":"","nome_curto":"","ncm_sh":"","quantidade":0,"preco":0,"tamanho":""}]}. '
+    "Read the printed table columns from left to right: CODIGO PRODUTO, DESCRICAO DOS PRODUTOS/SERVICOS, "
+    "NCM/SH, CST, CFOP, UNID, QUANT, VALOR UNITARIO, VALOR TOTAL. "
+    "preco must be VALOR UNITARIO, not VALOR TOTAL. ncm_sh must be NCM/SH. "
+    "Mandatory rules: one output item per visible fiscal row; never summarize, merge, deduplicate, or group repeated "
+    "codes, prices, colors, or sizes; preserve duplicated rows when they are printed separately. "
     "Use the short SKU/product code as codigo, not NCM/SH, CFOP, barcode, or long reference numbers. "
-    "Copy sizes exactly as printed; never convert numeric sizes to letter sizes. "
+    "For DANFE/NF-e tables, codigo must come from the CODIGO PRODUTO column. If that cell has two printed lines, "
+    "the first numeric line is codigo and the second short token such as 0502, 0504, 0506, 0510, 0512, 0514, "
+    "0516, or 0518 is a size/reference; put it in tamanho when useful, never in codigo. "
+    "If a cropped/visible row has only this short token and no complete product code, skip that row. "
+    "Copy the full printed product description to descricao_original. For nome_curto, keep the printed wording in uppercase "
+    "after removing only size/reference tokens; do not translate, expand abbreviations, or rewrite INF, C/, TRAD, or ESSE. "
+    "Rows from the same printed product must use the exact same nome_curto. "
+    "Copy sizes exactly as printed in tamanho; never convert numeric sizes to letter sizes. "
     "If a trailing token is only a size, put it in tamanho and do not append it to codigo. "
     "If a row is unreadable, partially cut, or ambiguous, skip it instead of guessing."
 )
 
 ROMANEIO_CROPPED_IMAGE_MESSAGE = (
-    "The attached image is a cropped segment of a tall scanned invoice product table. "
-    "Extract only the fully visible product rows from this crop and return JSON only in the format "
-    '{"items":[{"codigo":"","nome":"","quantidade":0,"preco":""}]}. '
+    "The attached image is a cropped segment of a Brazilian invoice/romaneio product table. "
+    "Extract only the fully visible fiscal product rows from this crop and return JSON only in the format "
+    '{"items":[{"codigo":"","descricao_original":"","nome_curto":"","ncm_sh":"","quantidade":0,"preco":0,"tamanho":""}]}. '
+    "Read the printed table columns from left to right: CODIGO PRODUTO, DESCRICAO DOS PRODUTOS/SERVICOS, "
+    "NCM/SH, CST, CFOP, UNID, QUANT, VALOR UNITARIO, VALOR TOTAL. "
+    "preco must be VALOR UNITARIO, not VALOR TOTAL. ncm_sh must be NCM/SH. "
+    "Mandatory rules: one output item per fully visible fiscal row; never summarize, merge, deduplicate, or group "
+    "repeated codes, prices, colors, or sizes; preserve duplicated rows when they are printed separately. "
     "Use the short SKU/product code as codigo, not NCM/SH, CFOP, barcode, or long reference numbers. "
-    "Copy sizes exactly as printed; never convert numeric sizes to letter sizes. "
+    "For DANFE/NF-e tables, codigo must come from the CODIGO PRODUTO column. If that cell has two printed lines, "
+    "the first numeric line is codigo and the second short token such as 0502, 0504, 0506, 0510, 0512, 0514, "
+    "0516, or 0518 is a size/reference; put it in tamanho when useful, never in codigo. "
+    "If a cropped/visible row has only this short token and no complete product code, skip that row. "
+    "Copy the full printed product description to descricao_original. For nome_curto, keep the printed wording in uppercase "
+    "after removing only size/reference tokens; do not translate, expand abbreviations, or rewrite INF, C/, TRAD, or ESSE. "
+    "Rows from the same printed product must use the exact same nome_curto. "
+    "Copy sizes exactly as printed in tamanho; never convert numeric sizes to letter sizes. "
     "If a trailing token is only a size, put it in tamanho and do not append it to codigo. "
     "Do not guess rows cut by the crop boundary; ignore partial rows."
 )

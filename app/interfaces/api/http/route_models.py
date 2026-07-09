@@ -5,12 +5,20 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class BulkActionPayload(BaseModel):
+class DryRunMixin(BaseModel):
+    dry_run: bool = False
+
+
+class BulkActionPayload(DryRunMixin):
     valor: str = ""
 
 
 class ReorderPayload(BaseModel):
     keys: list[str] = Field(default_factory=list)
+
+
+class EmptyDryRunPayload(DryRunMixin):
+    pass
 
 
 class SnapshotProductPayload(BaseModel):
@@ -58,7 +66,7 @@ class UndoRedoApplyResponse(UndoRedoHistoryResponse):
     total: int = 0
 
 
-class FormatCodesPayload(BaseModel):
+class FormatCodesPayload(DryRunMixin):
     remover_prefixo5: bool = False
     remover_zeros_a_esquerda: bool = False
     ultimos_digitos: int | None = Field(default=None, ge=1, le=50)
@@ -92,7 +100,7 @@ class JoinGradesResponse(BaseModel):
     lotes_processados: int = 0
 
 
-class JoinGradesPayload(BaseModel):
+class JoinGradesPayload(DryRunMixin):
     keys: list[str] = Field(default_factory=list)
 
 
@@ -108,7 +116,7 @@ class CreateSetResponse(BaseModel):
     remaining_b: int
 
 
-class MarginPayload(BaseModel):
+class MarginPayload(DryRunMixin):
     percentual: float | None = Field(default=None, gt=0)
     margem: float | None = Field(default=None, gt=0)
 
@@ -155,7 +163,7 @@ class TargetCaptureResponse(BaseModel):
     point: TargetPoint
 
 
-class ImproveDescriptionPayload(BaseModel):
+class ImproveDescriptionPayload(DryRunMixin):
     remover_numeros: bool = False
     remover_especiais: bool = False
     remover_termos: list[str] = Field(default_factory=list)

@@ -176,8 +176,10 @@ class ProductService:
         )
         return True
 
-    def clear_products(self) -> int:
+    def clear_products(self, *, persist: bool = True) -> int:
         items = self.list_products()
+        if not persist:
+            return len(items)
         self._products.replace_active([])
         if items:
             log_event(
@@ -301,7 +303,7 @@ class ProductService:
         self._margin_store.save_margin(safe)
         return safe
 
-    def apply_margin_to_products(self, margin: float) -> int:
+    def apply_margin_to_products(self, margin: float, *, persist: bool = True) -> int:
         items = self.list_products()
         if not items:
             return 0
@@ -311,6 +313,8 @@ class ProductService:
             if new_price != item.preco_final:
                 item.preco_final = new_price
                 updated += 1
+        if not persist:
+            return updated
         self._products.replace_active(items)
         if updated:
             log_event(
@@ -339,13 +343,15 @@ class ProductService:
             metrics=metrics,
         )
 
-    def apply_category(self, category: str) -> int:
+    def apply_category(self, category: str, *, persist: bool = True) -> int:
         value = category.strip()
         items = self.list_products()
         if not items:
             return 0
         for item in items:
             item.categoria = value
+        if not persist:
+            return len(items)
         self._products.replace_active(items)
         log_event(
             logger,
@@ -356,13 +362,15 @@ class ProductService:
         )
         return len(items)
 
-    def apply_brand(self, brand: str) -> int:
+    def apply_brand(self, brand: str, *, persist: bool = True) -> int:
         value = brand.strip()
         items = self.list_products()
         if not items:
             return 0
         for item in items:
             item.marca = value
+        if not persist:
+            return len(items)
         self._products.replace_active(items)
         if value:
             self._sync_brand(value)
@@ -376,7 +384,7 @@ class ProductService:
         )
         return len(items)
 
-    def join_duplicates(self) -> dict[str, int]:
+    def join_duplicates(self, *, persist: bool = True) -> dict[str, int]:
         items = self.list_products()
         if not items:
             return {"originais": 0, "resultantes": 0, "removidos": 0}
@@ -395,25 +403,26 @@ class ProductService:
                 continue
             existing.quantidade += item.quantidade
         result = list(grouped.values())
-        self._products.replace_active(result)
         removed = len(items) - len(result)
-        if removed:
-            log_event(
-                logger,
-                logging.INFO,
-                "products_duplicates_joined",
-                "products duplicates joined",
-                originals=len(items),
-                result_count=len(result),
-                removed=removed,
-            )
+        if persist:
+            self._products.replace_active(result)
+            if removed:
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "products_duplicates_joined",
+                    "products duplicates joined",
+                    originals=len(items),
+                    result_count=len(result),
+                    removed=removed,
+                )
         return {
             "originais": len(items),
             "resultantes": len(result),
             "removidos": removed,
         }
 
-    def join_with_grades(self, keys: list[str] | None = None) -> dict[str, int]:
+    def join_with_grades(self, keys: list[str] | None = None, *, persist: bool = True) -> dict[str, int]:
         items = self.list_products()
         if not items:
             return {"originais": 0, "resultantes": 0, "removidos": 0, "atualizados_grades": 0, "lotes_processados": 0}
@@ -491,19 +500,20 @@ class ProductService:
             }
             processed_batches = len(pending_batch_order)
 
-        self._products.replace_active(final_items)
-        if summary["removidos"] or summary["atualizados_grades"] or processed_batches:
-            log_event(
-                logger,
-                logging.INFO,
-                "products_grades_joined",
-                "products grades joined",
-                originals=summary["originais"],
-                result_count=summary["resultantes"],
-                removed=summary["removidos"],
-                grades_updated=summary["atualizados_grades"],
-                batches=processed_batches,
-            )
+        if persist:
+            self._products.replace_active(final_items)
+            if summary["removidos"] or summary["atualizados_grades"] or processed_batches:
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "products_grades_joined",
+                    "products grades joined",
+                    originals=summary["originais"],
+                    result_count=summary["resultantes"],
+                    removed=summary["removidos"],
+                    grades_updated=summary["atualizados_grades"],
+                    batches=processed_batches,
+                )
         return {
             "originais": summary["originais"],
             "resultantes": summary["resultantes"],
@@ -613,7 +623,7 @@ class ProductService:
             "remaining_b": item_b.quantidade,
         }
 
-    def format_codes(self, options: dict[str, object]) -> dict[str, object]:
+    def format_codes(self, options: dict[str, object], *, persist: bool = True) -> dict[str, object]:
         remove_prefix = bool(options.get("remover_prefixo5"))
         remove_left_zeros = bool(options.get("remover_zeros_a_esquerda"))
         last_digits = self._coerce_positive_int(options.get("ultimos_digitos"))
@@ -684,17 +694,18 @@ class ProductService:
                 item.codigo = updated
                 changed += 1
 
-        self._products.replace_active(items)
-        if changed:
-            log_event(
-                logger,
-                logging.INFO,
-                "product_codes_formatted",
-                "product codes formatted",
-                total=len(items),
-                changed=changed,
-                prefix_removed=bool(prefix_used),
-            )
+        if persist:
+            self._products.replace_active(items)
+            if changed:
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "product_codes_formatted",
+                    "product codes formatted",
+                    total=len(items),
+                    changed=changed,
+                    prefix_removed=bool(prefix_used),
+                )
         return {"total": len(items), "alterados": changed, "prefixo": prefix_used}
 
     def restore_original_codes(self) -> dict[str, int]:
@@ -737,6 +748,8 @@ class ProductService:
         remove_special: bool,
         remove_letters: bool,
         terms: Iterable[str],
+        *,
+        persist: bool = True,
     ) -> dict[str, int]:
         normalized_terms = [term.strip() for term in terms if term and term.strip()]
         normalized_terms.sort(key=len, reverse=True)
@@ -767,7 +780,7 @@ class ProductService:
             if modified:
                 changed += 1
 
-        if changed:
+        if persist and changed:
             self._products.replace_active(items)
             log_event(
                 logger,

@@ -13,3 +13,11 @@
 - Mudanca: corrigido o parser de quantidade de produtos para aceitar strings decimais simples como `"2.0"` e `"3,0"` sem zerar grades, cores ou payloads normalizados.
 - Testes: `python -m pytest tests/test_product_entities.py tests/test_automation_product_payload.py`
 - Risco: baixo; alteracao centralizada no parser de quantidade nao-negativa e mantendo valores invalidos/negativos como zero.
+
+## 2026-07-09T06:15:04-03:00 - governor
+
+- Assunto: bugs.
+- Branch: `swarm-gov/lojasync/bugs`.
+- Mudanca: `coerce_nonnegative_int` do payload de automacao agora reutiliza o parser de quantidade do dominio, preservando quantidades como `"2,0"` em grades antes do envio ao Byte Empresa.
+- Validacao: `python -m pytest tests\test_automation_product_payload.py -q` => 6 passed.
+- Risco: baixo; alteracao centraliza coercao ja usada por `Product.normalize` e mantem invalidos/negativos em zero.

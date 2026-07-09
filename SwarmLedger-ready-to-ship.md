@@ -1,5 +1,13 @@
 # SwarmLedger-ready-to-ship
 
+## 2026-07-09 - agent_run rejeita JSON invalido sem stack trace
+
+- Branch: `swarm-gov/lojasync/ready-to-ship`.
+- Mudanca: `tools/agent_run.py` agora trata `--body` com JSON invalido como erro de uso (`exit 2`) antes de acionar qualquer request HTTP.
+- Arquivos tocados: `tools/agent_run.py`, `tests/test_agent_run_cli.py`.
+- Validacao: `python -m pytest tests/test_agent_run_cli.py` passou com 5 testes.
+- Risco: baixo; altera apenas caminho de erro do CLI Agent-First e preserva requests validos.
+
 ## 2026-07-09 - Guarda de assets estaticos da release
 
 - Branch: `swarm-gov/lojasync/ready-to-ship`.

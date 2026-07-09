@@ -33,6 +33,14 @@ Este indice aponta para a documentacao viva mais util para manutencao, releases 
 - `distribution/productization-plan.md`: plano de empacotamento e produto.
 - `validation/`: evidencias de validacao, benchmarks e execucoes de importacao.
 
+## Validacao rapida por escopo
+
+- Documentacao pura: `git diff --check`.
+- Contrato Agent-First/OpenAPI: `python tools/export_openapi.py` e `python tools/agent_run.py list`.
+- Backend Python: `python -m pytest` ou teste especifico ligado ao modulo alterado.
+- Frontend TypeScript: `cd frontend-ts && npm run build` para entrega visual/runtime; `npm run test:logic` para logica client-side.
+- Release local: combinar backend, build frontend e teste logico antes de atualizar notas/versionamento.
+
 ## Handoffs
 
 - `handoffs/`: transferencias de contexto entre sessoes de desenvolvimento.

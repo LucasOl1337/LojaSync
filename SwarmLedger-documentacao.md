@@ -23,3 +23,11 @@
 - Mudanca: clarificada em `DocsDev/INDEX.md` a relacao entre `DocsDev/` como fonte operacional canonica e `docs/` como ponte/material publico para reduzir drift documental.
 - Validacao planejada: `git diff --check`.
 - Risco: baixo; alteracao documental sem impacto em runtime.
+
+## 2026-07-09 - governor - matriz de validacao rapida
+
+- Assunto: documentacao.
+- Branch: `swarm-gov/lojasync/documentacao`.
+- Mudanca: adicionada a `DocsDev/INDEX.md` uma matriz de validacao barata por escopo, cobrindo documentacao, contrato Agent-First, backend, frontend e release local.
+- Validacao planejada: `git diff --check`.
+- Risco: baixo; alteracao documental sem impacto em runtime.

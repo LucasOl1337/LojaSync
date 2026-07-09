@@ -1,5 +1,13 @@
 # Swarm Ledger - geral
 
+## 2026-07-09 08:33 - governor
+
+- Branch: `swarm-gov/lojasync/geral`
+- Entrega: `tools/agent_run.py` agora transforma falha de conexao (`URLError`) em resposta estruturada, evitando traceback quando o backend esta fora do ar.
+- Validacao: `python -m pytest C:\Projetos\LojaSync-swarm-governor\tests\test_agent_run_cli.py -q`.
+- Resultado: 4 testes passaram.
+- Risco: baixo; mudanca limitada ao tratamento de erro do CLI Agent-First.
+
 ## 2026-07-09 06:09 - governor
 
 - Branch: `swarm-gov/lojasync/geral`

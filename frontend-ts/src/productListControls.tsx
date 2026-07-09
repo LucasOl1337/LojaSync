@@ -38,6 +38,7 @@ type ProductListControlsProps = {
   onCancelOrdering: () => void;
   onToggleCreateSets: () => void;
   onJoinDuplicates: () => Promise<void>;
+  onExportVisibleProducts: () => void;
   onClearProducts: () => Promise<void>;
   onFormatCodeOptionChange: (field: keyof FormatCodesOptions, value: string) => void;
   onRestoreOriginalCodes: () => Promise<void>;
@@ -166,15 +167,18 @@ function ProductSearchField({
 }
 
 type ListPrimaryActionsProps = Pick<ProductListControlsProps,
-  "globalEditMode" | "showFormatCodesPanel" | "showDescriptionPanel" | "orderingMode" | "createSetMode" | "createSetKeys" |
+  "loading" | "displayedCount" | "totalCount" | "globalEditMode" | "showFormatCodesPanel" | "showDescriptionPanel" | "orderingMode" | "createSetMode" | "createSetKeys" |
   "runBusyAction" | "onToggleGlobalEdit" | "onToggleFormatCodesPanel" | "onToggleDescriptionPanel" |
-  "onToggleOrdering" | "onToggleCreateSets" | "onJoinDuplicates" | "onClearProducts"
+  "onToggleOrdering" | "onToggleCreateSets" | "onJoinDuplicates" | "onExportVisibleProducts" | "onClearProducts"
 > & {
   formatCodesButtonRef: RefObject<HTMLButtonElement>;
   descriptionButtonRef: RefObject<HTMLButtonElement>;
 };
 
 function ListPrimaryActions({
+  loading,
+  displayedCount,
+  totalCount,
   globalEditMode,
   showFormatCodesPanel,
   showDescriptionPanel,
@@ -188,6 +192,7 @@ function ListPrimaryActions({
   onToggleOrdering,
   onToggleCreateSets,
   onJoinDuplicates,
+  onExportVisibleProducts,
   onClearProducts,
   formatCodesButtonRef,
   descriptionButtonRef,
@@ -226,6 +231,27 @@ function ListPrimaryActions({
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="2" y="3" width="9" height="9"/><rect x="13" y="3" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><path d="M17.5 17.5 22 22M13 17.5h9M17.5 13v9"/></svg>{createSetMode ? "Cancelar conjuntos" : "Criar conjuntos"}
             </button>
             <button className="toolButtonTs joinDuplicatesToolButton" type="button" onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M8 17l4 4 4-4"/><path d="M12 12v9"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Juntar repetidos</button>
+          </div>
+        </div>
+
+        <div className="toolActionGroupTs" role="group" aria-label="Compartilhar">
+          <span className="toolActionGroupLabelTs">Compartilhar</span>
+          <div className="toolActionGroupButtonsTs">
+            <button
+              className="toolButtonTs exportToolButtonTs"
+              type="button"
+              onClick={onExportVisibleProducts}
+              disabled={loading || displayedCount === 0}
+              title={displayedCount === totalCount ? "Baixar o catálogo completo" : "Baixar apenas os produtos visíveis na busca"}
+              aria-label={`Baixar ${actionText(displayedCount, "produto visível", "produtos visíveis")} em CSV`}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
+              Baixar CSV
+            </button>
           </div>
         </div>
 
@@ -325,6 +351,7 @@ export function ProductListControls({
   onCancelOrdering,
   onToggleCreateSets,
   onJoinDuplicates,
+  onExportVisibleProducts,
   onClearProducts,
   onFormatCodeOptionChange,
   onRestoreOriginalCodes,
@@ -402,6 +429,9 @@ export function ProductListControls({
 
         <div className="listContentTs">
           <ListPrimaryActions
+            loading={loading}
+            displayedCount={displayedCount}
+            totalCount={totalCount}
             globalEditMode={globalEditMode}
             showFormatCodesPanel={showFormatCodesPanel}
             showDescriptionPanel={showDescriptionPanel}
@@ -415,6 +445,7 @@ export function ProductListControls({
             onToggleOrdering={onToggleOrdering}
             onToggleCreateSets={onToggleCreateSets}
             onJoinDuplicates={onJoinDuplicates}
+            onExportVisibleProducts={onExportVisibleProducts}
             onClearProducts={onClearProducts}
             formatCodesButtonRef={formatCodesButtonRef}
             descriptionButtonRef={descriptionButtonRef}

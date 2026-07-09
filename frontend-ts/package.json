@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm exec -- tsc -b && npm exec -- vite build",
-    "test:logic": "npm exec -- tsc --target ES2020 --module ES2020 --moduleResolution Bundler --outDir .tmp-tests --rootDir src --skipLibCheck --strict --jsx react-jsx --esModuleInterop --allowSyntheticDefaultImports src/api.ts src/appConfig.ts src/appLocalState.ts src/appNotifications.ts src/descriptionCleanup.ts src/executionCenterPanel.tsx src/gradeLogic.ts src/keyboardShortcuts.ts src/productEditing.ts src/productFilters.ts src/productForm.ts src/productOrdering.ts src/productPricing.ts src/uiFormatting.ts && node --test test/*.test.mjs",
+    "test:logic": "npm exec -- tsc --target ES2020 --module ES2020 --moduleResolution Bundler --outDir .tmp-tests --rootDir src --skipLibCheck --strict --jsx react-jsx --esModuleInterop --allowSyntheticDefaultImports src/api.ts src/appConfig.ts src/appLocalState.ts src/appNotifications.ts src/descriptionCleanup.ts src/executionCenterPanel.tsx src/gradeLogic.ts src/keyboardShortcuts.ts src/productEditing.ts src/productExport.ts src/productFilters.ts src/productForm.ts src/productOrdering.ts src/productPricing.ts src/uiFormatting.ts && node --test test/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

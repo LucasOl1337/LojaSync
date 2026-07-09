@@ -159,6 +159,7 @@ import { TextInputDialog } from "./textInputDialog";
 import { NoticeDialog } from "./noticeDialog";
 import { NoticeToastStack } from "./noticeToastStack";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
+import { buildProductCsv, buildProductCsvFilename } from "./productExport";
 import {
   buildDisplayedProducts,
   buildFinalOrderingKeys,
@@ -1428,6 +1429,35 @@ export default function App({ authSession = null }: AppProps) {
     });
   };
 
+  const handleExportVisibleProducts = () => {
+    if (!displayedProducts.length) {
+      showNoticeDialog({
+        title: "Nada para exportar",
+        message: "A busca atual não contém produtos para baixar.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    const csv = buildProductCsv(displayedProducts);
+    const downloadUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = buildProductCsvFilename();
+    link.hidden = true;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+
+    const isFiltered = displayedProducts.length < state.products.length;
+    showNoticeDialog({
+      title: "CSV pronto",
+      message: `${displayedProducts.length === 1 ? "1 produto exportado" : `${displayedProducts.length} produtos exportados`}${isFiltered ? " da busca atual" : " do catálogo"}.`,
+      tone: "success",
+    });
+  };
+
   const handleJoinGrades = async () => {
     await pushUndoSnapshot();
     const result = await joinGrades();
@@ -2414,6 +2444,7 @@ export default function App({ authSession = null }: AppProps) {
             onCancelOrdering={handleCancelOrdering}
             onToggleCreateSets={handleToggleCreateSets}
             onJoinDuplicates={handleJoinDuplicates}
+            onExportVisibleProducts={handleExportVisibleProducts}
             onClearProducts={handleClearProducts}
             onFormatCodeOptionChange={(field, value) => setFormatCodesOptions((current) => ({ ...current, [field]: value }))}
             onRestoreOriginalCodes={async () => {

@@ -21,3 +21,11 @@
 - Mudanca: `coerce_nonnegative_int` do payload de automacao agora reutiliza o parser de quantidade do dominio, preservando quantidades como `"2,0"` em grades antes do envio ao Byte Empresa.
 - Validacao: `python -m pytest tests\test_automation_product_payload.py -q` => 6 passed.
 - Risco: baixo; alteracao centraliza coercao ja usada por `Product.normalize` e mantem invalidos/negativos em zero.
+
+## 2026-07-09T08:55:00-03:00 - governor
+
+- Assunto: bugs.
+- Branch: `swarm-gov/lojasync/bugs`.
+- Mudanca: PATCH de produto agora ignora `null` em campos centrais obrigatorios antes de chamar o servico, evitando corrupcao com `"None"` ou erro em edicao parcial.
+- Validacao: `python -m pytest tests\test_product_routes_sqlite.py -q` => 9 passed, 5 subtests passed.
+- Risco: baixo; mantem `null` para campos opcionais e restringe a filtragem a campos centrais que nao devem ser limpos.

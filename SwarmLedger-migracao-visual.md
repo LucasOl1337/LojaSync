@@ -1,5 +1,12 @@
 # Swarm Ledger - migracao-visual
 
+## 2026-07-09T08:54Z - governor
+
+- Branch: `swarm-gov/lojasync/migracao-visual`
+- Mudanca: migrei bordas de status do diario operacional, chip de execucao e prontidao para os tokens CSS `--status-*-rgb`, removendo RGBs crus remanescentes do tema visual.
+- Validacao: `rg "rgba\\((47, 210, 127|255, 179, 79|241, 72, 72)" frontend-ts/src/styles.css` nao retornou ocorrencias; `cd frontend-ts && npm run build` passou.
+- Risco: baixo; altera apenas a origem dos valores de cor e recompila o `frontend-ts/dist` versionado.
+
 ## 2026-07-09T08:40Z - governor
 
 - Branch: `swarm-gov/lojasync/migracao-visual`

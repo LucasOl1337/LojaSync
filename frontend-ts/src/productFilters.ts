@@ -188,6 +188,17 @@ function getProductSearchHaystack(product: Product) {
   ].join(" "));
 }
 
+type ProductSearchIndexEntry = {
+  product: Product;
+  haystack: string;
+  compactHaystack: string;
+};
+
+export type ProductSearchIndex = {
+  products: Product[];
+  entries: ProductSearchIndexEntry[];
+};
+
 function productSearchTermMatches(haystack: string, compactHaystack: string, term: string) {
   if (haystack.includes(term)) return true;
 
@@ -195,15 +206,35 @@ function productSearchTermMatches(haystack: string, compactHaystack: string, ter
   return Boolean(compactTerm && compactHaystack.includes(compactTerm));
 }
 
-export function filterProductsBySearch(products: Product[], query: string) {
-  const terms = normalizeProductSearchValue(query).split(/\s+/g).filter(Boolean);
-  if (!terms.length) return products;
+export function buildProductSearchIndex(products: Product[]): ProductSearchIndex {
+  return {
+    products,
+    entries: products.map((product) => {
+      const haystack = getProductSearchHaystack(product);
+      return {
+        product,
+        haystack,
+        compactHaystack: compactProductSearchValue(haystack),
+      };
+    }),
+  };
+}
 
-  return products.filter((product) => {
-    const haystack = getProductSearchHaystack(product);
-    const compactHaystack = compactProductSearchValue(haystack);
-    return terms.every((term) => productSearchTermMatches(haystack, compactHaystack, term));
-  });
+export function filterProductSearchIndex(searchIndex: ProductSearchIndex, query: string) {
+  const terms = normalizeProductSearchValue(query).split(/\s+/g).filter(Boolean);
+  if (!terms.length) return searchIndex.products;
+
+  const matches: Product[] = [];
+  for (const entry of searchIndex.entries) {
+    if (terms.every((term) => productSearchTermMatches(entry.haystack, entry.compactHaystack, term))) {
+      matches.push(entry.product);
+    }
+  }
+  return matches;
+}
+
+export function filterProductsBySearch(products: Product[], query: string) {
+  return filterProductSearchIndex(buildProductSearchIndex(products), query);
 }
 
 export function buildProductQuickFilterOptions(products: Product[]): ProductQuickFilterOption[] {

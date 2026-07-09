@@ -81,8 +81,9 @@ import {
 } from "./productForm";
 import type { ProductFormField } from "./productForm";
 import {
+  buildProductSearchIndex,
   buildProductSearchEmptyState,
-  filterProductsBySearch,
+  filterProductSearchIndex,
 } from "./productFilters";
 import {
   buildDescriptionCleanupSuggestions,
@@ -315,9 +316,13 @@ export default function App({ authSession = null }: AppProps) {
     () => buildDisplayedProducts(state.products, orderingDraftKeys, orderingMode),
     [orderingDraftKeys, orderingMode, state.products],
   );
+  const productSearchIndex = useMemo(
+    () => buildProductSearchIndex(orderedProducts),
+    [orderedProducts],
+  );
   const displayedProducts = useMemo(
-    () => filterProductsBySearch(orderedProducts, productSearchQuery),
-    [orderedProducts, productSearchQuery],
+    () => filterProductSearchIndex(productSearchIndex, productSearchQuery),
+    [productSearchIndex, productSearchQuery],
   );
   const descriptionCleanupSuggestions = useMemo(
     () => buildDescriptionCleanupSuggestions(state.products, descriptionOptions.remover_termos),

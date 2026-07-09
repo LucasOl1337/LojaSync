@@ -58,6 +58,25 @@ test("searches products by visible catalog fields", () => {
   assert.deepEqual(filters.filterProductsBySearch(searchableProducts, "feminino solira").map((product) => product.ordering_key), ["jaqueta"]);
 });
 
+test("reuses the normalized product search index across query changes", () => {
+  let nameReads = 0;
+  const indexedProduct = { ...baseProduct, ordering_key: "indexed", marca: "Áteliê" };
+  Object.defineProperty(indexedProduct, "nome", {
+    enumerable: true,
+    get() {
+      nameReads += 1;
+      return "Calça Premium";
+    },
+  });
+
+  const searchIndex = filters.buildProductSearchIndex([indexedProduct]);
+  assert.equal(nameReads, 1);
+  assert.deepEqual(filters.filterProductSearchIndex(searchIndex, "calca").map((product) => product.ordering_key), ["indexed"]);
+  assert.deepEqual(filters.filterProductSearchIndex(searchIndex, "atelie").map((product) => product.ordering_key), ["indexed"]);
+  assert.deepEqual(filters.filterProductSearchIndex(searchIndex, "premium atelie").map((product) => product.ordering_key), ["indexed"]);
+  assert.equal(nameReads, 1);
+});
+
 test("builds quick filter option counts from current products", () => {
   assert.deepEqual(filters.buildProductQuickFilterOptions(products), [
     { key: "all", label: "Todos", count: 4 },

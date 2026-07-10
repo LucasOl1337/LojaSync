@@ -5,6 +5,7 @@ import json
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
+from app.application.products.service import ProductSetCompositionConflictError
 from app.domain.products.entities import Product
 from app.interfaces.api.http.route_models import (
     BulkActionPayload,
@@ -290,7 +291,10 @@ async def apply_margin(payload: MarginPayload, request: Request) -> MarginRespon
 
 @router.post("/actions/create-set", response_model=CreateSetResponse)
 async def create_set(payload: CreateSetPayload, request: Request) -> CreateSetResponse:
-    result = get_product_service(request).create_set_by_keys(payload.key_a, payload.key_b)
+    try:
+        result = get_product_service(request).create_set_by_keys(payload.key_a, payload.key_b)
+    except ProductSetCompositionConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not result:
         raise HTTPException(status_code=400, detail="Nao foi possivel criar o conjunto selecionado.")
     publish_state_changed(["products", "totals"])

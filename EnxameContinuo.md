@@ -5,15 +5,21 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 ## BACKLOG DO ENXAME
 
-- [ ] Corrigir a composicao de estoque ao usar `Criar conjunto`: o servico reduz
-  `quantidade` dos produtos de origem, mas preserva integralmente `grades` e
-  `cores`, podendo deixar a soma interna acima do saldo restante. Definir a
-  regra de alocacao dos tamanhos/cores antes de implementar.
+- [x] Corrigir a composicao de estoque ao usar `Criar conjunto`. Regra entregue:
+  consumo total segue permitido; consumo parcial com `grades` ou `cores` acima
+  do saldo e rejeitado antes de qualquer mutacao (`service.py:601-626`).
+- [ ] Fazer o historico de `Aplicar margem` restaurar tambem a margem padrao:
+  `App.tsx:1587-1589` salva o snapshot antes da margem, mas
+  `service.py:150-159` registra/restaura apenas produtos, enquanto
+  `service.py:303-306` persiste a margem em store separado.
 - [ ] Exibir o conteudo dos avisos de importacao: o backend retorna mensagens
   acionaveis em `warnings`, mas o diagnostico React mostra apenas a contagem.
-- [ ] Isolar o CodeGraph da worktree: `codegraph status .` resolve o projeto como
-  `C:\Projetos` e mistura milhares de arquivos externos; `codegraph index . --force`
-  foi tentado nesta rodada, mas tambem herdou o indice ancestral.
+- [ ] Evitar snapshot sem efeito quando `Criar conjunto` e rejeitado:
+  `App.tsx:2192` registra undo antes de `createSet` em `App.tsx:2193`, portanto
+  um `409` seguro ainda acrescenta uma entrada que nao altera o catalogo.
+- [ ] Isolar o CodeGraph da worktree: a chamada ancorada desta rodada retornou
+  `Failed to get status: unable to open database file`; o indice local continua
+  indisponivel para consultas estruturais nesta worktree.
 - [x] Auditar a identidade usada por `Juntar repetidos`: hoje nome, codigo, preco,
   categoria e marca iguais podem reunir itens com grades, cores ou descricoes
   diferentes; confirmar a regra de negocio e impedir perda de detalhes distintos.
@@ -22,9 +28,38 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 | Sessao | Area | Entrega | Arquivos reivindicados | Status |
 |---|---|---|---|---|
-| 2026-07-10-01 | UX e polimento de fluxo | Proteger rascunhos de grade ao navegar ou fechar | `frontend-ts/src/App.tsx`, `frontend-ts/src/gradeLogic.ts`, `frontend-ts/src/gradeModal.tsx`, `frontend-ts/test/gradeLogic.test.mjs`, `frontend-ts/dist/**`, `EnxameContinuo.md` | validado; commit bloqueado pelo sandbox |
+| 2026-07-10-02 | Correcao de bugs reais | Impedir conjunto com saldo menor que a composicao de grades/cores | `app/application/products/service.py`, `app/interfaces/api/http/route_products.py`, `tests/test_product_routes_sqlite.py`, `EnxameContinuo.md` | PENDENTE-COMMIT; validado; staging vazio para o coletor |
 
 ## Rodadas concluidas
+
+### 2026-07-10-02 - Estoque de conjuntos protegido
+
+- Area: Correcao de bugs reais.
+- Entrega: `Criar conjunto` agora impede uma operacao que deixaria o saldo de
+  origem abaixo da soma de suas grades ou cores e devolve `409` com orientacao
+  acionavel antes de qualquer mutacao.
+- Arquivos: `app/application/products/service.py`,
+  `app/interfaces/api/http/route_products.py`,
+  `tests/test_product_routes_sqlite.py`.
+- Regra: consumo total da linha segue permitido; consumo parcial segue permitido
+  quando cada composicao interna cabe no saldo; casos ambiguos sao bloqueados em
+  vez de inventar quais variantes fisicas foram consumidas.
+- Antes: o cenario de 5 unidades com grade/cor total 5 combinado a 2 unidades
+  gravava saldo 3 e preservava composicoes 5, deixando o estoque impossivel e a
+  automacao de grades bloqueada.
+- Depois: o mesmo cenario preserva integralmente o catalogo e informa produto,
+  saldo projetado, total de grades e total de cores; cenarios seguros mantem o
+  comportamento anterior.
+- Evidencia literal anterior: `REPRO_CREATE_SET result={'created': 1, 'removed': 1, 'remaining_a': 3, 'remaining_b': 0} remaining=3 grade_total=5 color_total=5 invariant_ok=False`.
+- Evidencia literal posterior: `POST_FIX_CREATE_SET blocked=True catalog_unchanged=True remaining=5 grade_total=5 color_total=5`.
+- Evidencia literal do contrato focal: `3 passed, 11 deselected in 2.41s`.
+- Evidencia literal da suite backend: `142 passed, 5 deselected, 5 subtests passed in 13.93s`.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Evidencia literal do CodeGraph: `Failed to get status: unable to open database file`;
+  leitura textual focal usada conforme fallback documentado.
+- Commit: nao houve; conforme limitacao auditada deste host, a claim permanece
+  `PENDENTE-COMMIT` com staging vazio para o coletor aplicar os quatro arquivos
+  exatos, validar e commitar com a autoria do enxame.
 
 ### 2026-07-10-01 - Rascunhos de grade protegidos
 

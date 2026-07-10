@@ -593,6 +593,165 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(quantity_lookup["BATCH-A"], 2)
                 self.assertEqual(quantity_lookup["BATCH-B"], 2)
 
+    def test_create_set_rejects_partial_variant_overflow_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                first = client.post(
+                    "/products",
+                    json={
+                        "nome": "CAMISETA",
+                        "codigo": "A-OVERFLOW",
+                        "quantidade": 5,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                        "grades": [
+                            {"tamanho": "P", "quantidade": 2},
+                            {"tamanho": "M", "quantidade": 3},
+                        ],
+                        "cores": [{"cor": "Azul", "quantidade": 5}],
+                    },
+                ).json()["item"]
+                second = client.post(
+                    "/products",
+                    json={
+                        "nome": "SHORT",
+                        "codigo": "B-OVERFLOW",
+                        "quantidade": 2,
+                        "preco": "20,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                ).json()["item"]
+                before = client.get("/products").json()["items"]
+
+                response = client.post(
+                    "/actions/create-set",
+                    json={"key_a": first["ordering_key"], "key_b": second["ordering_key"]},
+                )
+
+                self.assertEqual(response.status_code, 409)
+                detail = response.json()["detail"]
+                self.assertIn('"CAMISETA" ficaria com 3 unidades', detail)
+                self.assertIn("grades somam 5", detail)
+                self.assertIn("cores somam 5", detail)
+                self.assertIn("Ajuste grades/cores", detail)
+                self.assertEqual(client.get("/products").json()["items"], before)
+
+    def test_create_set_allows_total_consumption_with_complete_compositions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = []
+                for payload in (
+                    {
+                        "nome": "CAMISETA",
+                        "codigo": "A-TOTAL",
+                        "quantidade": 2,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                        "grades": [
+                            {"tamanho": "P", "quantidade": 1},
+                            {"tamanho": "M", "quantidade": 1},
+                        ],
+                        "cores": [{"cor": "Azul", "quantidade": 2}],
+                    },
+                    {
+                        "nome": "SHORT",
+                        "codigo": "B-TOTAL",
+                        "quantidade": 2,
+                        "preco": "20,00",
+                        "categoria": "",
+                        "marca": "",
+                        "grades": [
+                            {"tamanho": "36", "quantidade": 1},
+                            {"tamanho": "38", "quantidade": 1},
+                        ],
+                        "cores": [{"cor": "Preto", "quantidade": 2}],
+                    },
+                ):
+                    created.append(client.post("/products", json=payload).json()["item"])
+
+                response = client.post(
+                    "/actions/create-set",
+                    json={"key_a": created[0]["ordering_key"], "key_b": created[1]["ordering_key"]},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.json(),
+                    {"created": 1, "removed": 2, "remaining_a": 0, "remaining_b": 0},
+                )
+                listed = client.get("/products").json()["items"]
+                self.assertEqual(len(listed), 1)
+                self.assertEqual(listed[0]["quantidade"], 2)
+                self.assertIsNone(listed[0]["grades"])
+                self.assertIsNone(listed[0]["cores"])
+
+    def test_create_set_allows_partial_consumption_when_compositions_fit_balance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                first = client.post(
+                    "/products",
+                    json={
+                        "nome": "CAMISETA",
+                        "codigo": "A-FIT",
+                        "quantidade": 5,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                        "grades": [
+                            {"tamanho": "P", "quantidade": 1},
+                            {"tamanho": "M", "quantidade": 1},
+                        ],
+                        "cores": [{"cor": "Azul", "quantidade": 3}],
+                    },
+                ).json()["item"]
+                second = client.post(
+                    "/products",
+                    json={
+                        "nome": "SHORT",
+                        "codigo": "B-FIT",
+                        "quantidade": 2,
+                        "preco": "20,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                ).json()["item"]
+
+                response = client.post(
+                    "/actions/create-set",
+                    json={"key_a": first["ordering_key"], "key_b": second["ordering_key"]},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["remaining_a"], 3)
+                listed = client.get("/products").json()["items"]
+                remaining = next(item for item in listed if item["codigo"] == "A-FIT")
+                self.assertEqual(remaining["quantidade"], 3)
+                self.assertEqual(
+                    [(item["tamanho"], item["quantidade"]) for item in remaining["grades"]],
+                    [("P", 1), ("M", 1)],
+                )
+                self.assertEqual(remaining["cores"], [{"cor": "Azul", "quantidade": 3}])
+                set_item = next(item for item in listed if item["codigo"] == "A-FIT / B-FIT")
+                self.assertEqual(set_item["quantidade"], 2)
+
     def test_export_json_uses_database_contents(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

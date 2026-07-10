@@ -28,6 +28,10 @@ from app.shared.logging.setup import log_event
 logger = logging.getLogger(__name__)
 
 
+class ProductSetCompositionConflictError(ValueError):
+    """Raised when creating a set would leave variant totals above stock."""
+
+
 @dataclass(slots=True)
 class TotalsSnapshot:
     quantidade: int
@@ -594,6 +598,33 @@ class ProductService:
         if qtd_set <= 0:
             return None
 
+        remaining_a = max(int(item_a.quantidade or 0) - qtd_set, 0)
+        remaining_b = max(int(item_b.quantidade or 0) - qtd_set, 0)
+        composition_conflicts: list[str] = []
+        for item, remaining in ((item_a, remaining_a), (item_b, remaining_b)):
+            if remaining <= 0:
+                continue
+            grade_total = sum(max(int(grade.quantidade or 0), 0) for grade in (item.grades or []))
+            color_total = sum(max(int(color.quantidade or 0), 0) for color in (item.cores or []))
+            overflowing = [
+                f"{label} somam {total}"
+                for label, total in (("grades", grade_total), ("cores", color_total))
+                if total > remaining
+            ]
+            if not overflowing:
+                continue
+            product_name = (item.nome or item.codigo or "Produto").strip()
+            unit_label = "unidade" if remaining == 1 else "unidades"
+            composition_conflicts.append(
+                f'"{product_name}" ficaria com {remaining} {unit_label}, mas ' + " e ".join(overflowing)
+            )
+        if composition_conflicts:
+            raise ProductSetCompositionConflictError(
+                "Nao foi possivel criar o conjunto sem perder a composicao do estoque: "
+                + "; ".join(composition_conflicts)
+                + ". Ajuste grades/cores para o saldo que deve restar ou use toda a quantidade."
+            )
+
         base_a = strip_size_suffix(item_a.nome or "").strip()
         base_b = strip_size_suffix(item_b.nome or "").strip()
         if base_a and base_b:
@@ -632,8 +663,8 @@ class ProductService:
             preco_final=final_price,
         ).normalize(margin=self.get_default_margin())
 
-        item_a.quantidade = max(item_a.quantidade - qtd_set, 0)
-        item_b.quantidade = max(item_b.quantidade - qtd_set, 0)
+        item_a.quantidade = remaining_a
+        item_b.quantidade = remaining_b
 
         result: list[Product] = []
         removed = 0

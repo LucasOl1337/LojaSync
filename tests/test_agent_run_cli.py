@@ -19,7 +19,6 @@ def _index() -> dict[str, object]:
         ]
     }
 
-
 class AgentRunCliTests(unittest.TestCase):
     def test_placeholder_action_requires_concrete_path(self) -> None:
         with patch("tools.agent_run.request_json") as request_json:

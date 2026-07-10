@@ -93,7 +93,7 @@ export function MarginDialog({
           <div className="marginDialogTitleBlockTs">
             <span className="sectionTag">Financeiro</span>
             <h3 id="margin-dialog-title">Aplicar margem padrão</h3>
-            <p id="margin-dialog-description">Atualize a margem da sessão e recalcule os preços de venda da lista ativa.</p>
+            <p id="margin-dialog-description">Atualize a margem padrão e recalcule os preços dos produtos visíveis. Sem busca ou filtro, toda a lista ativa será atualizada.</p>
           </div>
           <span className="marginCurrentChipTs">{currentPercentDisplay}</span>
         </div>

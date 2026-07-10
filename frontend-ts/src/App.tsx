@@ -345,9 +345,15 @@ export default function App({ authSession = null }: AppProps) {
     () => filterProductSearchIndex(productSearchIndex, productSearchQuery),
     [productSearchIndex, productSearchQuery],
   );
+  const visibleBulkActionKeys = useMemo<string[] | undefined>(
+    () => displayedProducts.length === state.products.length
+      ? undefined
+      : displayedProducts.map((product) => product.ordering_key),
+    [displayedProducts, state.products.length],
+  );
   const descriptionCleanupSuggestions = useMemo(
-    () => buildDescriptionCleanupSuggestions(state.products, descriptionOptions.remover_termos),
-    [descriptionOptions.remover_termos, state.products],
+    () => buildDescriptionCleanupSuggestions(displayedProducts, descriptionOptions.remover_termos),
+    [descriptionOptions.remover_termos, displayedProducts],
   );
   const catalogOverview = useMemo(
     () => buildCatalogOverview(state.products, state.marginPercentual),
@@ -1268,16 +1274,6 @@ export default function App({ authSession = null }: AppProps) {
     });
   };
 
-  const confirmFilteredBulkAction = async (fieldLabel: string, value: string) => {
-    if (displayedProducts.length >= state.products.length) return true;
-    return confirmWithDialog({
-      title: "Aplicar em toda a lista?",
-      message: `A lista visível mostra ${displayedProducts.length} de ${state.products.length} produtos.`,
-      detail: `Aplicar ${fieldLabel} "${value}" a todos os ${state.products.length} produtos, incluindo itens fora da busca atual.`,
-      confirmLabel: "Aplicar a todos",
-    });
-  };
-
   const openTextInputDialog = (dialog: TextInputDialogState) => {
     setTextInputError(null);
     setTextInputBusy(false);
@@ -1313,7 +1309,6 @@ export default function App({ authSession = null }: AppProps) {
   const submitBrand = async () => {
     if (!newBrand.trim()) return;
     const normalized = newBrand.trim();
-    if (!(await confirmFilteredBulkAction("a marca", normalized))) return;
     try {
       const result = await addBrand(normalized);
       setNewBrand("");
@@ -1323,7 +1318,7 @@ export default function App({ authSession = null }: AppProps) {
         setState((current) => ({ ...current, brands: result.marcas }));
       });
       await pushUndoSnapshot();
-      const applied = await applyBrand(normalized);
+      const applied = await applyBrand(normalized, visibleBulkActionKeys);
       rememberProductOperation({
         action: "bulk_brand",
         value: applied.marca || normalized,
@@ -1451,10 +1446,9 @@ export default function App({ authSession = null }: AppProps) {
       showNoticeDialog({ title: "Seleção obrigatória", message: "Selecione uma categoria antes de aplicar.", tone: "warning" });
       return;
     }
-    if (!(await confirmFilteredBulkAction("a categoria", category))) return;
     setBulkCategoryValue(category);
     await pushUndoSnapshot();
-    const result = await applyCategory(category);
+    const result = await applyCategory(category, visibleBulkActionKeys);
     rememberProductOperation({
       action: "bulk_category",
       value: result.categoria || category,
@@ -1470,10 +1464,9 @@ export default function App({ authSession = null }: AppProps) {
       showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione uma marca antes de aplicar.", tone: "warning" });
       return;
     }
-    if (!(await confirmFilteredBulkAction("a marca", brand))) return;
     setBulkBrandValue(brand);
     await pushUndoSnapshot();
-    const result = await applyBrand(brand);
+    const result = await applyBrand(brand, visibleBulkActionKeys);
     rememberProductOperation({
       action: "bulk_brand",
       value: result.marca || brand,
@@ -1560,13 +1553,17 @@ export default function App({ authSession = null }: AppProps) {
       setMarginError("Informe um percentual maior que zero.");
       return;
     }
+    if (visibleBulkActionKeys?.length === 0) {
+      setMarginError("O resultado atual nao tem produtos para receber a margem.");
+      return;
+    }
 
     setMarginBusy(true);
     setMarginError(null);
     try {
       await pushUndoSnapshot();
       await saveMargin(percentual);
-      const result = await applyMargin(percentual);
+      const result = await applyMargin(percentual, visibleBulkActionKeys);
       rememberProductOperation({
         action: "margin",
         value: formatPercentDisplay(result.percentual_utilizado).replace("%", ""),
@@ -1582,6 +1579,10 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleFormatCodes = async () => {
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({ title: "Sem produtos visiveis", message: "Ajuste ou limpe os filtros antes de formatar codigos.", tone: "warning" });
+      return;
+    }
     const payload = {
       remover_prefixo5: false,
       remover_zeros_a_esquerda: false,
@@ -1595,6 +1596,7 @@ export default function App({ authSession = null }: AppProps) {
       remover_primeiros_numeros: parsePromptInteger(formatCodesOptions.remover_primeiros_numeros),
       ultimos_digitos: null,
       primeiros_digitos: null,
+      keys: visibleBulkActionKeys,
     };
     const hasAnyOption = Object.entries(payload).some(([key, value]) => {
       if (key === "remover_prefixo5" || key === "remover_zeros_a_esquerda") {
@@ -1628,6 +1630,10 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleImproveDescriptions = async () => {
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({ title: "Sem produtos visiveis", message: "Ajuste ou limpe os filtros antes de limpar nomes e descricoes.", tone: "warning" });
+      return;
+    }
     const termos = parseDescriptionRemovalTerms(descriptionOptions.remover_termos);
     if (!descriptionOptions.remover_numeros && !descriptionOptions.remover_especiais && !termos.length) {
       showNoticeDialog({ title: "Seleção obrigatória", message: "Selecione ao menos uma regra de limpeza.", tone: "warning" });
@@ -1638,6 +1644,7 @@ export default function App({ authSession = null }: AppProps) {
       remover_numeros: descriptionOptions.remover_numeros,
       remover_especiais: descriptionOptions.remover_especiais,
       remover_termos: termos,
+      keys: visibleBulkActionKeys,
     });
     rememberProductOperation({
       action: "improve_descriptions",
@@ -2520,8 +2527,12 @@ export default function App({ authSession = null }: AppProps) {
             onClearProducts={handleClearProducts}
             onFormatCodeOptionChange={(field, value) => setFormatCodesOptions((current) => ({ ...current, [field]: value }))}
             onRestoreOriginalCodes={async () => {
+              if (visibleBulkActionKeys?.length === 0) {
+                showNoticeDialog({ title: "Sem produtos visiveis", message: "Ajuste ou limpe os filtros antes de restaurar codigos.", tone: "warning" });
+                return;
+              }
               await pushUndoSnapshot();
-              const result = await restoreOriginalCodes();
+              const result = await restoreOriginalCodes(visibleBulkActionKeys);
               rememberProductOperation({
                 action: "format_codes",
                 productCount: result.total,

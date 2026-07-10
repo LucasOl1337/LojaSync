@@ -20,6 +20,7 @@ from app.interfaces.api.http.route_models import (
     MarginPayload,
     MarginResponse,
     ReorderPayload,
+    RestoreCodesPayload,
     RestoreCodesResponse,
     SnapshotRestorePayload,
     SnapshotRestoreResponse,
@@ -172,7 +173,7 @@ async def get_totals(request: Request) -> TotalsResponse:
 
 @router.post("/actions/apply-category")
 async def apply_category(payload: BulkActionPayload, request: Request) -> dict[str, object]:
-    total = get_product_service(request).apply_category(payload.valor)
+    total = get_product_service(request).apply_category(payload.valor, payload.keys)
     if total:
         publish_state_changed(["products", "totals"])
     return {"status": "categoria aplicada", "categoria": payload.valor, "total": total}
@@ -180,7 +181,7 @@ async def apply_category(payload: BulkActionPayload, request: Request) -> dict[s
 
 @router.post("/actions/apply-brand")
 async def apply_brand(payload: BulkActionPayload, request: Request) -> dict[str, object]:
-    total = get_product_service(request).apply_brand(payload.valor)
+    total = get_product_service(request).apply_brand(payload.valor, payload.keys)
     if total:
         publish_state_changed(["products", "totals", "brands"])
     return {"status": "marca aplicada", "marca": payload.valor, "total": total}
@@ -248,15 +249,18 @@ async def redo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
 
 @router.post("/actions/format-codes", response_model=FormatCodesResponse)
 async def format_codes(payload: FormatCodesPayload, request: Request) -> FormatCodesResponse:
-    result = get_product_service(request).format_codes(payload.model_dump())
+    result = get_product_service(request).format_codes(payload.model_dump(), payload.keys)
     if result.get("alterados"):
         publish_state_changed(["products"])
     return FormatCodesResponse(**result)
 
 
 @router.post("/actions/restore-original-codes", response_model=RestoreCodesResponse)
-async def restore_original_codes(request: Request) -> RestoreCodesResponse:
-    result = get_product_service(request).restore_original_codes()
+async def restore_original_codes(
+    request: Request,
+    payload: RestoreCodesPayload | None = None,
+) -> RestoreCodesResponse:
+    result = get_product_service(request).restore_original_codes(payload.keys if payload else None)
     if result.get("restaurados"):
         publish_state_changed(["products"])
     return RestoreCodesResponse(**result)
@@ -269,7 +273,7 @@ async def apply_margin(payload: MarginPayload, request: Request) -> MarginRespon
         margin_factor = 1 + payload.percentual / 100.0
     if margin_factor is None or margin_factor <= 0:
         raise HTTPException(status_code=400, detail="Margem invalida")
-    total = get_product_service(request).apply_margin_to_products(margin_factor)
+    total = get_product_service(request).apply_margin_to_products(margin_factor, payload.keys)
     percentual = (margin_factor - 1) * 100
     if total:
         publish_state_changed(["products", "totals", "margin"])
@@ -299,6 +303,7 @@ async def improve_descriptions(payload: ImproveDescriptionPayload, request: Requ
         payload.remover_especiais,
         False,
         payload.remover_termos,
+        payload.keys,
     )
     if result.get("modificados"):
         publish_state_changed(["products"])

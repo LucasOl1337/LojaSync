@@ -8,9 +8,8 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 - [ ] Isolar o CodeGraph da worktree: `codegraph status .` resolve o projeto como
   `C:\Projetos` e mistura milhares de arquivos externos; `codegraph index . --force`
   foi tentado nesta rodada, mas tambem herdou o indice ancestral.
-- [ ] Avaliar escopo `resultados visiveis` para acoes em lote: categoria e marca
-  apenas alertam quando a busca esta ativa, enquanto formatacao, descricoes e
-  margem continuam globais; requer contrato de API por chaves antes de expor a UI.
+- [ ] Avaliar escopo visivel para `Juntar repetidos`: a acao permanece global e
+  precisa de regra explicita para nao separar duplicatas ocultas de forma enganosa.
 
 ## Claims ativos
 
@@ -19,6 +18,30 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 | - | - | - | - | nenhum claim ativo |
 
 ## Rodadas concluidas
+
+### 2026-07-09-08 - Acoes em lote limitadas ao resultado visivel
+
+- Area: Reducao de friccao.
+- Entrega: categoria, marca, margem, formatacao/restauracao de codigos e limpeza
+  de nomes/descricoes agora enviam as chaves do resultado atual para a API e
+  preservam produtos ocultos por busca ou filtro rapido.
+- Arquivos: `app/application/products/service.py`,
+  `app/interfaces/api/http/route_models.py`,
+  `app/interfaces/api/http/route_products.py`, `frontend-ts/src/App.tsx`,
+  `frontend-ts/src/api.ts`, `frontend-ts/src/productTable.tsx`,
+  `frontend-ts/src/productListToolPanels.tsx`, `frontend-ts/src/marginDialog.tsx`,
+  `tests/test_product_routes_sqlite.py`, `frontend-ts/dist/**`.
+- Antes: a tabela informava que o recorte visivel seria ignorado e as acoes em
+  lote alteravam todo o catalogo, inclusive itens fora do resultado atual.
+- Depois: o frontend distingue catalogo completo, resultado parcial e resultado
+  vazio; a API aceita `keys` opcionais, e uma lista vazia significa nenhum item,
+  nunca todo o catalogo.
+- Evidencia literal do teste de contrato: `9 passed, 5 subtests passed in 7.72s`.
+- Evidencia literal da suite backend: `137 passed, 5 deselected, 5 subtests passed in 11.68s`.
+- Evidencia literal da suite frontend: `tests 107`, `pass 107`, `fail 0`.
+- Evidencia literal do build final: `54 modules transformed.` e `built in 160ms`.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Commit: este commit.
 
 ### 2026-07-09-07 - Confirmacao segura ao limpar catalogo
 

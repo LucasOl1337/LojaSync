@@ -172,6 +172,95 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(listed[0]["preco"], "20,00")
                 self.assertEqual(listed[1]["preco"], "10,00")
 
+    def test_bulk_actions_only_change_products_in_explicit_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                first = client.post(
+                    "/products",
+                    json={
+                        "nome": "Camisa 123!",
+                        "codigo": "00123",
+                        "quantidade": 1,
+                        "preco": "10,00",
+                        "categoria": "Original A",
+                        "marca": "Marca A",
+                    },
+                ).json()["item"]
+                second = client.post(
+                    "/products",
+                    json={
+                        "nome": "Calca 456!",
+                        "codigo": "00999",
+                        "quantidade": 1,
+                        "preco": "20,00",
+                        "categoria": "Original B",
+                        "marca": "Marca B",
+                    },
+                ).json()["item"]
+                first_key = first["ordering_key"]
+
+                empty_scope = client.post(
+                    "/actions/apply-category",
+                    json={"valor": "Nao aplicar", "keys": []},
+                )
+                self.assertEqual(empty_scope.status_code, 200)
+                self.assertEqual(empty_scope.json()["total"], 0)
+
+                category = client.post(
+                    "/actions/apply-category",
+                    json={"valor": "Visivel", "keys": [first_key]},
+                )
+                brand = client.post(
+                    "/actions/apply-brand",
+                    json={"valor": "Marca visivel", "keys": [first_key]},
+                )
+                margin = client.post(
+                    "/actions/apply-margin",
+                    json={"percentual": 50, "keys": [first_key]},
+                )
+                codes = client.post(
+                    "/actions/format-codes",
+                    json={"remover_primeiros_numeros": 2, "keys": [first_key]},
+                )
+                descriptions = client.post(
+                    "/actions/improve-descriptions",
+                    json={"remover_numeros": True, "remover_especiais": True, "keys": [first_key]},
+                )
+
+                self.assertEqual(category.json()["total"], 1)
+                self.assertEqual(brand.json()["total"], 1)
+                self.assertEqual(margin.json()["total_atualizados"], 1)
+                self.assertEqual(codes.json()["total"], 1)
+                self.assertEqual(descriptions.json()["total"], 1)
+
+                listed = {item["ordering_key"]: item for item in client.get("/products").json()["items"]}
+                self.assertEqual(listed[first_key]["categoria"], "Visivel")
+                self.assertEqual(listed[first_key]["marca"], "Marca visivel")
+                self.assertEqual(listed[first_key]["codigo"], "123")
+                self.assertEqual(listed[first_key]["nome"], "Camisa")
+                self.assertNotEqual(listed[first_key]["preco_final"], first["preco_final"])
+
+                second_after = listed[second["ordering_key"]]
+                self.assertEqual(second_after["categoria"], "Original B")
+                self.assertEqual(second_after["marca"], "Marca B")
+                self.assertEqual(second_after["codigo"], "00999")
+                self.assertEqual(second_after["nome"], "Calca 456!")
+                self.assertEqual(second_after["preco_final"], second["preco_final"])
+
+                restored = client.post(
+                    "/actions/restore-original-codes",
+                    json={"keys": [first_key]},
+                )
+                self.assertEqual(restored.json(), {"total": 1, "restaurados": 1})
+                restored_items = {item["ordering_key"]: item for item in client.get("/products").json()["items"]}
+                self.assertEqual(restored_items[first_key]["codigo"], "00123")
+                self.assertEqual(restored_items[second["ordering_key"]]["codigo"], "00999")
+
     def test_restore_snapshot_preserves_ordering_keys(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

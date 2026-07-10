@@ -206,13 +206,13 @@ export function ProductTable({
   const bulkActionsDisabled = loading || products.length === 0 || bulkActionsBlockedByEditLock || bulkActionsBlockedByMode;
   const showBulkActionsRow = !bulkActionsBlockedByEditLock && !bulkActionsBlockedByMode;
   const filteredBulkScopeActive = !loading && totalProductCount > products.length;
-  const bulkScopeHint = filteredBulkScopeActive ? `${visibleItemsLabel} na busca` : null;
+  const bulkScopeHint = filteredBulkScopeActive ? `de ${totalItemsLabel} no catálogo` : null;
   const bulkScopeLabel = (() => {
     if (loading) return "Atualizando escopo";
     if (products.length === 0) return "Sem itens no escopo";
     if (bulkActionsBlockedByMode) return "Edição em lote pausada";
     if (bulkActionsBlockedByEditLock) return "Edição em lote travada";
-    if (filteredBulkScopeActive) return `Aplicar aos ${totalItemsLabel}`;
+    if (filteredBulkScopeActive) return `Aplicar aos ${visibleItemsLabel}`;
     return "Aplicar a todos";
   })();
   const bulkScopeDetail = (() => {
@@ -221,13 +221,13 @@ export function ProductTable({
     if (orderingMode) return "Finalize a ordenação para liberar a edição em lote.";
     if (createSetMode) return "Finalize os conjuntos para liberar a edição em lote.";
     if (bulkActionsBlockedByEditLock) return "Permita edições para aplicar marca ou categoria em lote.";
-    if (filteredBulkScopeActive) return "Há itens fora da busca atual; a confirmação aparece antes de aplicar em toda a lista.";
+    if (filteredBulkScopeActive) return "Somente este resultado será alterado; limpe a busca e os filtros para agir no catálogo inteiro.";
     return `${totalItemsLabel} no escopo atual.`;
   })();
   const bulkActionsAriaLabel = bulkActionsDisabled
     ? `Ações em lote indisponíveis: ${bulkScopeDetail}`
     : bulkScopeHint
-    ? `Ações em lote globais para ${totalItemsLabel}; ${bulkScopeHint}; confirmação obrigatória fora da busca`
+    ? `Ações em lote para ${visibleItemsLabel}; ${bulkScopeHint}; itens fora do resultado serão preservados`
     : "Ações em lote da tabela";
   const bulkBrandMenuId = "product-table-bulk-brand-panel";
   const bulkBrandTitleId = "product-table-bulk-brand-title";
@@ -312,7 +312,7 @@ export function ProductTable({
                 type="button"
                 onClick={onToggleBulkBrandMenu}
                 onKeyDown={(event) => handleBulkPopoverKeyDown(event, onCloseBulkBrandMenu)}
-                title="Aplicar marca em lote"
+                title={filteredBulkScopeActive ? "Aplicar marca somente aos produtos visíveis" : "Aplicar marca em lote"}
                 aria-haspopup="dialog"
                 aria-controls={bulkBrandMenuId}
                 aria-expanded={showBulkBrandMenu}
@@ -366,7 +366,7 @@ export function ProductTable({
                 type="button"
                 onClick={onToggleBulkCategoryMenu}
                 onKeyDown={(event) => handleBulkPopoverKeyDown(event, onCloseBulkCategoryMenu)}
-                title="Aplicar categoria em lote"
+                title={filteredBulkScopeActive ? "Aplicar categoria somente aos produtos visíveis" : "Aplicar categoria em lote"}
                 aria-haspopup="dialog"
                 aria-controls={bulkCategoryMenuId}
                 aria-expanded={showBulkCategoryMenu}

@@ -301,12 +301,22 @@ class ProductService:
         self._margin_store.save_margin(safe)
         return safe
 
-    def apply_margin_to_products(self, margin: float) -> int:
+    @staticmethod
+    def _products_in_scope(items: list[Product], ordering_keys: list[str] | None) -> list[Product]:
+        if ordering_keys is None:
+            return items
+        lookup = {str(key).strip() for key in ordering_keys if str(key).strip()}
+        return [item for item in items if item.ordering_key() in lookup]
+
+    def apply_margin_to_products(self, margin: float, ordering_keys: list[str] | None = None) -> int:
         items = self.list_products()
         if not items:
             return 0
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return 0
         updated = 0
-        for item in items:
+        for item in targets:
             new_price = calculate_sale_price(item.preco, margin)
             if new_price != item.preco_final:
                 item.preco_final = new_price
@@ -319,7 +329,7 @@ class ProductService:
                 "products_margin_applied",
                 "products margin applied",
                 updated=updated,
-                total=len(items),
+                total=len(targets),
             )
         return updated
 
@@ -339,12 +349,15 @@ class ProductService:
             metrics=metrics,
         )
 
-    def apply_category(self, category: str) -> int:
+    def apply_category(self, category: str, ordering_keys: list[str] | None = None) -> int:
         value = category.strip()
         items = self.list_products()
         if not items:
             return 0
-        for item in items:
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return 0
+        for item in targets:
             item.categoria = value
         self._products.replace_active(items)
         log_event(
@@ -352,16 +365,19 @@ class ProductService:
             logging.INFO,
             "products_category_applied",
             "products category applied",
-            updated=len(items),
+            updated=len(targets),
         )
-        return len(items)
+        return len(targets)
 
-    def apply_brand(self, brand: str) -> int:
+    def apply_brand(self, brand: str, ordering_keys: list[str] | None = None) -> int:
         value = brand.strip()
         items = self.list_products()
         if not items:
             return 0
-        for item in items:
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return 0
+        for item in targets:
             item.marca = value
         self._products.replace_active(items)
         if value:
@@ -371,10 +387,10 @@ class ProductService:
             logging.INFO,
             "products_brand_applied",
             "products brand applied",
-            updated=len(items),
+            updated=len(targets),
             brand_set=bool(value),
         )
-        return len(items)
+        return len(targets)
 
     def join_duplicates(self) -> dict[str, int]:
         items = self.list_products()
@@ -613,7 +629,11 @@ class ProductService:
             "remaining_b": item_b.quantidade,
         }
 
-    def format_codes(self, options: dict[str, object]) -> dict[str, object]:
+    def format_codes(
+        self,
+        options: dict[str, object],
+        ordering_keys: list[str] | None = None,
+    ) -> dict[str, object]:
         remove_prefix = bool(options.get("remover_prefixo5"))
         remove_left_zeros = bool(options.get("remover_zeros_a_esquerda"))
         last_digits = self._coerce_positive_int(options.get("ultimos_digitos"))
@@ -631,15 +651,18 @@ class ProductService:
         items = self.list_products()
         if not items:
             return {"total": 0, "alterados": 0, "prefixo": prefix_used}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"total": 0, "alterados": 0, "prefixo": prefix_used}
 
-        for item in items:
+        for item in targets:
             if not item.codigo_original:
                 item.codigo_original = item.codigo
 
         if remove_prefix:
             candidates = [
                 (item.codigo or "").strip()[:5]
-                for item in items
+                for item in targets
                 if len((item.codigo or "").strip()) >= 5 and (item.codigo or "").strip()[:5].isdigit()
             ]
             if candidates:
@@ -648,7 +671,7 @@ class ProductService:
                     prefix_used = prefix
 
         changed = 0
-        for item in items:
+        for item in targets:
             original = item.codigo
             updated = original
             if prefix_used and updated.startswith(prefix_used):
@@ -691,18 +714,21 @@ class ProductService:
                 logging.INFO,
                 "product_codes_formatted",
                 "product codes formatted",
-                total=len(items),
+                total=len(targets),
                 changed=changed,
                 prefix_removed=bool(prefix_used),
             )
-        return {"total": len(items), "alterados": changed, "prefixo": prefix_used}
+        return {"total": len(targets), "alterados": changed, "prefixo": prefix_used}
 
-    def restore_original_codes(self) -> dict[str, int]:
+    def restore_original_codes(self, ordering_keys: list[str] | None = None) -> dict[str, int]:
         items = self.list_products()
         if not items:
             return {"total": 0, "restaurados": 0}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"total": 0, "restaurados": 0}
         restored = 0
-        for item in items:
+        for item in targets:
             if item.codigo_original and item.codigo != item.codigo_original:
                 item.codigo = item.codigo_original
                 restored += 1
@@ -713,10 +739,10 @@ class ProductService:
                 logging.INFO,
                 "product_codes_restored",
                 "product codes restored",
-                total=len(items),
+                total=len(targets),
                 restored=restored,
             )
-        return {"total": len(items), "restaurados": restored}
+        return {"total": len(targets), "restaurados": restored}
 
     def reorder_by_keys(self, keys: list[str]) -> int:
         total = self._products.reorder_active(keys)
@@ -737,15 +763,19 @@ class ProductService:
         remove_special: bool,
         remove_letters: bool,
         terms: Iterable[str],
+        ordering_keys: list[str] | None = None,
     ) -> dict[str, int]:
         normalized_terms = [term.strip() for term in terms if term and term.strip()]
         normalized_terms.sort(key=len, reverse=True)
         items = self.list_products()
         if not items:
             return {"total": 0, "modificados": 0}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"total": 0, "modificados": 0}
 
         changed = 0
-        for item in items:
+        for item in targets:
             modified = False
             for attr in ("descricao_completa", "nome"):
                 current = getattr(item, attr) or ""
@@ -774,10 +804,10 @@ class ProductService:
                 logging.INFO,
                 "product_descriptions_improved",
                 "product descriptions improved",
-                total=len(items),
+                total=len(targets),
                 changed=changed,
             )
-        return {"total": len(items), "modificados": changed}
+        return {"total": len(targets), "modificados": changed}
 
     def get_active_file(self):
         return getattr(self._products, "_active_file")

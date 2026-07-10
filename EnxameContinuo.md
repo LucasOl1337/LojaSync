@@ -8,6 +8,9 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 - [ ] Isolar o CodeGraph da worktree: `codegraph status .` resolve o projeto como
   `C:\Projetos` e mistura milhares de arquivos externos; `codegraph index . --force`
   foi tentado nesta rodada, mas tambem herdou o indice ancestral.
+- [ ] Avaliar escopo `resultados visiveis` para acoes em lote: categoria e marca
+  apenas alertam quando a busca esta ativa, enquanto formatacao, descricoes e
+  margem continuam globais; requer contrato de API por chaves antes de expor a UI.
 
 ## Claims ativos
 
@@ -16,6 +19,26 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 | - | - | - | - | nenhum claim ativo |
 
 ## Rodadas concluidas
+
+### 2026-07-09-07 - Confirmacao segura ao limpar catalogo
+
+- Area: UX e polimento de fluxo.
+- Entrega: `Limpar lista` agora abre um dialogo destrutivo antes de remover
+  produtos, informa a quantidade total afetada, alerta sobre itens ocultos pela
+  busca e explica que o historico permite desfazer a acao.
+- Arquivos: `frontend-ts/src/App.tsx`, `frontend-ts/src/uiFormatting.ts`,
+  `frontend-ts/test/uiFormatting.test.mjs`, `frontend-ts/dist/**`.
+- Antes: um clique em `Limpar lista` chamava imediatamente `DELETE /products` e
+  removia todo o catalogo ativo, inclusive produtos fora da busca atual.
+- Depois: cancelar e a opcao inicialmente focada; a exclusao so continua apos
+  confirmacao explicita com contagem contextual e aviso de recuperacao.
+- Evidencia literal da suite frontend: `tests 107`, `pass 107`, `fail 0`.
+- Evidencia literal do build final: `54 modules transformed.` e
+  `built in 166ms`.
+- Evidencia literal do bundle: `Limpar toda a lista?`, `A busca atual oculta` e
+  `Esta acao pode ser desfeita` encontrados no asset gerado.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Commit: este commit.
 
 ### 2026-07-09-06 - Renderizacao progressiva do catalogo
 

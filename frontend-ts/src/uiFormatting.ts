@@ -98,6 +98,13 @@ export type UndoRedoHistoryState = {
   redoLabel: string;
 };
 
+export type ClearProductsConfirmation = {
+  title: string;
+  message: string;
+  detail: string;
+  confirmLabel: string;
+};
+
 export type ExecutionReadinessInput = {
   productCount?: number | null;
   pendingGradeImportCount?: number | null;
@@ -128,6 +135,26 @@ function safeCount(value: unknown) {
 
 export function actionText(count: number, singular: string, plural: string) {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+export function buildClearProductsConfirmation(
+  totalCount: unknown,
+  displayedCount: unknown,
+): ClearProductsConfirmation {
+  const total = safeCount(totalCount);
+  const displayed = Math.min(total, safeCount(displayedCount));
+  const hidden = Math.max(0, total - displayed);
+  const productLabel = actionText(total, "produto", "produtos");
+  const hiddenWarning = hidden
+    ? ` A busca atual oculta ${actionText(hidden, "produto", "produtos")}, que também ${hidden === 1 ? "será removido" : "serão removidos"}.`
+    : "";
+
+  return {
+    title: "Limpar toda a lista?",
+    message: `${productLabel} ${total === 1 ? "será removido" : "serão removidos"} do catálogo ativo.`,
+    detail: `${hiddenWarning.trimStart()} Esta ação pode ser desfeita pelo histórico da lista.`.trim(),
+    confirmLabel: total === 1 ? "Remover produto" : `Remover ${total} produtos`,
+  };
 }
 
 export function formatAutomationStateLabel(state: unknown) {

@@ -115,6 +115,7 @@ import {
   buildImportDiagnosticsChips,
   buildImportGradesAvailableMessage,
   buildImportProgressMessage,
+  buildClearProductsConfirmation,
   buildProductOperationDiaryEntry,
   buildUndoRedoHistoryState,
   coerceStringList,
@@ -1431,6 +1432,10 @@ export default function App({ authSession = null }: AppProps) {
 
   const handleClearProducts = async () => {
     if (!state.products.length) return;
+    const confirmed = await confirmWithDialog(
+      buildClearProductsConfirmation(state.products.length, displayedProducts.length),
+    );
+    if (!confirmed) return;
     await pushUndoSnapshot();
     const result = await clearProducts();
     rememberProductOperation({

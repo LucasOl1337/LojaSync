@@ -317,6 +317,29 @@ test("builds undo and redo history status from stack sizes", () => {
   });
 });
 
+test("builds a safe clear-list confirmation for the full and filtered catalog", () => {
+  assert.deepEqual(ui.buildClearProductsConfirmation(12, 12), {
+    title: "Limpar toda a lista?",
+    message: "12 produtos serão removidos do catálogo ativo.",
+    detail: "Esta ação pode ser desfeita pelo histórico da lista.",
+    confirmLabel: "Remover 12 produtos",
+  });
+
+  assert.deepEqual(ui.buildClearProductsConfirmation(12, 4), {
+    title: "Limpar toda a lista?",
+    message: "12 produtos serão removidos do catálogo ativo.",
+    detail: "A busca atual oculta 8 produtos, que também serão removidos. Esta ação pode ser desfeita pelo histórico da lista.",
+    confirmLabel: "Remover 12 produtos",
+  });
+
+  assert.deepEqual(ui.buildClearProductsConfirmation(1, 0), {
+    title: "Limpar toda a lista?",
+    message: "1 produto será removido do catálogo ativo.",
+    detail: "A busca atual oculta 1 produto, que também será removido. Esta ação pode ser desfeita pelo histórico da lista.",
+    confirmLabel: "Remover produto",
+  });
+});
+
 test("builds and limits recent import history entries", () => {
   const entry = ui.buildImportHistoryEntry(
     {

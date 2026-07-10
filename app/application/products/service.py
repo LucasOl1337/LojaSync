@@ -22,7 +22,11 @@ from app.domain.products.grade_utils import (
 from app.domain.products.money import parse_price_decimal
 from app.domain.products.repository import ProductRepository
 from app.infrastructure.persistence.files.settings_files import MarginSettingsStore, MetricsStore
-from app.infrastructure.persistence.files.undo_history import InMemoryUndoRedoHistoryStore, UndoRedoHistoryState
+from app.infrastructure.persistence.files.undo_history import (
+    InMemoryUndoRedoHistoryStore,
+    UndoRedoHistoryState,
+    UndoRedoSnapshot,
+)
 from app.shared.logging.setup import log_event
 
 logger = logging.getLogger(__name__)
@@ -148,21 +152,35 @@ class ProductService:
         return self._undo_history_store.state()
 
     def record_undo_snapshot(self, *, clear_redo: bool = True) -> UndoRedoHistoryState:
-        return self._undo_history_store.record_undo_snapshot(self.list_products(), clear_redo=clear_redo)
+        return self._undo_history_store.record_undo_snapshot(
+            self.list_products(),
+            default_margin=self.get_default_margin(),
+            clear_redo=clear_redo,
+        )
 
     def undo_last_snapshot(self) -> tuple[bool, int, UndoRedoHistoryState]:
-        snapshot, state = self._undo_history_store.undo(self.list_products())
+        snapshot, state = self._undo_history_store.undo(
+            self.list_products(),
+            current_default_margin=self.get_default_margin(),
+        )
         if snapshot is None:
             return False, 0, state
-        total = self.restore_snapshot(snapshot)
-        return True, total, state
+        return True, self._restore_history_snapshot(snapshot), state
 
     def redo_last_snapshot(self) -> tuple[bool, int, UndoRedoHistoryState]:
-        snapshot, state = self._undo_history_store.redo(self.list_products())
+        snapshot, state = self._undo_history_store.redo(
+            self.list_products(),
+            current_default_margin=self.get_default_margin(),
+        )
         if snapshot is None:
             return False, 0, state
-        total = self.restore_snapshot(snapshot)
-        return True, total, state
+        return True, self._restore_history_snapshot(snapshot), state
+
+    def _restore_history_snapshot(self, snapshot: UndoRedoSnapshot) -> int:
+        total = self.restore_snapshot(snapshot.products)
+        if snapshot.default_margin is not None:
+            self.set_default_margin(snapshot.default_margin)
+        return total
 
     def delete_product(self, ordering_key: str) -> bool:
         items = self.list_products()

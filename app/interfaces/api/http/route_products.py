@@ -240,7 +240,7 @@ async def record_undo_snapshot(request: Request, payload: HistorySnapshotPayload
 async def undo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
     restored, total, state = get_product_service(request).undo_last_snapshot()
     if restored:
-        publish_state_changed(["products", "totals", "brands", "history"])
+        publish_state_changed(["products", "totals", "brands", "margin", "history"])
     return _history_apply_response(restored=restored, total=total, state=state)
 
 
@@ -248,7 +248,7 @@ async def undo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
 async def redo_last_snapshot(request: Request) -> UndoRedoApplyResponse:
     restored, total, state = get_product_service(request).redo_last_snapshot()
     if restored:
-        publish_state_changed(["products", "totals", "brands", "history"])
+        publish_state_changed(["products", "totals", "brands", "margin", "history"])
     return _history_apply_response(restored=restored, total=total, state=state)
 
 

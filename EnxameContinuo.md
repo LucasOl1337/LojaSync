@@ -8,15 +8,18 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 - [x] Corrigir a composicao de estoque ao usar `Criar conjunto`. Regra entregue:
   consumo total segue permitido; consumo parcial com `grades` ou `cores` acima
   do saldo e rejeitado antes de qualquer mutacao (`service.py:601-626`).
-- [ ] Fazer o historico de `Aplicar margem` restaurar tambem a margem padrao:
-  `App.tsx:1587-1589` salva o snapshot antes da margem, mas
-  `service.py:150-159` registra/restaura apenas produtos, enquanto
-  `service.py:303-306` persiste a margem em store separado.
+- [x] Fazer o historico de `Aplicar margem` restaurar tambem a margem padrao.
+  Entrega: snapshots v2 guardam produtos e margem como um unico estado;
+  `service.py:154-184` captura e restaura ambos, com leitura compativel de
+  snapshots v1 sem margem conhecida.
 - [ ] Exibir o conteudo dos avisos de importacao: o backend retorna mensagens
   acionaveis em `warnings`, mas o diagnostico React mostra apenas a contagem.
 - [ ] Evitar snapshot sem efeito quando `Criar conjunto` e rejeitado:
   `App.tsx:2192` registra undo antes de `createSet` em `App.tsx:2193`, portanto
   um `409` seguro ainda acrescenta uma entrada que nao altera o catalogo.
+- [ ] Evitar snapshot sem efeito ao importar grades sem lotes pendentes:
+  `App.tsx:1543` registra undo antes de `joinGrades` em `App.tsx:1544`, mas o
+  retorno sem `lotes_processados` em `App.tsx:1546` nao altera o catalogo.
 - [ ] Isolar o CodeGraph da worktree: a chamada ancorada desta rodada retornou
   `Failed to get status: unable to open database file`; o indice local continua
   indisponivel para consultas estruturais nesta worktree.
@@ -28,9 +31,38 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 | Sessao | Area | Entrega | Arquivos reivindicados | Status |
 |---|---|---|---|---|
-| 2026-07-10-02 | Correcao de bugs reais | Impedir conjunto com saldo menor que a composicao de grades/cores | `app/application/products/service.py`, `app/interfaces/api/http/route_products.py`, `tests/test_product_routes_sqlite.py`, `EnxameContinuo.md` | PENDENTE-COMMIT; validado; staging vazio para o coletor |
+| 2026-07-10-03 | Correcao de bugs reais | Fazer Desfazer/Refazer restaurar produtos e margem padrao como um unico estado | `app/infrastructure/persistence/files/undo_history.py`, `app/application/products/service.py`, `app/interfaces/api/http/route_products.py`, `tests/test_product_routes_sqlite.py`, `EnxameContinuo.md` | PENDENTE-COMMIT; validado; staging vazio para o coletor |
 
 ## Rodadas concluidas
+
+### 2026-07-10-03 - Margem padrao incluida no historico
+
+- Area: Correcao de bugs reais.
+- Entrega: Desfazer e Refazer agora restauram o catalogo e a margem padrao como
+  um unico estado coerente, inclusive quando o app reinicia entre a aplicacao da
+  margem e o Undo.
+- Arquivos: `app/infrastructure/persistence/files/undo_history.py`,
+  `app/application/products/service.py`,
+  `app/interfaces/api/http/route_products.py`,
+  `tests/test_product_routes_sqlite.py`.
+- Compatibilidade: o arquivo persistente passou ao schema v2 com
+  `default_margin`; snapshots v1 continuam legiveis e, por nao conhecerem a
+  margem historica, preservam com seguranca a configuracao atual.
+- Antes: aplicar 65% elevava o preco de `10,90` para `16,90`; o Undo recuperava
+  `10,90`, mas mantinha a margem padrao em 65%, deixando operacoes futuras
+  incoerentes com o catalogo restaurado.
+- Depois: Undo recupera preco e margem anteriores; Refazer recupera ambos os
+  valores novos, e eventos de estado incluem `margin` para outros consumidores.
+- Evidencia literal anterior: `REPRO_MARGIN_UNDO before_margin=0.0 before_price=10,90 applied_margin=65 applied_price=16,90 undo_price=10,90 undo_margin=64.99999999999999 coherent=False`.
+- Evidencia literal posterior: `POST_FIX_MARGIN_HISTORY before_price=10,90 before_margin=0.0 applied_price=16,90 applied_margin=65 undo_price=10,90 undo_margin=0.0 redo_price=16,90 redo_margin=64.99999999999999 undo_coherent=True redo_coherent=True`.
+- Evidencia literal do contrato focal: `3 passed, 13 deselected in 3.19s`.
+- Evidencia literal da suite backend: `144 passed, 5 deselected, 5 subtests passed in 12.70s`.
+- Evidencia literal do diff: `DIFF_CHECK passed`.
+- Evidencia literal do CodeGraph: `Failed to get status: unable to open database file`;
+  leitura textual focal usada conforme fallback documentado.
+- Commit: nao houve; conforme limitacao auditada deste host, a claim permanece
+  `PENDENTE-COMMIT` com staging vazio para o coletor aplicar os cinco arquivos
+  exatos, validar e commitar com a autoria do enxame.
 
 ### 2026-07-10-02 - Estoque de conjuntos protegido
 

@@ -464,6 +464,112 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(len(listed), 1)
                 self.assertEqual(listed[0]["codigo"], "COD-1")
 
+    def test_undo_redo_restore_default_margin_across_app_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            first_container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=first_container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = client.post(
+                    "/products",
+                    json={
+                        "nome": "Produto com margem reversivel",
+                        "codigo": "MARGEM-1",
+                        "quantidade": 1,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                ).json()["item"]
+                original_price = created["preco_final"]
+                original_percent = client.get("/settings/margin").json()["percentual"]
+
+                snapshot_response = client.post("/actions/history/snapshot")
+                self.assertEqual(snapshot_response.status_code, 200)
+                self.assertEqual(snapshot_response.json()["undo_count"], 1)
+
+                margin_response = client.post("/settings/margin", json={"percentual": 65})
+                self.assertEqual(margin_response.status_code, 200)
+                apply_response = client.post(
+                    "/actions/apply-margin",
+                    json={"percentual": 65, "keys": [created["ordering_key"]]},
+                )
+                self.assertEqual(apply_response.status_code, 200)
+                applied_price = client.get("/products").json()["items"][0]["preco_final"]
+                self.assertNotEqual(applied_price, original_price)
+                self.assertAlmostEqual(client.get("/settings/margin").json()["percentual"], 65)
+
+            persisted_history = json.loads((root / "data" / "undo_redo_history.json").read_text(encoding="utf-8"))
+            self.assertEqual(persisted_history["version"], 2)
+            self.assertEqual(persisted_history["undo"][-1]["default_margin"], 1.0)
+
+            restarted_container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=restarted_container):
+                client = TestClient(create_app())
+                self._login(client)
+
+                undo_response = client.post("/actions/history/undo")
+                self.assertEqual(undo_response.status_code, 200)
+                self.assertTrue(undo_response.json()["restored"])
+                self.assertEqual(client.get("/products").json()["items"][0]["preco_final"], original_price)
+                self.assertAlmostEqual(client.get("/settings/margin").json()["percentual"], original_percent)
+
+                redo_response = client.post("/actions/history/redo")
+                self.assertEqual(redo_response.status_code, 200)
+                self.assertTrue(redo_response.json()["restored"])
+                self.assertEqual(client.get("/products").json()["items"][0]["preco_final"], applied_price)
+                self.assertAlmostEqual(client.get("/settings/margin").json()["percentual"], 65)
+
+    def test_undo_history_version_one_keeps_current_margin_when_margin_is_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            first_container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=first_container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = client.post(
+                    "/products",
+                    json={
+                        "nome": "Produto de historico legado",
+                        "codigo": "LEGADO-1",
+                        "quantidade": 1,
+                        "preco": "10,00",
+                        "categoria": "",
+                        "marca": "",
+                    },
+                ).json()["item"]
+                legacy_snapshot = first_container.product_service.list_products()[0].to_dict()
+                patch_response = client.patch(
+                    f"/products/{created['ordering_key']}",
+                    json={"codigo": "LEGADO-ALTERADO"},
+                )
+                self.assertEqual(patch_response.status_code, 200)
+                margin_response = client.post("/settings/margin", json={"percentual": 40})
+                self.assertEqual(margin_response.status_code, 200)
+
+            legacy_history = {
+                "version": 1,
+                "limit": MAX_UNDO_HISTORY,
+                "undo": [[legacy_snapshot]],
+                "redo": [],
+            }
+            history_file = root / "data" / "undo_redo_history.json"
+            history_file.write_text(json.dumps(legacy_history, ensure_ascii=False), encoding="utf-8")
+
+            restarted_container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=restarted_container):
+                client = TestClient(create_app())
+                self._login(client)
+
+                undo_response = client.post("/actions/history/undo")
+                self.assertEqual(undo_response.status_code, 200)
+                self.assertTrue(undo_response.json()["restored"])
+                self.assertEqual(client.get("/products").json()["items"][0]["codigo"], "LEGADO-1")
+                self.assertAlmostEqual(client.get("/settings/margin").json()["percentual"], 40)
+
     def test_improve_descriptions_rejects_remove_letters_only_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

@@ -485,8 +485,13 @@ button {
   margin-bottom: 6px;
 }
 
-.importDiagnosticsTs {
+.importDiagnosticsGroupTs {
+  display: grid;
+  gap: 6px;
   margin-top: 6px;
+}
+
+.importDiagnosticsTs {
   border-radius: 8px;
   border: 1px solid rgba(96, 165, 250, 0.14);
   background: rgba(8, 14, 26, 0.58);
@@ -571,6 +576,49 @@ button {
   color: var(--text);
   font-size: 0.68rem;
   text-align: right;
+}
+
+.importWarningsTs {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 8px;
+  background: rgba(120, 53, 15, 0.16);
+  color: rgba(254, 243, 199, 0.92);
+}
+
+.importWarningsHeaderTs {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.importWarningsHeaderTs strong {
+  color: #fde68a;
+  font-size: 0.72rem;
+}
+
+.importWarningsHeaderTs span {
+  flex: 0 0 auto;
+  color: rgba(253, 230, 138, 0.72);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.importWarningsTs ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.importWarningsTs li {
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .importValidationBadge {

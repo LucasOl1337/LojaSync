@@ -12,7 +12,7 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
   Entrega: snapshots v2 guardam produtos e margem como um unico estado;
   `service.py:154-184` captura e restaura ambos, com leitura compativel de
   snapshots v1 sem margem conhecida.
-- [ ] Exibir o conteudo dos avisos de importacao: o backend retorna mensagens
+- [x] Exibir o conteudo dos avisos de importacao: o backend retorna mensagens
   acionaveis em `warnings`, mas o diagnostico React mostra apenas a contagem.
 - [ ] Evitar snapshot sem efeito quando `Criar conjunto` e rejeitado:
   `App.tsx:2192` registra undo antes de `createSet` em `App.tsx:2193`, portanto
@@ -32,8 +32,35 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 | Sessao | Area | Entrega | Arquivos reivindicados | Status |
 |---|---|---|---|---|
 | 2026-07-10-03 | Correcao de bugs reais | Fazer Desfazer/Refazer restaurar produtos e margem padrao como um unico estado | `app/infrastructure/persistence/files/undo_history.py`, `app/application/products/service.py`, `app/interfaces/api/http/route_products.py`, `tests/test_product_routes_sqlite.py`, `EnxameContinuo.md` | PENDENTE-COMMIT; validado; staging vazio para o coletor |
+| 2026-07-10-04 | Estados de erro e aviso | Exibir mensagens acionaveis dos avisos de importacao | `frontend-ts/src/importDiagnostics.tsx`, `frontend-ts/src/importWarnings.ts`, `frontend-ts/src/styles.css`, `frontend-ts/test/importDiagnostics.test.mjs`, `frontend-ts/package.json`, `frontend-ts/dist/**`, `EnxameContinuo.md` | CONCLUIDO; validado; commit local |
 
 ## Rodadas concluidas
+
+### 2026-07-10-04 - Avisos de importacao acionaveis
+
+- Area: Estados vazios, loading, erro e sucesso.
+- Entrega: cada mensagem retornada em `warnings` agora aparece imediatamente
+  abaixo do diagnostico, em um bloco de revisao com contagem, lista legivel e
+  anuncio assistivo `aria-live="polite"`.
+- Arquivos: `frontend-ts/src/importDiagnostics.tsx`,
+  `frontend-ts/src/importWarnings.ts`, `frontend-ts/src/styles.css`,
+  `frontend-ts/test/importDiagnostics.test.mjs`, `frontend-ts/package.json` e
+  `frontend-ts/dist/**`.
+- Antes: o componente recebia as mensagens completas, mas mostrava somente
+  `Avisos` e a quantidade dentro de um painel recolhido; o operador nao sabia o
+  que revisar antes de cadastrar os produtos no Byte Empresa.
+- Depois: mensagens vazias e repetidas sao removidas, todo aviso util fica
+  visivel sem abrir detalhes e texto vindo do backend continua escapado pelo
+  React.
+- Evidencia literal da suite frontend: `tests 111`, `pass 111`, `fail 0`.
+- Evidencia literal do build final: `55 modules transformed.` e
+  `built in 170ms`.
+- Evidencia literal do bundle: `DIST_APP=App-C_nlxS50.js WARNING_TITLE=True WARNING_LIVE=True`.
+- Evidencia literal do diff: `DIFF_CHECK passed`.
+- Evidencia literal do CodeGraph: a indexacao ancorada ainda subiu para
+  `C:\Projetos`, encontrou `10.843` arquivos e foi encerrada fora do escopo;
+  o item de isolamento permanece aberto.
+- Commit: este commit.
 
 ### 2026-07-10-03 - Margem padrao incluida no historico
 

@@ -8,8 +8,9 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 - [ ] Isolar o CodeGraph da worktree: `codegraph status .` resolve o projeto como
   `C:\Projetos` e mistura milhares de arquivos externos; `codegraph index . --force`
   foi tentado nesta rodada, mas tambem herdou o indice ancestral.
-- [ ] Avaliar escopo visivel para `Juntar repetidos`: a acao permanece global e
-  precisa de regra explicita para nao separar duplicatas ocultas de forma enganosa.
+- [ ] Auditar a identidade usada por `Juntar repetidos`: hoje nome, codigo, preco,
+  categoria e marca iguais podem reunir itens com grades, cores ou descricoes
+  diferentes; confirmar a regra de negocio e impedir perda de detalhes distintos.
 
 ## Claims ativos
 
@@ -18,6 +19,28 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 | - | - | - | - | nenhum claim ativo |
 
 ## Rodadas concluidas
+
+### 2026-07-09-09 - Juntar repetidos limitado ao resultado atual
+
+- Area: Reducao de friccao.
+- Entrega: `Juntar repetidos` agora envia as chaves do resultado atual, deduplica
+  somente esse recorte e preserva produtos ocultos mesmo quando seus campos de
+  identificacao sao iguais aos itens visiveis.
+- Arquivos: `app/application/products/service.py`,
+  `app/interfaces/api/http/route_models.py`,
+  `app/interfaces/api/http/route_products.py`, `frontend-ts/src/App.tsx`,
+  `frontend-ts/src/api.ts`, `frontend-ts/src/productListControls.tsx`,
+  `tests/test_product_routes_sqlite.py`, `frontend-ts/dist/**`.
+- Antes: a acao ignorava busca e filtro rapido, reunia todo o catalogo e o evento
+  de atualizacao verificava a chave inexistente `removed`.
+- Depois: escopo vazio nao altera dados; escopo parcial preserva itens ocultos,
+  tooltip e dialogo explicam a abrangencia, e remocoes publicam o evento correto.
+- Evidencia literal do contrato focal: `2 passed, 8 deselected in 11.35s`.
+- Evidencia literal da suite backend: `138 passed, 5 deselected, 5 subtests passed in 31.91s`.
+- Evidencia literal da suite frontend: `tests 107`, `pass 107`, `fail 0`.
+- Evidencia literal do build: `54 modules transformed.` e `built in 665ms`.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Commit: este commit.
 
 ### 2026-07-09-08 - Acoes em lote limitadas ao resultado visivel
 

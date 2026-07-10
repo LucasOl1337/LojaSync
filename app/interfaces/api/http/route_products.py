@@ -15,6 +15,7 @@ from app.interfaces.api.http.route_models import (
     HistorySnapshotPayload,
     ImproveDescriptionPayload,
     ImproveDescriptionResponse,
+    JoinDuplicatesPayload,
     JoinGradesPayload,
     JoinGradesResponse,
     MarginPayload,
@@ -188,9 +189,12 @@ async def apply_brand(payload: BulkActionPayload, request: Request) -> dict[str,
 
 
 @router.post("/actions/join-duplicates")
-async def join_duplicates(request: Request) -> dict[str, int]:
-    result = get_product_service(request).join_duplicates()
-    if result.get("removed"):
+async def join_duplicates(
+    request: Request,
+    payload: JoinDuplicatesPayload | None = None,
+) -> dict[str, int]:
+    result = get_product_service(request).join_duplicates(payload.keys if payload else None)
+    if result.get("removidos"):
         publish_state_changed(["products", "totals"])
     return result
 

@@ -230,7 +230,15 @@ function ListPrimaryActions({
             <button className={`toolButtonTs createSetToolButton ${createSetMode ? "activeCreateSetToolButton" : ""}`} type="button" onClick={onToggleCreateSets} aria-pressed={createSetMode}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="2" y="3" width="9" height="9"/><rect x="13" y="3" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><path d="M17.5 17.5 22 22M13 17.5h9M17.5 13v9"/></svg>{createSetMode ? "Cancelar conjuntos" : "Criar conjuntos"}
             </button>
-            <button className="toolButtonTs joinDuplicatesToolButton" type="button" onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M8 17l4 4 4-4"/><path d="M12 12v9"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Juntar repetidos</button>
+            <button
+              className="toolButtonTs joinDuplicatesToolButton"
+              type="button"
+              onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}
+              disabled={loading || displayedCount === 0}
+              title={displayedCount === totalCount
+                ? "Juntar repetidos em todo o catalogo"
+                : `Juntar repetidos apenas nos ${displayedCount} produtos visiveis; itens ocultos serao preservados`}
+            ><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M8 17l4 4 4-4"/><path d="M12 12v9"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Juntar repetidos</button>
           </div>
         </div>
 

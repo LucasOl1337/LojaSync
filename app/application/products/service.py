@@ -392,12 +392,21 @@ class ProductService:
         )
         return len(targets)
 
-    def join_duplicates(self) -> dict[str, int]:
+    def join_duplicates(self, ordering_keys: list[str] | None = None) -> dict[str, int]:
         items = self.list_products()
         if not items:
             return {"originais": 0, "resultantes": 0, "removidos": 0}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"originais": 0, "resultantes": 0, "removidos": 0}
+
+        target_keys = {item.ordering_key() for item in targets}
         grouped: dict[tuple[str, ...], Product] = {}
+        result: list[Product] = []
         for item in items:
+            if item.ordering_key() not in target_keys:
+                result.append(item)
+                continue
             key = (
                 (item.nome or "").strip().lower(),
                 (item.codigo or "").strip().lower(),
@@ -407,25 +416,27 @@ class ProductService:
             )
             existing = grouped.get(key)
             if existing is None:
-                grouped[key] = Product.from_dict(item.to_dict())
+                copy = Product.from_dict(item.to_dict())
+                grouped[key] = copy
+                result.append(copy)
                 continue
             existing.quantidade += item.quantidade
-        result = list(grouped.values())
-        self._products.replace_active(result)
-        removed = len(items) - len(result)
+        removed = len(targets) - len(grouped)
         if removed:
+            self._products.replace_active(result)
             log_event(
                 logger,
                 logging.INFO,
                 "products_duplicates_joined",
                 "products duplicates joined",
-                originals=len(items),
-                result_count=len(result),
+                originals=len(targets),
+                result_count=len(grouped),
                 removed=removed,
+                catalog_total=len(items),
             )
         return {
-            "originais": len(items),
-            "resultantes": len(result),
+            "originais": len(targets),
+            "resultantes": len(grouped),
             "removidos": removed,
         }
 

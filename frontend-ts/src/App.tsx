@@ -1477,13 +1477,24 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleJoinDuplicates = async () => {
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({
+        title: "Sem produtos visiveis",
+        message: "Ajuste ou limpe os filtros antes de juntar itens repetidos.",
+        tone: "warning",
+      });
+      return;
+    }
     await pushUndoSnapshot();
-    const result = await joinDuplicates();
+    const result = await joinDuplicates(visibleBulkActionKeys);
     queueRefresh(["products", "totals"]);
+    const scopeMessage = visibleBulkActionKeys === undefined
+      ? `Escopo: catalogo completo (${result.originais} produtos).`
+      : `Escopo: ${result.originais} de ${state.products.length} produtos visiveis. Itens fora do resultado atual foram preservados e podem continuar repetidos.`;
     showNoticeDialog({
-      title: "Itens repetidos reunidos",
-      message: `Originais: ${result.originais}\nResultantes: ${result.resultantes}\nRemovidos: ${result.removidos}`,
-      tone: "success",
+      title: result.removidos ? "Itens repetidos reunidos" : "Nenhum repetido no resultado",
+      message: `${scopeMessage}\nOriginais: ${result.originais}\nResultantes: ${result.resultantes}\nRemovidos: ${result.removidos}`,
+      tone: result.removidos ? "success" : "info",
     });
   };
 

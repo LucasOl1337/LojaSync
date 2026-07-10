@@ -261,6 +261,46 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(restored_items[first_key]["codigo"], "00123")
                 self.assertEqual(restored_items[second["ordering_key"]]["codigo"], "00999")
 
+    def test_join_duplicates_only_merges_products_in_explicit_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = []
+                for quantity in (1, 2, 4):
+                    created.append(
+                        client.post(
+                            "/products",
+                            json={
+                                "nome": "Camisa Basica",
+                                "codigo": "CAM-1",
+                                "quantidade": quantity,
+                                "preco": "10,00",
+                                "categoria": "Camisetas",
+                                "marca": "Marca A",
+                            },
+                        ).json()["item"]
+                    )
+
+                empty_scope = client.post("/actions/join-duplicates", json={"keys": []})
+                self.assertEqual(empty_scope.json(), {"originais": 0, "resultantes": 0, "removidos": 0})
+                self.assertEqual(len(client.get("/products").json()["items"]), 3)
+
+                response = client.post(
+                    "/actions/join-duplicates",
+                    json={"keys": [created[0]["ordering_key"], created[1]["ordering_key"]]},
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"originais": 2, "resultantes": 1, "removidos": 1})
+
+                listed = {item["ordering_key"]: item for item in client.get("/products").json()["items"]}
+                self.assertEqual(len(listed), 2)
+                self.assertEqual(listed[created[0]["ordering_key"]]["quantidade"], 3)
+                self.assertEqual(listed[created[2]["ordering_key"]]["quantidade"], 4)
+
     def test_restore_snapshot_preserves_ordering_keys(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

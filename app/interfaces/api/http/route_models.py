@@ -90,6 +90,10 @@ class RestoreCodesPayload(BaseModel):
     keys: list[str] | None = None
 
 
+class JoinDuplicatesPayload(BaseModel):
+    keys: list[str] | None = None
+
+
 class JoinGradesResponse(BaseModel):
     originais: int
     resultantes: int

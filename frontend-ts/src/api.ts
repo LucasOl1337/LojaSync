@@ -324,9 +324,10 @@ export function applyBrand(valor: string, keys?: string[]) {
   });
 }
 
-export function joinDuplicates() {
+export function joinDuplicates(keys?: string[]) {
   return requestJson<{ originais: number; resultantes: number; removidos: number }>("/actions/join-duplicates", {
     method: "POST",
+    body: JSON.stringify({ keys }),
   });
 }
 

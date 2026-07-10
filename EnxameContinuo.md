@@ -17,6 +17,29 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 ## Rodadas concluidas
 
+### 2026-07-09-06 - Renderizacao progressiva do catalogo
+
+- Area sorteada: Performance perceptivel.
+- Entrega: a tabela monta inicialmente 100 linhas e oferece expansao em blocos
+  de 100, mantendo busca, filtros e acoes em lote sobre o resultado completo.
+  Durante a automacao, a janela acompanha a linha ativa sem montar o catalogo
+  inteiro e preserva o indice real do produto.
+- Arquivos: `frontend-ts/src/productTableWindow.ts`,
+  `frontend-ts/src/productTable.tsx`, `frontend-ts/src/styles.css`,
+  `frontend-ts/test/productTableWindow.test.mjs`, `frontend-ts/package.json`,
+  `frontend-ts/dist/**`.
+- Antes: um catalogo de 20.000 produtos criava 20.000 linhas React na primeira
+  renderizacao da tabela.
+- Depois: o mesmo catalogo cria 100 linhas na primeira renderizacao, reducao de
+  99,50%; o benchmark do preparo das linhas caiu de mediana `0.6357ms` para
+  `0.0062ms` em 200 execucoes.
+- Evidencia literal do benchmark: `TABLE_RENDER_BENCHMARK products=20000 runs=200 before_rows=20000 after_rows=100 mounted_reduction_pct=99.50 before_median_ms=0.6357 after_median_ms=0.0062 before_p95_ms=1.6789 after_p95_ms=0.0106`.
+- Evidencia literal da suite frontend: `tests 106`, `pass 106`, `fail 0`.
+- Evidencia literal do build final: `54 modules transformed.` e
+  `built in 172ms`.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Commit: este commit.
+
 ### 2026-07-09-05 - Pulso diario de produtividade
 
 - Area sorteada: Analytics de produto e eventos de uso.

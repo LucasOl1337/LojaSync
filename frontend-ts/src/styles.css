@@ -3549,6 +3549,53 @@ button {
   padding: 0 6px 6px;
 }
 
+.tableWindowFooterTs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 7px 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.tableWindowProgressTs {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tableWindowProgressTs strong {
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.tableWindowProgressTs span,
+.tableWindowCompleteTs {
+  color: var(--text-3);
+  font-size: 0.7rem;
+}
+
+.tableWindowMoreButtonTs {
+  min-height: 30px;
+  padding: 5px 11px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 9px;
+  color: #cffafe;
+  background: rgba(8, 145, 178, 0.14);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tableWindowMoreButtonTs:hover,
+.tableWindowMoreButtonTs:focus-visible {
+  border-color: rgba(34, 211, 238, 0.68);
+  background: rgba(8, 145, 178, 0.28);
+}
+
 .tableScrollStateTs .productsTableTs {
   height: 100%;
 }
@@ -5956,6 +6003,11 @@ button:disabled {
 
   .tableScrollTs {
     padding: 0 5px 5px;
+  }
+
+  .tableWindowFooterTs {
+    min-height: 40px;
+    padding: 5px 8px;
   }
 
   .productsTableTs th,

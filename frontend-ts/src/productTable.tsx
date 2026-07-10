@@ -1,9 +1,11 @@
+import { useState } from "react";
 import type { FocusEvent, KeyboardEvent, RefObject } from "react";
 
 import { CATEGORIES } from "./appConfig";
 import type { EditingCellState } from "./appConfig";
 import type { EditableField } from "./productEditing";
 import { ProductTableRow } from "./productTableRow";
+import { buildProductTableWindow, PRODUCT_TABLE_WINDOW_SIZE } from "./productTableWindow";
 import type { ProductQuickFilterEmptyState } from "./productFilters";
 import type { Product } from "./types";
 import { actionText } from "./uiFormatting";
@@ -192,6 +194,11 @@ export function ProductTable({
   onDeleteProduct,
   onProductSearchChange,
 }: ProductTableProps) {
+  const [requestedVisibleCount, setRequestedVisibleCount] = useState(PRODUCT_TABLE_WINDOW_SIZE);
+  const automationCurrentIndex = automationIsRunning && automationCurrentOrderingKey
+    ? products.findIndex((product) => product.ordering_key === automationCurrentOrderingKey)
+    : -1;
+  const productWindow = buildProductTableWindow(products, requestedVisibleCount, PRODUCT_TABLE_WINDOW_SIZE, automationCurrentIndex);
   const visibleItemsLabel = loading ? "Atualizando lista" : actionText(products.length, "item visível", "itens visíveis");
   const totalItemsLabel = actionText(totalProductCount, "item", "itens");
   const bulkActionsBlockedByMode = !loading && products.length > 0 && (orderingMode || createSetMode);
@@ -416,14 +423,14 @@ export function ProductTable({
                 </td>
               </tr>
             ) : products.length ? (
-              products.map((product, index) => {
+              productWindow.visibleItems.map((product, index) => {
                 const selectionPosition = orderingSelectionIndex.get(product.ordering_key);
                 const isAutomationCurrentRow = automationIsRunning && automationCurrentOrderingKey === product.ordering_key;
                 return (
                   <ProductTableRow
                     key={product.ordering_key}
                     product={product}
-                    index={index}
+                    index={productWindow.startIndex + index}
                     selectionPosition={selectionPosition}
                     orderingMode={orderingMode}
                     isAutomationCurrentRow={isAutomationCurrentRow}
@@ -463,6 +470,28 @@ export function ProductTable({
           </tbody>
         </table>
       </div>
+
+      {!loading && products.length > PRODUCT_TABLE_WINDOW_SIZE ? (
+        <div className="tableWindowFooterTs">
+          <div className="tableWindowProgressTs" role="status" aria-live="polite">
+            <strong>{actionText(productWindow.visibleCount, "linha carregada", "linhas carregadas")}</strong>
+            <span>de {actionText(products.length, "produto no resultado", "produtos no resultado")}</span>
+          </div>
+          {productWindow.hasMore ? (
+            <button
+              className="tableWindowMoreButtonTs"
+              type="button"
+              onClick={() => setRequestedVisibleCount((currentCount) => (
+                Math.min(products.length, currentCount + PRODUCT_TABLE_WINDOW_SIZE)
+              ))}
+            >
+              Mostrar mais {Math.min(PRODUCT_TABLE_WINDOW_SIZE, productWindow.hiddenCount)}
+            </button>
+          ) : (
+            <span className="tableWindowCompleteTs">Resultado completo carregado</span>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

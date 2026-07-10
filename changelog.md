@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-07-10] - LojaSync v1.2.6
+
+**Project:** LojaSync  |  **Branch:** main  |  **State:** audited-release-patch
+
+### Summary
+- Portada a migracao visual de estados operacionais que ainda nao estava em v1.2.5.
+- Adicionada a flag `--llm-monitor-port` ao launcher com cobertura automatizada.
+- Classificadas branches/worktrees locais sem duplicar fixes equivalentes nem publicar prototipos bloqueados.
+- Sincronizados bundle, metadata, OpenAPI, notas e card da release v1.2.6.
+
+### Validation
+- Suite pytest completa aprovada.
+- Frontend: 112 testes de logica e build de producao aprovados.
+- Smoke visual desktop/mobile aprovado no navegador integrado.
+
 ## [2026-07-10] - LojaSync v1.2.5
 
 **Project:** LojaSync  |  **Branch:** main  |  **State:** swarm-integration-patch

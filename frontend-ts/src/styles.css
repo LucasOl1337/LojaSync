@@ -45,6 +45,15 @@
   --violet-border: rgba(167, 139, 250, 0.34);
   --danger: var(--red);
   --success: var(--green);
+  --status-success-rgb: 47, 210, 127;
+  --status-warning-rgb: 255, 179, 79;
+  --status-danger-rgb: 241, 72, 72;
+  --status-success-text: #caffdf;
+  --status-warning-text: #ffe6b6;
+  --status-danger-text: #ffd6d6;
+  --status-success-bg: rgba(10, 64, 38, 0.56);
+  --status-warning-bg: rgba(79, 48, 8, 0.56);
+  --status-danger-bg: rgba(74, 18, 24, 0.58);
 }
 
 * {
@@ -671,33 +680,55 @@ button {
 }
 
 .importInsightChipTs.chip-success {
-  border-color: rgba(47, 210, 127, 0.28);
+  border-color: rgba(var(--status-success-rgb), 0.28);
+  background:
+    linear-gradient(90deg, rgba(var(--status-success-rgb), 0.18), rgba(17, 28, 47, 0.84) 62%),
+    var(--status-success-bg);
+  color: var(--status-success-text);
+  box-shadow: inset 3px 0 0 rgba(var(--status-success-rgb), 0.62);
 }
 
 .importInsightChipTs.chip-warning {
-  border-color: rgba(255, 179, 79, 0.28);
+  border-color: rgba(var(--status-warning-rgb), 0.28);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.18), rgba(17, 28, 47, 0.84) 62%),
+    var(--status-warning-bg);
+  color: var(--status-warning-text);
+  box-shadow: inset 3px 0 0 rgba(var(--status-warning-rgb), 0.62);
 }
 
 .importInsightChipTs.chip-error {
-  border-color: rgba(241, 72, 72, 0.32);
+  border-color: rgba(var(--status-danger-rgb), 0.32);
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.18), rgba(17, 28, 47, 0.84) 62%),
+    var(--status-danger-bg);
+  color: var(--status-danger-text);
+  box-shadow: inset 3px 0 0 rgba(var(--status-danger-rgb), 0.66);
+}
+
+.importInsightChipTs.chip-success span,
+.importInsightChipTs.chip-warning span,
+.importInsightChipTs.chip-error span {
+  color: currentColor;
+  opacity: 0.76;
 }
 
 .importValidationBadge.validation-approved {
-  color: #caffdf;
-  border-color: rgba(47, 210, 127, 0.35);
+  color: var(--status-success-text);
+  border-color: rgba(var(--status-success-rgb), 0.35);
   background: rgba(12, 44, 28, 0.9);
 }
 
 .importValidationBadge.validation-unverified {
-  color: #ffe6b6;
-  border-color: rgba(255, 179, 79, 0.3);
+  color: var(--status-warning-text);
+  border-color: rgba(var(--status-warning-rgb), 0.3);
   background: rgba(54, 34, 7, 0.9);
 }
 
 .importValidationBadge.validation-rejected,
 .importValidationBadge.validation-error {
-  color: #ffd6d6;
-  border-color: rgba(241, 72, 72, 0.35);
+  color: var(--status-danger-text);
+  border-color: rgba(var(--status-danger-rgb), 0.35);
   background: rgba(54, 14, 18, 0.92);
 }
 
@@ -864,16 +895,16 @@ button {
 }
 
 .importLogEntryTs.log-success {
-  border-color: rgba(47, 210, 127, 0.24);
+  border-color: rgba(var(--status-success-rgb), 0.24);
 }
 
 .importLogEntryTs.log-warning,
 .importWarningEntryTs {
-  border-color: rgba(255, 179, 79, 0.24);
+  border-color: rgba(var(--status-warning-rgb), 0.24);
 }
 
 .importLogEntryTs.log-error {
-  border-color: rgba(241, 72, 72, 0.28);
+  border-color: rgba(var(--status-danger-rgb), 0.28);
 }
 
 .importLogSourceTs {
@@ -1776,15 +1807,15 @@ button {
 }
 
 .operationDiaryItemTs.diary-success {
-  border-color: rgba(47, 210, 127, 0.24);
+  border-color: rgba(var(--status-success-rgb), 0.24);
 }
 
 .operationDiaryItemTs.diary-warning {
-  border-color: rgba(255, 179, 79, 0.24);
+  border-color: rgba(var(--status-warning-rgb), 0.24);
 }
 
 .operationDiaryItemTs.diary-error {
-  border-color: rgba(241, 72, 72, 0.28);
+  border-color: rgba(var(--status-danger-rgb), 0.28);
 }
 
 .operationDiaryMainTs,
@@ -1866,7 +1897,7 @@ button {
   min-height: 24px;
   padding: 0 9px;
   border-radius: 999px;
-  border: 1px solid rgba(47, 210, 127, 0.18);
+  border: 1px solid rgba(var(--status-success-rgb), 0.18);
   background: rgba(20, 83, 45, 0.2);
   color: rgba(187, 247, 208, 0.94);
   font-family: "IBM Plex Mono", monospace;
@@ -2158,15 +2189,27 @@ button {
 }
 
 .executionReadinessTs.readiness-success {
-  border-color: rgba(47, 210, 127, 0.2);
+  border-color: rgba(var(--status-success-rgb), 0.2);
+  background:
+    linear-gradient(90deg, rgba(var(--status-success-rgb), 0.13), rgba(9, 16, 29, 0.68) 58%),
+    rgba(9, 16, 29, 0.62);
+  box-shadow: inset 3px 0 0 rgba(var(--status-success-rgb), 0.58);
 }
 
 .executionReadinessTs.readiness-warning {
-  border-color: rgba(255, 179, 79, 0.22);
+  border-color: rgba(var(--status-warning-rgb), 0.22);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.14), rgba(9, 16, 29, 0.68) 58%),
+    rgba(9, 16, 29, 0.62);
+  box-shadow: inset 3px 0 0 rgba(var(--status-warning-rgb), 0.58);
 }
 
 .executionReadinessTs.readiness-error {
-  border-color: rgba(241, 72, 72, 0.26);
+  border-color: rgba(var(--status-danger-rgb), 0.26);
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.14), rgba(9, 16, 29, 0.68) 58%),
+    rgba(9, 16, 29, 0.62);
+  box-shadow: inset 3px 0 0 rgba(var(--status-danger-rgb), 0.62);
 }
 
 .executionReadinessMainTs {
@@ -3905,6 +3948,20 @@ tbody tr:hover {
   color: #bfdbfe;
 }
 
+.productsTableTs tbody tr:has(.tableFieldStatusTs, .productReviewBadgeTs) {
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.06), transparent 24%),
+    rgba(var(--status-warning-rgb), 0.025);
+  box-shadow: inset 3px 0 0 rgba(var(--status-warning-rgb), 0.42);
+}
+
+.productsTableTs tbody tr:has(.productReviewBadgeTs.reviewBadge-error) {
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.065), transparent 24%),
+    rgba(var(--status-danger-rgb), 0.026);
+  box-shadow: inset 3px 0 0 rgba(var(--status-danger-rgb), 0.46);
+}
+
 .orderingModeActive tbody tr,
 .createSetModeActive tbody tr {
   cursor: pointer;
@@ -4084,15 +4141,19 @@ tbody tr:hover .rowDeleteButtonTs {
 }
 
 .productReviewBadgeTs.reviewBadge-warning {
-  color: rgba(203, 213, 225, 0.74);
-  border-color: rgba(148, 163, 184, 0.14);
-  background: rgba(15, 23, 42, 0.34);
+  color: var(--status-warning-text);
+  border-color: rgba(var(--status-warning-rgb), 0.24);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.14), rgba(15, 23, 42, 0.36) 64%),
+    var(--status-warning-bg);
 }
 
 .productReviewBadgeTs.reviewBadge-error {
-  color: #fecaca;
-  border-color: rgba(239, 68, 68, 0.32);
-  background: rgba(127, 29, 29, 0.36);
+  color: var(--status-danger-text);
+  border-color: rgba(var(--status-danger-rgb), 0.34);
+  background:
+    linear-gradient(90deg, rgba(var(--status-danger-rgb), 0.16), rgba(15, 23, 42, 0.36) 64%),
+    var(--status-danger-bg);
 }
 
 .tableFieldStatusTs {
@@ -4130,13 +4191,15 @@ tbody tr:hover .rowDeleteButtonTs {
 }
 
 .tableFieldStatusTs.fieldStatus-warning {
-  color: rgba(203, 213, 225, 0.7);
-  border-color: rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.28);
+  color: var(--status-warning-text);
+  border-color: rgba(var(--status-warning-rgb), 0.22);
+  background:
+    linear-gradient(90deg, rgba(var(--status-warning-rgb), 0.12), rgba(15, 23, 42, 0.32) 64%),
+    var(--status-warning-bg);
 }
 
 .tableFieldStatusTs.fieldStatus-warning .tableFieldStatusDotTs {
-  opacity: 0.55;
+  opacity: 0.8;
 }
 
 .cellEditInput {

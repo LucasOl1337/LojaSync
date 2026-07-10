@@ -1,60 +1,61 @@
-# LojaSync v1.2.5 - Patch Notes
+# LojaSync v1.2.6 - Patch Notes
 
 Data: 2026-07-10
 
-Patch de consolidacao pos-v1.2.4. Esta release integra as entregas funcionais do enxame, corrige conflitos encontrados durante a integracao e reforca a seguranca das operacoes de produto, historico e importacao.
+Patch de auditoria pos-v1.2.5 com duas entregas confirmadas que ainda nao estavam no release publicado: estados operacionais visualmente consistentes e porta configuravel para o monitor LLM.
 
 ## Destaques
 
-- Operacoes em lote agora respeitam escopo explicito de produtos selecionados.
-- Juncao de duplicados preserva detalhes de produto, grades, cores e metadados relevantes.
-- Criacao de conjuntos valida a composicao antes de mutar o estoque.
-- Undo/redo persiste snapshots e restaura corretamente margem e estado apos reinicio.
-- CLI/Agent-First rejeita entradas JSON invalidas, caminhos relativos e overrides de caminho inseguros.
-- Landing page, SEO, acessibilidade, responsividade, importacao e performance foram consolidados.
-- Versoes runtime, frontend, FastAPI, health check e OpenAPI sincronizadas em `1.2.5`.
+- Sucesso, aviso e erro agora usam tokens visuais consistentes em chips, validacao, diario, prontidao e tabela.
+- Produtos com pendencias de revisao recebem marcacao lateral e contraste sem alterar as acoes existentes.
+- O launcher aceita `--llm-monitor-port <porta>` e encaminha o valor ao runtime do monitor.
+- Bundle React, FastAPI, health check, OpenAPI e metadata sincronizados em `1.2.6`.
 
-## Sessoes e agentes auditados
+## Relatorio consolidado
 
-- **Codex / Enxame LojaSync:** 14 commits da linha `enxame/lojasync/continuo`, cobrindo operacoes de produto, importacao, frontend, acessibilidade, SEO, testes e integracao funcional.
-- **Codex / ShipSwarm Governor:** branches `ready-to-ship`, `bugs`, `geral-integracao`, `landing`, `performance` e `documentacao` integradas apos resolucao de conflitos. Inclui correcoes de escopo, historico, composicao, contratos HTTP, performance e documentacao.
-- **Claude:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
-- **ZCode:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
-- **TraeWork:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
-- **OpenCode:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
-- **Wispr Flow:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
+| Area | Trabalho real confirmado | Evidencia (arquivos/commits/testes) | Como o usuario percebe na pratica | Status/risco |
+| --- | --- | --- | --- | --- |
+| UX operacional | Estados e pendencias com linguagem visual consistente | `frontend-ts/src/styles.css`; origem `472e8d2..aa89e6a`; build e smoke visual | Alertas e itens a revisar ficam mais faceis de localizar | Confirmado; baixo risco visual |
+| Launcher/LLM | Flag de porta do monitor encaminhada ao `Launcher` | `launcher.py`, `tests/test_launcher.py`; origem `b62964d` | Porta alternativa pode ser definida diretamente na inicializacao | Confirmado; aditivo |
+| Distribuicao | Versao e bundle estatico atualizados | metadata, OpenAPI, `frontend-ts/dist/*`, teste de release | App pronto para atualizar e versao correta no health/API | Invisivel no uso comum; baixo risco |
+| Auditoria | Branches, worktrees, sessoes e prototipos classificados sem descarte | Git/worktrees, ledgers locais e GitHub Releases | Evita publicar logs/prototipos ou duplicar fixes | Confirmado; estado local preservado |
 
-## Melhorias por area
+## Baseline e snapshot
 
-### Produtos e estoque
+- Baseline remoto: `v1.2.5` / `origin/main` em `567aa23119ebd80822127bb828c4157d512321ce`.
+- Candidato: `codex/release-v1.2.6`, criado da worktree limpa `LojaSync-release-v1.2.5`.
+- Delta final: 19 arquivos, 262 linhas adicionadas e 83 removidas, incluindo bundle renomeado e um card PNG novo.
+- Branches nao ancestrais auditadas: `swarm`, `swarm-gov/lojasync/geral`, `swarm-gov/lojasync/migracao-visual` e `swarm-gov/lojasync/ready-to-ship`.
+- Checkout principal antigo, `SwarmLedger-*.md` e `lojasync-concepts-visual/` foram preservados sem alteracao e ficaram fora do release.
 
-- Escopo opcional por chave adicionado a categoria, marca, margem, formatacao/restauracao de codigos, descricoes e juncao de duplicados.
-- Juncao de duplicados limitada ao conjunto selecionado e com preservacao de detalhes distintos, grades, cores, origem e metadados.
-- Criacao de conjuntos bloqueia composicoes inconsistentes sem gerar historico fantasma.
-- Historico undo/redo passa a atravessar reinicios e restaura a margem padrao associada ao snapshot.
+## Sessoes e agentes rastreados
 
-### Agent-First e API
+- Codex / Enxame LojaSync: linha funcional ja integrada no v1.2.5.
+- Codex / ShipSwarm Governor: branches de geral, migracao visual, ready-to-ship, landing, performance, bugs e documentacao cruzadas contra o diff real.
+- Codex / coleta v1.2.6: baseline, equivalencia, qualidade, testes, smoke visual e publicacao.
+- Claude, ZCode, Wispr Flow, Traywork/TraeWork e OpenCode: nenhuma evidencia nova atribuivel por commit/worktree para este delta.
 
-- Payloads HTTP tipados para acoes em lote, restauracao, juncao e escopo por chave.
-- Validacao reforcada do runner contra JSON invalido, caminhos relativos e overrides de caminho com placeholders.
-- OpenAPI e playbook alinhados ao contrato publicado.
+## Itens auditados e nao duplicados
 
-### Frontend, landing e qualidade
-
-- Integracao das melhorias de landing, SEO, acessibilidade, responsividade e importacao.
-- Reconciliacao do indice de busca e filtros de produtos com os fluxos de tela.
-- Build estatico do frontend regenerado para `v1.2.5`.
+- SEO da branch `swarm`, validacao de JSON, falhas de conexao do Agent-First, rebuild por assets publicos e gate de metadata ja estavam funcionalmente presentes em v1.2.5.
+- Ledgers de rodadas bloqueadas e conceito visual desconectado continuam como evidencia/prototipo local, nao como produto publicavel.
+- Nenhuma mudanca de auth/senha foi proposta ou priorizada.
 
 ## Validacao
 
-- `python -m pytest -q`: 169 passed, 5 deselected, 5 subtests passed.
+- `python -m pytest -q`: suite backend completa aprovada.
 - `cd frontend-ts && npm run test:logic`: 112 passed.
-- `cd frontend-ts && npm run build`: passou.
-- `git diff --check` e verificacao de marcadores de conflito executadas antes da publicacao.
+- `cd frontend-ts && npm run build`: passou; bundle versionado regenerado.
+- Smoke visual: desktop e 390 x 844, sem overflow horizontal, overlay ou erros de console; alternancia de modo exercitada.
+- `git diff --check`: passou; apenas avisos esperados de LF/CRLF no Windows.
 
-## Diferenca nuvem/local
+## Riscos e migracao
 
-- Nuvem: `origin/main` permanece no release oficial `v1.2.4` (`393d086`) antes da publicacao deste patch.
-- Local: o candidato `release/v1.2.5` agrega os branches funcionais auditados e os fixes de integracao.
-- Branch `enxame/lojasync/continuo` e local; branches `swarm-gov/*` foram encontrados no remoto.
-- Nenhuma alteracao de runtime cloud foi identificada; o produto continua seguindo o padrao desktop-web local. A publicacao oficial desta entrega e feita no GitHub via `main` e tag `v1.2.5`.
+- Sem breaking changes e sem passos de migracao.
+- Automacao desktop segue dependente de Windows, Byte Empresa e coordenadas calibradas.
+- LLM continua dependente do provedor/configuracao externa; a nova flag apenas configura a porta do monitor.
+- `:has()` depende de Chromium moderno, compativel com o runtime desktop atual.
+
+## Veredito
+
+Recomendado publicar como patch SemVer v1.2.6: escopo pequeno, aditivo e retrocompativel, com checks automatizados e smoke visual aprovados.

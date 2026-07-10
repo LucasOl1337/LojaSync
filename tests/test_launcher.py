@@ -165,3 +165,9 @@ def test_iter_files_collects_nested_files(tmp_path: Path) -> None:
 
 def test_typescript_build_inputs_include_public_assets() -> None:
     assert FRONTEND_TS_DIR / "public" in TS_BUILD_INPUTS
+
+
+def test_parse_args_accepts_llm_monitor_port() -> None:
+    args = launcher._parse_args(["--llm-monitor-port", "5199"])
+
+    assert args.llm_monitor_port == 5199

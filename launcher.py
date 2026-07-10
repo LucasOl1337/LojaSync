@@ -394,6 +394,7 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--auth-port", type=int, default=DEFAULT_AUTH_PORT, help="Porta do servico de autenticacao")
     parser.add_argument("--enable-auth", action="store_true", help="Ativar o runtime de autenticacao e conectar o backend a ele")
     parser.add_argument("--llm-port", type=int, default=DEFAULT_LLM_PORT, help="Porta do servico LLM")
+    parser.add_argument("--llm-monitor-port", type=int, default=DEFAULT_LLM_MONITOR_PORT, help="Porta do monitor LLM")
     parser.add_argument("--no-browser", action="store_true", help="Nao abrir navegador automaticamente")
     parser.add_argument("--disable-llm-monitor", action="store_true", help="Desabilitar monitor LLM")
     parser.add_argument(
@@ -418,6 +419,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         auth_port=args.auth_port,
         auth_enabled=args.enable_auth,
         llm_port=args.llm_port,
+        llm_monitor_port=args.llm_monitor_port,
         open_browser=not args.no_browser,
         llm_monitor_enabled=not args.disable_llm_monitor,
         prepare_ts_frontend=not args.skip_ts_build,

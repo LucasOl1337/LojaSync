@@ -5,6 +5,12 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 ## BACKLOG DO ENXAME
 
+- [ ] Corrigir a composicao de estoque ao usar `Criar conjunto`: o servico reduz
+  `quantidade` dos produtos de origem, mas preserva integralmente `grades` e
+  `cores`, podendo deixar a soma interna acima do saldo restante. Definir a
+  regra de alocacao dos tamanhos/cores antes de implementar.
+- [ ] Exibir o conteudo dos avisos de importacao: o backend retorna mensagens
+  acionaveis em `warnings`, mas o diagnostico React mostra apenas a contagem.
 - [ ] Isolar o CodeGraph da worktree: `codegraph status .` resolve o projeto como
   `C:\Projetos` e mistura milhares de arquivos externos; `codegraph index . --force`
   foi tentado nesta rodada, mas tambem herdou o indice ancestral.
@@ -16,9 +22,39 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 | Sessao | Area | Entrega | Arquivos reivindicados | Status |
 |---|---|---|---|---|
-| - | - | - | - | nenhum claim ativo |
+| 2026-07-10-01 | UX e polimento de fluxo | Proteger rascunhos de grade ao navegar ou fechar | `frontend-ts/src/App.tsx`, `frontend-ts/src/gradeLogic.ts`, `frontend-ts/src/gradeModal.tsx`, `frontend-ts/test/gradeLogic.test.mjs`, `frontend-ts/dist/**`, `EnxameContinuo.md` | validado; commit bloqueado pelo sandbox |
 
 ## Rodadas concluidas
+
+### 2026-07-10-01 - Rascunhos de grade protegidos
+
+- Area: UX e polimento de fluxo.
+- Entrega: o editor identifica alteracoes de grade nao salvas e pede confirmacao
+  antes de trocar produto, avancar para a proxima pendencia, fechar pelo botao ou
+  backdrop; a execucao de grades exige salvar o rascunho primeiro.
+- Arquivos: `frontend-ts/src/App.tsx`, `frontend-ts/src/gradeLogic.ts`,
+  `frontend-ts/src/gradeModal.tsx`, `frontend-ts/test/gradeLogic.test.mjs`,
+  `frontend-ts/dist/**`.
+- Antes: trocar item, avancar ou fechar substituia silenciosamente
+  `gradeDraft`; uma troca durante o PATCH tambem podia receber o rascunho do
+  item anterior quando a resposta atrasada chegasse.
+- Depois: o modal sinaliza `Alteracoes nao salvas`, cancelar preserva o
+  rascunho, descartar e uma decisao explicita, e navegacao/inputs ficam
+  serializados durante salvar ou limpar. `Salvar e Proxima Pendencia` continua
+  direto apos sucesso, sem confirmacao duplicada.
+- Evidencia literal do typecheck: `TYPECHECK_APP passed` e
+  `TYPECHECK_LOGIC passed`.
+- Evidencia literal da suite frontend: `tests 109`, `pass 109`, `fail 0`.
+- Evidencia literal do build final: `54 modules transformed.` e
+  `built in 172ms`.
+- Evidencia literal do bundle: `DIST_ENTRY=index-Bz8peWzW.js EXISTS=True` e
+  `DIST_APP=App-D3iEUWWm.js EXISTS=True`; o asset final contem os textos do
+  guard de descarte, bloqueio de execucao e status de rascunho.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Evidencia literal do bloqueio de commit:
+  `fatal: Unable to create 'C:/Projetos/LojaSync/.git/worktrees/LojaSync-enxame/index.lock': Permission denied`.
+- Commit: nao houve; a arvore permanece sem stage para o coletor finalizar fora
+  deste sandbox.
 
 ### 2026-07-09-10 - Variacoes preservadas ao juntar repetidos
 

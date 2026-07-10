@@ -174,6 +174,35 @@ export function gradeItemsToMap(items: GradeItem[] | null | undefined) {
   return map;
 }
 
+export function buildGradeItemsFromDraft(draft: Record<string, string>): GradeItem[] {
+  const quantitiesBySize = new Map<string, number>();
+  for (const [size, rawQuantity] of Object.entries(draft)) {
+    const label = normalizeGradeSizeLabel(size);
+    const quantity = Number.parseInt(String(rawQuantity || ""), 10) || 0;
+    if (!label || quantity <= 0) {
+      continue;
+    }
+    quantitiesBySize.set(label, quantity);
+  }
+  return Array.from(quantitiesBySize, ([tamanho, quantidade]) => ({ tamanho, quantidade }))
+    .sort((left, right) => compareGradeSizeLabels(left.tamanho, right.tamanho));
+}
+
+export function hasGradeDraftChanges(
+  draft: Record<string, string>,
+  baseline: Record<string, string>,
+) {
+  const currentItems = buildGradeItemsFromDraft(draft);
+  const baselineItems = buildGradeItemsFromDraft(baseline);
+  if (currentItems.length !== baselineItems.length) {
+    return true;
+  }
+  return currentItems.some((item, index) => {
+    const baselineItem = baselineItems[index];
+    return item.tamanho !== baselineItem?.tamanho || item.quantidade !== baselineItem?.quantidade;
+  });
+}
+
 export function sumGradeDraftValues(draft: Record<string, string>) {
   return Object.values(draft).reduce((sum, item) => sum + (Number.parseInt(item, 10) || 0), 0);
 }

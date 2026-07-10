@@ -96,12 +96,14 @@ import {
 import {
   GRADE_UI_VERSION,
   buildDefaultUiFamilies,
+  buildGradeItemsFromDraft,
   buildGradeProductStatus,
   buildVisualSizeOrder,
   compareGradeSizeLabels,
   findNextPendingGradeKey,
   getIncompleteGradeProducts,
   gradeItemsToMap,
+  hasGradeDraftChanges,
   normalizeGradeConfigState,
   normalizeGradeSizeLabel,
   normalizeUiFamiliesDraft,
@@ -273,6 +275,9 @@ export default function App({ authSession = null }: AppProps) {
   const visitedProductFields = useRef<Set<ProductFormField>>(new Set());
   const gradeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingGradeInputFocus = useRef(false);
+  const gradeDraftBaselineRef = useRef<Record<string, string>>({});
+  const gradeTransitionPendingRef = useRef(false);
+  const gradeMutationPendingRef = useRef(false);
   const gradeConfigSaveSeq = useRef(0);
   const previousAutomationStateRef = useRef<string | null>(null);
   const inlineEditInputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
@@ -440,6 +445,10 @@ export default function App({ authSession = null }: AppProps) {
     [activeGradeFamilyKey, groupedGradeSizes],
   );
   const currentGradeTotal = useMemo(() => sumGradeDraftValues(gradeDraft), [gradeDraft]);
+  const gradeDraftDirty = hasGradeDraftChanges(gradeDraft, gradeDraftBaselineRef.current);
+  const gradeDraftMutationBusy = busyAction === "salvar-grade"
+    || busyAction === "salvar-proxima-grade"
+    || busyAction === "limpar-grade";
   const usageAnalytics = useMemo(
     () => buildUsageAnalytics(operationDiary, sidebarClock.getTime()),
     [operationDiary, sidebarClock],
@@ -977,10 +986,13 @@ export default function App({ authSession = null }: AppProps) {
   useEffect(() => {
     if (!gradeModalOpen) return;
     if (!selectedGradeProduct) {
+      gradeDraftBaselineRef.current = {};
       setGradeDraft({});
       return;
     }
-    setGradeDraft(gradeItemsToMap(selectedGradeProduct.grades));
+    const savedDraft = gradeItemsToMap(selectedGradeProduct.grades);
+    gradeDraftBaselineRef.current = savedDraft;
+    setGradeDraft(savedDraft);
     setGradeValidationError(null);
   }, [gradeModalOpen, gradeSelectedKey]);
 
@@ -1672,6 +1684,14 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleExecuteGrades = async () => {
+    if (gradeModalOpen && gradeDraftDirty) {
+      showNoticeDialog({
+        title: "Salve a grade antes de executar",
+        message: "As quantidades alteradas ainda estão apenas no rascunho. Use Salvar para incluí-las na execução.",
+        tone: "warning",
+      });
+      return;
+    }
     await executeGradesProducts();
     queueRefresh(["automation"]);
   };
@@ -1722,9 +1742,70 @@ export default function App({ authSession = null }: AppProps) {
     }
   };
 
+  const confirmGradeDraftDiscard = async () => {
+    if (gradeMutationPendingRef.current) {
+      showNoticeDialog({
+        title: "Aguarde a atualização da grade",
+        message: "O salvamento atual precisa terminar antes de trocar de produto ou fechar esta tela.",
+        tone: "warning",
+      });
+      return false;
+    }
+    if (!hasGradeDraftChanges(gradeDraft, gradeDraftBaselineRef.current) || !selectedGradeProduct) {
+      return true;
+    }
+    if (gradeTransitionPendingRef.current) {
+      return false;
+    }
+    gradeTransitionPendingRef.current = true;
+    try {
+      return await confirmWithDialog({
+        title: "Descartar alterações da grade?",
+        message: `"${selectedGradeProduct.nome}" tem quantidades alteradas que ainda não foram salvas.`,
+        detail: "Ao continuar, o rascunho será perdido. Cancele e use Salvar ou Salvar e Próxima Pendência para manter as alterações.",
+        confirmLabel: "Descartar e continuar",
+      });
+    } finally {
+      gradeTransitionPendingRef.current = false;
+    }
+  };
+
   const closeGradeModal = () => {
-    setGradeModalOpen(false);
-    setGradeModalError(null);
+    void (async () => {
+      if (!(await confirmGradeDraftDiscard())) {
+        return;
+      }
+      setGradeDraft({ ...gradeDraftBaselineRef.current });
+      setGradeModalOpen(false);
+      setGradeModalError(null);
+    })();
+  };
+
+  const requestGradeProductSelection = async (
+    orderingKey: string,
+    options?: { focusInput?: boolean; skipDiscardCheck?: boolean },
+  ) => {
+    if (!orderingKey || orderingKey === gradeSelectedKey) {
+      return false;
+    }
+    if (!options?.skipDiscardCheck && !(await confirmGradeDraftDiscard())) {
+      return false;
+    }
+    const targetProduct = productsByKey.get(orderingKey);
+    if (!targetProduct) {
+      return false;
+    }
+    const targetDraft = gradeItemsToMap(targetProduct.grades);
+    gradeDraftBaselineRef.current = targetDraft;
+    setGradeDraft(targetDraft);
+    setGradeValidationError(null);
+    pendingGradeInputFocus.current = Boolean(options?.focusInput);
+    setGradeSelectedKey(orderingKey);
+    return true;
+  };
+
+  const handleSelectGradeProduct = (orderingKey: string) => {
+    void requestGradeProductSelection(orderingKey);
   };
 
   const persistVisualFamilies = async (nextFamilies: UiGradeFamily[]) => {
@@ -1878,6 +1959,9 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const updateGradeDraftValue = (size: string, value: string) => {
+    if (gradeMutationPendingRef.current) {
+      return;
+    }
     setGradeValidationError(null);
     setGradeDraft((current) => ({ ...current, [size]: value.replace(/[^\d]/g, "") }));
   };
@@ -1928,7 +2012,7 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const saveSelectedGrade = async () => {
-    if (!selectedGradeProduct) {
+    if (!selectedGradeProduct || gradeMutationPendingRef.current) {
       return false;
     }
     const validation = validateSelectedGrade();
@@ -1936,14 +2020,20 @@ export default function App({ authSession = null }: AppProps) {
       setGradeValidationError(validation.message);
       return false;
     }
-    const grades = Object.entries(gradeDraft)
-      .map(([tamanho, quantidade]) => ({ tamanho, quantidade: Number.parseInt(quantidade, 10) || 0 }))
-      .filter((item) => item.quantidade > 0);
-    await pushUndoSnapshot();
-    await patchProduct(selectedGradeProduct.ordering_key, { grades });
-    setGradeValidationError(null);
-    queueRefresh(["products", "totals"]);
-    return true;
+    const grades = buildGradeItemsFromDraft(gradeDraft);
+    gradeMutationPendingRef.current = true;
+    try {
+      await pushUndoSnapshot();
+      await patchProduct(selectedGradeProduct.ordering_key, { grades });
+      const savedDraft = gradeItemsToMap(grades);
+      gradeDraftBaselineRef.current = savedDraft;
+      setGradeDraft(savedDraft);
+      setGradeValidationError(null);
+      queueRefresh(["products", "totals"]);
+      return true;
+    } finally {
+      gradeMutationPendingRef.current = false;
+    }
   };
 
   const handleSaveSelectedGrade = async () => {
@@ -1960,31 +2050,44 @@ export default function App({ authSession = null }: AppProps) {
       return;
     }
     const nextPendingKey = findNextPendingGradeKey(state.products, currentOrderingKey, currentOrderingKey);
-    pendingGradeInputFocus.current = true;
-    setGradeSelectedKey(nextPendingKey ?? currentOrderingKey);
+    if (nextPendingKey) {
+      await requestGradeProductSelection(nextPendingKey, { focusInput: true, skipDiscardCheck: true });
+    }
   };
 
   const handleSelectNextPendingGrade = () => {
     if (!nextPendingGradeKey) {
       return;
     }
-    setGradeValidationError(null);
-    pendingGradeInputFocus.current = true;
-    setGradeSelectedKey(nextPendingGradeKey);
+    void requestGradeProductSelection(nextPendingGradeKey, { focusInput: true });
   };
 
   const handleClearSelectedGrade = async () => {
-    if (!selectedGradeProduct) {
+    if (!selectedGradeProduct || gradeMutationPendingRef.current) {
       return;
     }
-    await pushUndoSnapshot();
-    await patchProduct(selectedGradeProduct.ordering_key, { grades: [] });
-    setGradeDraft({});
-    setGradeValidationError(null);
-    queueRefresh(["products", "totals"]);
+    gradeMutationPendingRef.current = true;
+    try {
+      await pushUndoSnapshot();
+      await patchProduct(selectedGradeProduct.ordering_key, { grades: [] });
+      gradeDraftBaselineRef.current = {};
+      setGradeDraft({});
+      setGradeValidationError(null);
+      queueRefresh(["products", "totals"]);
+    } finally {
+      gradeMutationPendingRef.current = false;
+    }
   };
 
   const handleClearAllGrades = async () => {
+    if (gradeMutationPendingRef.current) {
+      showNoticeDialog({
+        title: "Aguarde a atualização da grade",
+        message: "O salvamento atual precisa terminar antes de limpar as grades.",
+        tone: "warning",
+      });
+      return;
+    }
     const productsWithGrades = state.products.filter((product) => (product.grades || []).length > 0 || product.ordering_key === gradeSelectedKey);
     openConfirmationDialog({
       title: "Limpar todas as grades?",
@@ -1992,17 +2095,23 @@ export default function App({ authSession = null }: AppProps) {
       detail: `${productsWithGrades.length} itens serao afetados. A lista de produtos e os dados de cadastro permanecem intactos.`,
       confirmLabel: "Limpar grades",
       onConfirm: async () => {
-        await pushUndoSnapshot();
-        await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
-        setGradeDraft({});
-        setGradeValidationError(null);
-        queueRefresh(["products", "totals"]);
+        gradeMutationPendingRef.current = true;
+        try {
+          await pushUndoSnapshot();
+          await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
+          gradeDraftBaselineRef.current = {};
+          setGradeDraft({});
+          setGradeValidationError(null);
+          queueRefresh(["products", "totals"]);
+        } finally {
+          gradeMutationPendingRef.current = false;
+        }
       },
     });
   };
 
   useEffect(() => {
-    if (!gradeModalOpen || !pendingGradeInputFocus.current) {
+    if (!gradeModalOpen || confirmationDialog || !pendingGradeInputFocus.current) {
       return;
     }
     pendingGradeInputFocus.current = false;
@@ -2010,7 +2119,7 @@ export default function App({ authSession = null }: AppProps) {
       focusFirstActiveGradeInput();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [gradeModalOpen, gradeSelectedKey, activeGradeFamilyKey]);
+  }, [activeGradeFamilyKey, confirmationDialog, gradeModalOpen, gradeSelectedKey]);
 
   const handleToggleSimpleMode = () => {
     setSimpleModeEnabled((current) => !current);
@@ -2726,6 +2835,8 @@ export default function App({ authSession = null }: AppProps) {
           nextPendingGradeKey={nextPendingGradeKey}
           currentGradeTotal={currentGradeTotal}
           gradeDraft={gradeDraft}
+          draftDirty={gradeDraftDirty}
+          transitionLocked={gradeDraftMutationBusy}
           gradeFamiliesDraft={gradeFamiliesDraft}
           groupedGradeSizes={groupedGradeSizes}
           activeGradeFamily={activeGradeFamily}
@@ -2740,7 +2851,7 @@ export default function App({ authSession = null }: AppProps) {
           onClose={closeGradeModal}
           onExecuteGrades={handleExecuteGrades}
           onStopGrades={handleStopGrades}
-          onSelectProduct={setGradeSelectedKey}
+          onSelectProduct={handleSelectGradeProduct}
           onGradeStartTab={handleGradeStartTab}
           onSelectNextPendingGrade={handleSelectNextPendingGrade}
           onAddFamily={addFamily}

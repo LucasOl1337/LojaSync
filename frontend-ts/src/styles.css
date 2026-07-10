@@ -1446,6 +1446,138 @@ button {
   font-size: 0.74rem;
 }
 
+.usageAnalyticsPanelTs {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(145deg, rgba(34, 211, 238, 0.1), rgba(14, 23, 42, 0.35) 58%),
+    rgba(8, 14, 26, 0.76);
+}
+
+.leftPanelTs .usageAnalyticsPanelTs {
+  gap: 5px;
+  padding: 7px;
+}
+
+.usageAnalyticsPanelTs.empty {
+  border-style: dashed;
+  background: rgba(8, 14, 26, 0.56);
+}
+
+.usageAnalyticsHeadTs,
+.usageAnalyticsCategoryTs > div,
+.usageAnalyticsFootTs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.usageAnalyticsHeadTs strong {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 0.78rem;
+}
+
+.usageAnalyticsHeadTs > span,
+.usageAnalyticsPanelTs.empty p,
+.usageAnalyticsFootTs {
+  color: var(--text-3);
+  font-size: 0.61rem;
+}
+
+.usageAnalyticsPanelTs.empty p {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.usageAnalyticsMetricsTs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.usageAnalyticsMetricsTs > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.66);
+}
+
+.usageAnalyticsMetricsTs strong {
+  color: var(--cyan);
+  font-size: 0.8rem;
+}
+
+.usageAnalyticsMetricsTs span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usageAnalyticsBreakdownTs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 8px;
+}
+
+.usageAnalyticsCategoryTs {
+  min-width: 0;
+}
+
+.usageAnalyticsCategoryTs > div span,
+.usageAnalyticsCategoryTs > div strong {
+  color: var(--muted);
+  font-size: 0.57rem;
+}
+
+.usageAnalyticsCategoryTs > div strong {
+  color: var(--text-2);
+}
+
+.usageAnalyticsTrackTs {
+  display: block;
+  height: 3px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.usageAnalyticsTrackTs > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+}
+
+.usageAnalyticsFootTs {
+  min-width: 0;
+  margin: 0;
+  padding-top: 2px;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.usageAnalyticsFootTs span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usageAnalyticsFootTs strong {
+  color: var(--text-2);
+}
+
 .totalsRowTs span {
   color: var(--muted);
 }

@@ -169,6 +169,7 @@ import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
 import { buildProductCsv, buildProductCsvFilename } from "./productExport";
 import { buildProductTemplatePayload } from "./productTemplate";
 import { buildCatalogOverview } from "./catalogOverview";
+import { buildUsageAnalytics } from "./usageAnalytics";
 import {
   buildDisplayedProducts,
   buildFinalOrderingKeys,
@@ -432,6 +433,10 @@ export default function App({ authSession = null }: AppProps) {
     [activeGradeFamilyKey, groupedGradeSizes],
   );
   const currentGradeTotal = useMemo(() => sumGradeDraftValues(gradeDraft), [gradeDraft]);
+  const usageAnalytics = useMemo(
+    () => buildUsageAnalytics(operationDiary, sidebarClock.getTime()),
+    [operationDiary, sidebarClock],
+  );
   const selectedGradeStatus = useMemo(
     () => (selectedGradeProduct ? buildGradeProductStatus(selectedGradeProduct, currentGradeTotal) : null),
     [currentGradeTotal, selectedGradeProduct],
@@ -2440,6 +2445,7 @@ export default function App({ authSession = null }: AppProps) {
           <OperationalSummaryPanel
             totalsText={state.totalsText}
             totalsRaw={state.totalsRaw}
+            usageAnalytics={usageAnalytics}
           />
         </aside>
 

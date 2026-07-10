@@ -102,7 +102,7 @@ def _cors_origins(container: object) -> list[str]:
 def create_app() -> FastAPI:
     configure_logging()
     container = build_container()
-    app = FastAPI(title="LojaSync", version="1.2.4")
+    app = FastAPI(title="LojaSync", version="1.2.5")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(container),
@@ -223,7 +223,7 @@ def create_app() -> FastAPI:
     async def health_check():
         return {
             "status": "ok",
-            "version": "1.2.4",
+            "version": "1.2.5",
             "timestamp": _time.time(),
         }
 

@@ -1,54 +1,60 @@
-# LojaSync v1.2.4 - Patch Notes
+# LojaSync v1.2.5 - Patch Notes
 
-Data: 2026-07-09
+Data: 2026-07-10
 
-Esta release consolida a troca do fluxo de IA para Minimax via LLM3/Ollama compativel, com guarda local obrigatoria quando a IA nao aprova a importacao sozinha. O objetivo pratico e simples: usar o Minimax como motor assistido, mas impedir que OCR ou leitura de romaneio sem validacao cadastre quantidade errada.
+Patch de consolidacao pos-v1.2.4. Esta release integra as entregas funcionais do enxame, corrige conflitos encontrados durante a integracao e reforca a seguranca das operacoes de produto, historico e importacao.
 
 ## Destaques
 
-- Minimax `minimax-m3` definido como modelo padrao de texto e visao no LLM3.
-- Fallback automatico para Gemma removido do padrao; configuracoes antigas ainda podem tentar um modelo configurado, mas o fallback seguro volta para Minimax.
-- Chamadas LLM3 agora usam `temperature=0` e `seed=42` por padrao para reduzir variancia.
-- Importacao com IA ganhou guarda local: se o Minimax nao chegar em validacao automatica aprovada, a leitura local validada assume antes da persistencia.
-- PDFs renderizados como imagem passam por fatias verticais antes do envio ao LLM, melhorando OCR em romaneios escaneados.
-- UI de importacao separa melhor "Importar com IA" de "Leitura local (avancado)" e a lateral nao corta mais o acumulado global em zoom normal.
-- Base Agent-First documentada com indice de acoes HTTP, playbook, OpenAPI e CLI operacional.
+- Operacoes em lote agora respeitam escopo explicito de produtos selecionados.
+- Juncao de duplicados preserva detalhes de produto, grades, cores e metadados relevantes.
+- Criacao de conjuntos valida a composicao antes de mutar o estoque.
+- Undo/redo persiste snapshots e restaura corretamente margem e estado apos reinicio.
+- CLI/Agent-First rejeita entradas JSON invalidas, caminhos relativos e overrides de caminho inseguros.
+- Landing page, SEO, acessibilidade, responsividade, importacao e performance foram consolidados.
+- Versoes runtime, frontend, FastAPI, health check e OpenAPI sincronizadas em `1.2.5`.
 
 ## Sessoes e agentes auditados
 
-- **Codex / Minimax OCR hardening:** troca operacional para LLM3/Ollama, Minimax deterministico, remocao de fallback Gemma, guarda local e testes de regressao.
-- **Codex / Import UX:** ajuste dos botoes de importacao, erro de IA mais acionavel e correcao de scroll lateral.
-- **Codex / Agent-First:** `DocsDev/agent/*`, `tools/agent_run.py` e exportacao OpenAPI para acoes HTTP auditaveis.
-- **Claude, ZCode, Wispr Flow, OpenCode e Trae Work:** nenhuma sessao nova atribuivel encontrada localmente para esta rodada; mantidos como itens sem evidencia local direta.
+- **Codex / Enxame LojaSync:** 14 commits da linha `enxame/lojasync/continuo`, cobrindo operacoes de produto, importacao, frontend, acessibilidade, SEO, testes e integracao funcional.
+- **Codex / ShipSwarm Governor:** branches `ready-to-ship`, `bugs`, `geral-integracao`, `landing`, `performance` e `documentacao` integradas apos resolucao de conflitos. Inclui correcoes de escopo, historico, composicao, contratos HTTP, performance e documentacao.
+- **Claude:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
+- **ZCode:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
+- **TraeWork:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
+- **OpenCode:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
+- **Wispr Flow:** nenhuma mudanca nova atribuivel por commit, branch ou worktree apos `v1.2.4`.
 
-## Melhorias
+## Melhorias por area
 
-- `Legacy/engine/LLM3/backend.py`: padrao Minimax em texto/visao, opcoes deterministicas e fallback restrito.
-- `app/interfaces/api/http/jobs/llm.py`: suporta provedor Z.AI experimental sem torna-lo padrao e fatia imagens no caminho LLM3.
-- `app/interfaces/api/http/jobs/runtime.py`: guarda local para todo resultado Minimax nao aprovado automaticamente.
-- `app/application/imports/parsing.py`: prompts e parsing reforcados para codigo, NCM, nomes curtos e imagens fatiadas.
-- `frontend-ts/src/importStagePanel.tsx` e `frontend-ts/src/styles.css`: textos e layout do painel de importacao ajustados para uso real.
+### Produtos e estoque
 
-## Correcoes e sistemas
+- Escopo opcional por chave adicionado a categoria, marca, margem, formatacao/restauracao de codigos, descricoes e juncao de duplicados.
+- Juncao de duplicados limitada ao conjunto selecionado e com preservacao de detalhes distintos, grades, cores, origem e metadados.
+- Criacao de conjuntos bloqueia composicoes inconsistentes sem gerar historico fantasma.
+- Historico undo/redo passa a atravessar reinicios e restaura a margem padrao associada ao snapshot.
 
-- Importacao por IA nao cai mais silenciosamente para leitura local antes de tentar o servico configurado.
-- Erros de saldo/plano/modelo indisponivel ficam mais claros para o operador.
-- Resultados Minimax vazios, incompletos, rejeitados ou sem ancora de validacao passam por guarda local antes de persistir.
-- Versao atualizada para `1.2.4` em runtime, frontend e metadata.
-- Build estatico versionado do frontend atualizado para a release.
+### Agent-First e API
 
-## Validacao da release
+- Payloads HTTP tipados para acoes em lote, restauracao, juncao e escopo por chave.
+- Validacao reforcada do runner contra JSON invalido, caminhos relativos e overrides de caminho com placeholders.
+- OpenAPI e playbook alinhados ao contrato publicado.
 
-- `python -m pytest -q`: 152 passed, 5 deselected, 5 subtests passed.
-- `cd frontend-ts && npm run test:logic`: 89 passed.
-- `git diff --check`: passou; apenas avisos LF/CRLF esperados no Windows.
-- `2866.pdf` repetido 3 vezes com Minimax + guarda local: 3/3 aprovado, 12 pecas, total R$ 1.258,80.
-- `DocsDev/validation/llm3-minimax-guard-final-super-romaneios-full-20260708-231104.json`: bateria parcial em Super Romaneios com 15/15 arquivos aprovados antes da interrupcao manual; 11 usaram guarda local.
-- `tests/test_llm3_model_config.py`, `tests/test_llm_provider.py` e `tests/test_import_parsing.py`: cobrem Minimax deterministico, fatiamento LLM3 e guarda local.
+### Frontend, landing e qualidade
 
-## Riscos conhecidos
+- Integracao das melhorias de landing, SEO, acessibilidade, responsividade e importacao.
+- Reconciliacao do indice de busca e filtros de produtos com os fluxos de tela.
+- Build estatico do frontend regenerado para `v1.2.5`.
 
-- Minimax remoto ainda pode sofrer rate limit ou latencia; a guarda local cobre persistencia, mas nao elimina espera.
-- OCR puramente visual continua caro e mais lento que PDF textual.
-- A automacao desktop continua dependente de Windows, posicoes de tela e disponibilidade do Byte Empresa.
-- Z.AI fica como experimento configuravel, nao como provedor padrao desta release.
+## Validacao
+
+- `python -m pytest -q`: 169 passed, 5 deselected, 5 subtests passed.
+- `cd frontend-ts && npm run test:logic`: 112 passed.
+- `cd frontend-ts && npm run build`: passou.
+- `git diff --check` e verificacao de marcadores de conflito executadas antes da publicacao.
+
+## Diferenca nuvem/local
+
+- Nuvem: `origin/main` permanece no release oficial `v1.2.4` (`393d086`) antes da publicacao deste patch.
+- Local: o candidato `release/v1.2.5` agrega os branches funcionais auditados e os fixes de integracao.
+- Branch `enxame/lojasync/continuo` e local; branches `swarm-gov/*` foram encontrados no remoto.
+- Nenhuma alteracao de runtime cloud foi identificada; o produto continua seguindo o padrao desktop-web local. A publicacao oficial desta entrega e feita no GitHub via `main` e tag `v1.2.5`.

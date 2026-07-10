@@ -1,13 +1,17 @@
 import type { LoadState } from "./appConfig";
+import type { UsageAnalyticsSummary } from "./usageAnalytics";
+import { UsageAnalyticsPanel } from "./usageAnalyticsPanel";
 
 type OperationalSummaryPanelProps = {
   totalsText: LoadState["totalsText"];
   totalsRaw: LoadState["totalsRaw"];
+  usageAnalytics: UsageAnalyticsSummary;
 };
 
 export function OperationalSummaryPanel({
   totalsText,
   totalsRaw,
+  usageAnalytics,
 }: OperationalSummaryPanelProps) {
   return (
     <section className="summaryStageTs" aria-labelledby="operational-summary-title">
@@ -47,6 +51,7 @@ export function OperationalSummaryPanel({
         </article>
 
       </div>
+      <UsageAnalyticsPanel summary={usageAnalytics} />
     </section>
   );
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-07-10] - LojaSync v1.2.5
+
+**Project:** LojaSync  |  **Branch:** main  |  **State:** swarm-integration-patch
+
+### Summary
+- Consolidada a rodada pos-v1.2.4 do enxame, com integracao das linhas funcionais e do governor.
+- Reforcados escopo de acoes em lote, juncao de duplicados, composicao de conjuntos e undo/redo persistente.
+- Resolvidos conflitos de API, frontend, landing, performance e documentacao.
+- Preparados patch notes, metadata, OpenAPI, build frontend e card PNG para `v1.2.5`.
+
+### Validation
+- Backend: suite pytest final do candidato.
+- Frontend: 112 testes de logica aprovados.
+- Frontend: build de producao aprovado.
+
 ## [2026-07-09] - LojaSync v1.2.4
 
 **Project:** LojaSync  |  **Branch:** main  |  **State:** minimax-guard-release

@@ -310,23 +310,24 @@ export function addBrand(nome: string) {
   });
 }
 
-export function applyCategory(valor: string) {
+export function applyCategory(valor: string, keys?: string[]) {
   return requestJson<{ status: string; categoria: string; total: number }>("/actions/apply-category", {
     method: "POST",
-    body: JSON.stringify({ valor }),
+    body: JSON.stringify({ valor, keys }),
   });
 }
 
-export function applyBrand(valor: string) {
+export function applyBrand(valor: string, keys?: string[]) {
   return requestJson<{ status: string; marca: string; total: number }>("/actions/apply-brand", {
     method: "POST",
-    body: JSON.stringify({ valor }),
+    body: JSON.stringify({ valor, keys }),
   });
 }
 
-export function joinDuplicates() {
+export function joinDuplicates(keys?: string[]) {
   return requestJson<{ originais: number; resultantes: number; removidos: number }>("/actions/join-duplicates", {
     method: "POST",
+    body: JSON.stringify({ keys }),
   });
 }
 
@@ -351,10 +352,10 @@ export function saveMargin(percentual: number) {
   });
 }
 
-export function applyMargin(percentual: number) {
+export function applyMargin(percentual: number, keys?: string[]) {
   return requestJson<{ total_atualizados: number; margem_utilizada: number; percentual_utilizado: number }>("/actions/apply-margin", {
     method: "POST",
-    body: JSON.stringify({ percentual }),
+    body: JSON.stringify({ percentual, keys }),
   });
 }
 
@@ -371,6 +372,7 @@ export function formatCodes(payload: {
   remover_ultimos_caracteres: number | null;
   remover_letras: boolean;
   remover_numeros: boolean;
+  keys?: string[];
 }) {
   return requestJson<{ total: number; alterados: number; prefixo: string | null }>("/actions/format-codes", {
     method: "POST",
@@ -378,10 +380,10 @@ export function formatCodes(payload: {
   });
 }
 
-export function restoreOriginalCodes() {
+export function restoreOriginalCodes(keys?: string[]) {
   return requestJson<{ total: number; restaurados: number }>("/actions/restore-original-codes", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify({ keys }),
   });
 }
 
@@ -389,6 +391,7 @@ export function improveDescriptions(payload: {
   remover_numeros: boolean;
   remover_especiais: boolean;
   remover_termos: string[];
+  keys?: string[];
 }) {
   return requestJson<{ total: number; modificados: number }>("/actions/improve-descriptions", {
     method: "POST",

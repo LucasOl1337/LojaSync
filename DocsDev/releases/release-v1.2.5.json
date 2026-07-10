@@ -1,0 +1,42 @@
+{
+  "brand": {
+    "name": "LojaSync",
+    "vendor": "LojaSync",
+    "footer": "PLATAFORMA DESKTOP-WEB LOCAL",
+    "masthead": "NOTAS DA ATUALIZACAO",
+    "footerLeft": "Notas completas no GitHub Releases",
+    "bgGradient": ["#101820", "#17313A", "#1F4A4D"],
+    "pillGradient": ["#0F766E", "#22C55E"]
+  },
+  "version": "v1.2.5",
+  "date": "10 de julho de 2026 - Release oficial",
+  "categories": [
+    {
+      "label": "Produtos",
+      "title": "OPERACOES SEGURAS",
+      "color": "#38BDF8",
+      "items": [
+        {"name": "Escopo explicito", "desc": "acoes em lote por chaves selecionadas", "tag": "SCOPE"},
+        {"name": "Duplicados", "desc": "detalhes, grades e cores preservados", "tag": "MERGE"}
+      ]
+    },
+    {
+      "label": "Historico",
+      "title": "UNDO + REDO",
+      "color": "#A78BFA",
+      "items": [
+        {"name": "Snapshots", "desc": "historico atravessa reinicios", "tag": "STATE"},
+        {"name": "Margem", "desc": "estado padrao restaurado corretamente", "tag": "FIX"}
+      ]
+    },
+    {
+      "label": "Qualidade",
+      "title": "INTEGRACAO",
+      "color": "#22C55E",
+      "items": [
+        {"name": "Agent-First", "desc": "JSON e caminhos validados", "tag": "API"},
+        {"name": "Enxame", "desc": "branches auditados e conflitos resolvidos", "tag": "QA"}
+      ]
+    }
+  ]
+}

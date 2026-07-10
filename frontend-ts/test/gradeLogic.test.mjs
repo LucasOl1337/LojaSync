@@ -31,6 +31,26 @@ test("builds visual grade order from config, catalog, and product sizes", () => 
   assert.deepEqual(order, ["GG", "PM", "MG", "XG"]);
 });
 
+test("normalizes grade drafts with the same semantic quantities used when saving", () => {
+  assert.deepEqual(
+    logic.buildGradeItemsFromDraft({ " M/G ": "02", P: "0", GG: "", "003": "4" }),
+    [
+      { tamanho: "MG", quantidade: 2 },
+      { tamanho: "3", quantidade: 4 },
+    ],
+  );
+});
+
+test("detects only meaningful unsaved grade changes", () => {
+  const baseline = { P: "2", M: "3" };
+
+  assert.equal(logic.hasGradeDraftChanges({ P: "02", M: "3", G: "0" }, baseline), false);
+  assert.equal(logic.hasGradeDraftChanges({ M: "3", P: "2" }, baseline), false);
+  assert.equal(logic.hasGradeDraftChanges({ P: "2", M: "" }, baseline), true);
+  assert.equal(logic.hasGradeDraftChanges({ P: "2", M: "3", G: "1" }, baseline), true);
+  assert.equal(logic.hasGradeDraftChanges({ P: "2", G: "3" }, baseline), true);
+});
+
 test("keeps only products with mismatched saved grade totals", () => {
   const incomplete = logic.getIncompleteGradeProducts([
     { ordering_key: "ok", quantidade: 2, grades: [{ tamanho: "P", quantidade: 2 }] },

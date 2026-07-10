@@ -22,10 +22,14 @@ from app.domain.products.grade_utils import (
 from app.domain.products.money import parse_price_decimal
 from app.domain.products.repository import ProductRepository
 from app.infrastructure.persistence.files.settings_files import MarginSettingsStore, MetricsStore
-from app.infrastructure.persistence.files.undo_history import InMemoryUndoRedoHistoryStore, UndoRedoHistoryState
+from app.infrastructure.persistence.files.undo_history import InMemoryUndoRedoHistoryStore, UndoRedoHistoryState, UndoRedoSnapshot
 from app.shared.logging.setup import log_event
 
 logger = logging.getLogger(__name__)
+
+
+class ProductSetCompositionConflictError(ValueError):
+    """Raised when creating a set would leave variant totals above stock."""
 
 
 @dataclass(slots=True)
@@ -144,21 +148,35 @@ class ProductService:
         return self._undo_history_store.state()
 
     def record_undo_snapshot(self, *, clear_redo: bool = True) -> UndoRedoHistoryState:
-        return self._undo_history_store.record_undo_snapshot(self.list_products(), clear_redo=clear_redo)
+        return self._undo_history_store.record_undo_snapshot(
+            self.list_products(),
+            default_margin=self.get_default_margin(),
+            clear_redo=clear_redo,
+        )
 
     def undo_last_snapshot(self) -> tuple[bool, int, UndoRedoHistoryState]:
-        snapshot, state = self._undo_history_store.undo(self.list_products())
+        snapshot, state = self._undo_history_store.undo(
+            self.list_products(),
+            current_default_margin=self.get_default_margin(),
+        )
         if snapshot is None:
             return False, 0, state
-        total = self.restore_snapshot(snapshot)
-        return True, total, state
+        return True, self._restore_history_snapshot(snapshot), state
 
     def redo_last_snapshot(self) -> tuple[bool, int, UndoRedoHistoryState]:
-        snapshot, state = self._undo_history_store.redo(self.list_products())
+        snapshot, state = self._undo_history_store.redo(
+            self.list_products(),
+            current_default_margin=self.get_default_margin(),
+        )
         if snapshot is None:
             return False, 0, state
-        total = self.restore_snapshot(snapshot)
-        return True, total, state
+        return True, self._restore_history_snapshot(snapshot), state
+
+    def _restore_history_snapshot(self, snapshot: UndoRedoSnapshot) -> int:
+        total = self.restore_snapshot(snapshot.products)
+        if snapshot.default_margin is not None:
+            self.set_default_margin(snapshot.default_margin)
+        return total
 
     def delete_product(self, ordering_key: str) -> bool:
         items = self.list_products()
@@ -303,12 +321,22 @@ class ProductService:
         self._margin_store.save_margin(safe)
         return safe
 
-    def apply_margin_to_products(self, margin: float, *, persist: bool = True) -> int:
+    @staticmethod
+    def _products_in_scope(items: list[Product], ordering_keys: list[str] | None) -> list[Product]:
+        if ordering_keys is None:
+            return items
+        lookup = {str(key).strip() for key in ordering_keys if str(key).strip()}
+        return [item for item in items if item.ordering_key() in lookup]
+
+    def apply_margin_to_products(self, margin: float, ordering_keys: list[str] | None = None, *, persist: bool = True) -> int:
         items = self.list_products()
         if not items:
             return 0
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return 0
         updated = 0
-        for item in items:
+        for item in targets:
             new_price = calculate_sale_price(item.preco, margin)
             if new_price != item.preco_final:
                 item.preco_final = new_price
@@ -323,7 +351,7 @@ class ProductService:
                 "products_margin_applied",
                 "products margin applied",
                 updated=updated,
-                total=len(items),
+                total=len(targets),
             )
         return updated
 
@@ -343,34 +371,40 @@ class ProductService:
             metrics=metrics,
         )
 
-    def apply_category(self, category: str, *, persist: bool = True) -> int:
+    def apply_category(self, category: str, ordering_keys: list[str] | None = None, *, persist: bool = True) -> int:
         value = category.strip()
         items = self.list_products()
         if not items:
             return 0
-        for item in items:
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return 0
+        for item in targets:
             item.categoria = value
         if not persist:
-            return len(items)
+            return len(targets)
         self._products.replace_active(items)
         log_event(
             logger,
             logging.INFO,
             "products_category_applied",
             "products category applied",
-            updated=len(items),
+            updated=len(targets),
         )
-        return len(items)
+        return len(targets)
 
-    def apply_brand(self, brand: str, *, persist: bool = True) -> int:
+    def apply_brand(self, brand: str, ordering_keys: list[str] | None = None, *, persist: bool = True) -> int:
         value = brand.strip()
         items = self.list_products()
         if not items:
             return 0
-        for item in items:
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return 0
+        for item in targets:
             item.marca = value
         if not persist:
-            return len(items)
+            return len(targets)
         self._products.replace_active(items)
         if value:
             self._sync_brand(value)
@@ -379,46 +413,73 @@ class ProductService:
             logging.INFO,
             "products_brand_applied",
             "products brand applied",
-            updated=len(items),
+            updated=len(targets),
             brand_set=bool(value),
         )
-        return len(items)
+        return len(targets)
 
-    def join_duplicates(self, *, persist: bool = True) -> dict[str, int]:
+    def join_duplicates(self, ordering_keys: list[str] | None = None, *, persist: bool = True) -> dict[str, int]:
         items = self.list_products()
         if not items:
             return {"originais": 0, "resultantes": 0, "removidos": 0}
-        grouped: dict[tuple[str, ...], Product] = {}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"originais": 0, "resultantes": 0, "removidos": 0}
+        target_keys = {item.ordering_key() for item in targets}
+        grouped: dict[tuple[object, ...], Product] = {}
+        result: list[Product] = []
         for item in items:
+            if item.ordering_key() not in target_keys:
+                result.append(item)
+                continue
             key = (
                 (item.nome or "").strip().lower(),
                 (item.codigo or "").strip().lower(),
                 (item.preco or "").strip(),
                 (item.categoria or "").strip().lower(),
                 (item.marca or "").strip().lower(),
+                (item.preco_final or "").strip(),
+                (item.descricao_completa or "").strip(),
+                (item.codigo_original or "").strip().lower(),
+                tuple(sorted((grade.tamanho or "").strip().lower() for grade in (item.grades or []))),
+                tuple(sorted((color.cor or "").strip().lower() for color in (item.cores or []))),
+                (item.source_type or "").strip().lower(),
+                (item.import_batch_id or "").strip(),
+                (item.import_source_name or "").strip(),
+                bool(item.pending_grade_import),
             )
             existing = grouped.get(key)
             if existing is None:
                 grouped[key] = Product.from_dict(item.to_dict())
+                result.append(grouped[key])
                 continue
             existing.quantidade += item.quantidade
-        result = list(grouped.values())
-        removed = len(items) - len(result)
-        if persist:
+            grades_by_size = {(grade.tamanho or "").strip().lower(): grade for grade in (existing.grades or [])}
+            for incoming_grade in item.grades or []:
+                size = (incoming_grade.tamanho or "").strip().lower()
+                if size in grades_by_size:
+                    grades_by_size[size].quantidade += incoming_grade.quantidade
+            colors_by_name = {(color.cor or "").strip().lower(): color for color in (existing.cores or [])}
+            for incoming_color in item.cores or []:
+                name = (incoming_color.cor or "").strip().lower()
+                if name in colors_by_name:
+                    colors_by_name[name].quantidade += incoming_color.quantidade
+        removed = len(targets) - len(grouped)
+        if persist and removed:
             self._products.replace_active(result)
-            if removed:
-                log_event(
-                    logger,
-                    logging.INFO,
-                    "products_duplicates_joined",
-                    "products duplicates joined",
-                    originals=len(items),
-                    result_count=len(result),
-                    removed=removed,
-                )
+            log_event(
+                logger,
+                logging.INFO,
+                "products_duplicates_joined",
+                "products duplicates joined",
+                originals=len(targets),
+                result_count=len(grouped),
+                removed=removed,
+                catalog_total=len(items),
+            )
         return {
-            "originais": len(items),
-            "resultantes": len(result),
+            "originais": len(targets),
+            "resultantes": len(grouped),
             "removidos": removed,
         }
 
@@ -546,6 +607,32 @@ class ProductService:
         if qtd_set <= 0:
             return None
 
+        remaining_a = max(int(item_a.quantidade or 0) - qtd_set, 0)
+        remaining_b = max(int(item_b.quantidade or 0) - qtd_set, 0)
+        composition_conflicts: list[str] = []
+        for item, remaining in ((item_a, remaining_a), (item_b, remaining_b)):
+            if remaining <= 0:
+                continue
+            grade_total = sum(max(int(grade.quantidade or 0), 0) for grade in (item.grades or []))
+            color_total = sum(max(int(color.quantidade or 0), 0) for color in (item.cores or []))
+            overflowing = [
+                f"{label} somam {total}"
+                for label, total in (("grades", grade_total), ("cores", color_total))
+                if total > remaining
+            ]
+            if overflowing:
+                product_name = (item.nome or item.codigo or "Produto").strip()
+                unit_label = "unidade" if remaining == 1 else "unidades"
+                composition_conflicts.append(
+                    f'"{product_name}" ficaria com {remaining} {unit_label}, mas ' + " e ".join(overflowing)
+                )
+        if composition_conflicts:
+            raise ProductSetCompositionConflictError(
+                "Nao foi possivel criar o conjunto sem perder a composicao do estoque: "
+                + "; ".join(composition_conflicts)
+                + ". Ajuste grades/cores para o saldo que deve restar ou use toda a quantidade."
+            )
+
         base_a = strip_size_suffix(item_a.nome or "").strip()
         base_b = strip_size_suffix(item_b.nome or "").strip()
         if base_a and base_b:
@@ -623,7 +710,7 @@ class ProductService:
             "remaining_b": item_b.quantidade,
         }
 
-    def format_codes(self, options: dict[str, object], *, persist: bool = True) -> dict[str, object]:
+    def format_codes(self, options: dict[str, object], ordering_keys: list[str] | None = None, *, persist: bool = True) -> dict[str, object]:
         remove_prefix = bool(options.get("remover_prefixo5"))
         remove_left_zeros = bool(options.get("remover_zeros_a_esquerda"))
         last_digits = self._coerce_positive_int(options.get("ultimos_digitos"))
@@ -641,15 +728,18 @@ class ProductService:
         items = self.list_products()
         if not items:
             return {"total": 0, "alterados": 0, "prefixo": prefix_used}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"total": 0, "alterados": 0, "prefixo": prefix_used}
 
-        for item in items:
+        for item in targets:
             if not item.codigo_original:
                 item.codigo_original = item.codigo
 
         if remove_prefix:
             candidates = [
                 (item.codigo or "").strip()[:5]
-                for item in items
+                for item in targets
                 if len((item.codigo or "").strip()) >= 5 and (item.codigo or "").strip()[:5].isdigit()
             ]
             if candidates:
@@ -658,7 +748,7 @@ class ProductService:
                     prefix_used = prefix
 
         changed = 0
-        for item in items:
+        for item in targets:
             original = item.codigo
             updated = original
             if prefix_used and updated.startswith(prefix_used):
@@ -702,18 +792,21 @@ class ProductService:
                     logging.INFO,
                     "product_codes_formatted",
                     "product codes formatted",
-                    total=len(items),
+                    total=len(targets),
                     changed=changed,
                     prefix_removed=bool(prefix_used),
                 )
-        return {"total": len(items), "alterados": changed, "prefixo": prefix_used}
+        return {"total": len(targets), "alterados": changed, "prefixo": prefix_used}
 
-    def restore_original_codes(self) -> dict[str, int]:
+    def restore_original_codes(self, ordering_keys: list[str] | None = None) -> dict[str, int]:
         items = self.list_products()
         if not items:
             return {"total": 0, "restaurados": 0}
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"total": 0, "restaurados": 0}
         restored = 0
-        for item in items:
+        for item in targets:
             if item.codigo_original and item.codigo != item.codigo_original:
                 item.codigo = item.codigo_original
                 restored += 1
@@ -724,10 +817,10 @@ class ProductService:
                 logging.INFO,
                 "product_codes_restored",
                 "product codes restored",
-                total=len(items),
+                total=len(targets),
                 restored=restored,
             )
-        return {"total": len(items), "restaurados": restored}
+        return {"total": len(targets), "restaurados": restored}
 
     def reorder_by_keys(self, keys: list[str]) -> int:
         total = self._products.reorder_active(keys)
@@ -748,6 +841,7 @@ class ProductService:
         remove_special: bool,
         remove_letters: bool,
         terms: Iterable[str],
+        ordering_keys: list[str] | None = None,
         *,
         persist: bool = True,
     ) -> dict[str, int]:
@@ -757,8 +851,11 @@ class ProductService:
         if not items:
             return {"total": 0, "modificados": 0}
 
+        targets = self._products_in_scope(items, ordering_keys)
+        if not targets:
+            return {"total": 0, "modificados": 0}
         changed = 0
-        for item in items:
+        for item in targets:
             modified = False
             for attr in ("descricao_completa", "nome"):
                 current = getattr(item, attr) or ""
@@ -787,10 +884,10 @@ class ProductService:
                 logging.INFO,
                 "product_descriptions_improved",
                 "product descriptions improved",
-                total=len(items),
+                total=len(targets),
                 changed=changed,
             )
-        return {"total": len(items), "modificados": changed}
+        return {"total": len(targets), "modificados": changed}
 
     def get_active_file(self):
         return getattr(self._products, "_active_file")

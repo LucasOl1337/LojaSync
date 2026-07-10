@@ -18,6 +18,8 @@ type GradeModalProps = {
   nextPendingGradeKey: string | null;
   currentGradeTotal: number;
   gradeDraft: Record<string, string>;
+  draftDirty: boolean;
+  transitionLocked: boolean;
   gradeFamiliesDraft: UiGradeFamily[];
   groupedGradeSizes: GradeSizeGroup[];
   activeGradeFamily: GradeSizeGroup | null;
@@ -60,6 +62,8 @@ export function GradeModal({
   nextPendingGradeKey,
   currentGradeTotal,
   gradeDraft,
+  draftDirty,
+  transitionLocked,
   gradeFamiliesDraft,
   groupedGradeSizes,
   activeGradeFamily,
@@ -94,7 +98,7 @@ export function GradeModal({
   onSaveAndNextGrade,
 }: GradeModalProps) {
   return (
-    <div className="gradeModalBackdrop" onClick={onClose}>
+    <div className="gradeModalBackdrop" onClick={transitionLocked ? undefined : onClose}>
       <section className="gradeModalShell" onClick={(event) => event.stopPropagation()}>
         <header className="gradeModalHeader">
           <div>
@@ -102,7 +106,7 @@ export function GradeModal({
             <h3>{selectedProduct ? `${selectedProduct.nome} (${selectedProduct.codigo || "sem código"})` : "Selecione um item"}</h3>
           </div>
           <div className="gradeModalHeaderActions">
-            <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("executar-grades", onExecuteGrades)}>
+            <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("executar-grades", onExecuteGrades)} disabled={transitionLocked}>
               Executar grades
             </button>
             <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("parar-grades", onStopGrades)}>
@@ -124,6 +128,7 @@ export function GradeModal({
                   aria-current={product.ordering_key === selectedOrderingKey ? "true" : undefined}
                   onClick={() => onSelectProduct(product.ordering_key)}
                   onKeyDown={onGradeStartTab}
+                  disabled={transitionLocked}
                 >
                   <div className="gradeProductRowHead">
                     <strong>{product.nome}</strong>
@@ -162,7 +167,7 @@ export function GradeModal({
                       className="ghostButton miniActionButton"
                       type="button"
                       onClick={onSelectNextPendingGrade}
-                      disabled={!nextPendingGradeKey}
+                      disabled={!nextPendingGradeKey || transitionLocked}
                     >
                       Próxima pendência
                     </button>
@@ -305,6 +310,7 @@ export function GradeModal({
                               onChange={(event) => onUpdateGradeDraftValue(size, event.target.value)}
                               onKeyDown={onGradeInputKeyDown}
                               placeholder="0"
+                              disabled={transitionLocked}
                             />
                           </label>
                         ))}
@@ -318,6 +324,8 @@ export function GradeModal({
                 <div className="gradeModalFooterInfo">
                   <span>Total da grade: {currentGradeTotal}</span>
                   <span>Quantidade do produto: {selectedProduct.quantidade}</span>
+                  {transitionLocked ? <span role="status">Atualizando grade...</span> : null}
+                  {!transitionLocked && draftDirty ? <span className="gradeStatusTextWarning" role="status">Alterações não salvas</span> : null}
                 </div>
                 {validationError ? <div className="message error gradeValidationAlert">{validationError}</div> : null}
                 {modalError ? <div className="message error">{modalError}</div> : null}
@@ -329,19 +337,19 @@ export function GradeModal({
         </div>
 
         <footer className="gradeModalFooter">
-          <button className="ghostButton miniActionButton" type="button" onClick={onClose}>
+          <button className="ghostButton miniActionButton" type="button" onClick={onClose} disabled={transitionLocked}>
             Fechar
           </button>
-          <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("limpar-grade", onClearSelectedGrade)}>
+          <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("limpar-grade", onClearSelectedGrade)} disabled={transitionLocked}>
             Limpar Grade
           </button>
-          <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("limpar-todas-grades", onClearAllGrades)}>
+          <button className="ghostButton miniActionButton" type="button" onClick={() => void runBusyAction("limpar-todas-grades", onClearAllGrades)} disabled={transitionLocked}>
             Limpar Todas as Grades
           </button>
-          <button className="primaryButton gradeFooterButton" type="button" onClick={() => void runBusyAction("salvar-grade", onSaveSelectedGrade)}>
+          <button className="primaryButton gradeFooterButton" type="button" onClick={() => void runBusyAction("salvar-grade", onSaveSelectedGrade)} disabled={transitionLocked}>
             Salvar
           </button>
-          <button className="primaryButton gradeFooterButton" type="button" onClick={() => void runBusyAction("salvar-proxima-grade", onSaveAndNextGrade)}>
+          <button className="primaryButton gradeFooterButton" type="button" onClick={() => void runBusyAction("salvar-proxima-grade", onSaveAndNextGrade)} disabled={transitionLocked}>
             Salvar e Proxima Pendencia
           </button>
         </footer>

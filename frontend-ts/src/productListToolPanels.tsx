@@ -43,7 +43,7 @@ export function FormatCodesPanel({
     <div className="toolConfigPanel" ref={panelRef} onKeyDown={onPanelKeyDown}>
       <div className="toolConfigIntro">
         <strong>Limpar códigos com menos risco</strong>
-        <p>Use apenas estas opções para cortar números do começo ou do fim do código. Se precisar voltar atrás, use Restaurar originais.</p>
+        <p>Use apenas estas opções para cortar números do começo ou do fim do código. Com busca ou filtro ativo, só os produtos visíveis mudam. Se precisar voltar atrás, use Restaurar originais.</p>
       </div>
       <div className="toolConfigGrid">
         <label className="toolField">
@@ -111,7 +111,7 @@ export function DescriptionPanel({
     <div className="toolConfigPanel descriptionCleanupPanel" ref={panelRef} onKeyDown={onPanelKeyDown}>
       <div className="toolConfigIntro">
         <strong>Limpar nomes e descrições</strong>
-        <p>Escolha regras gerais ou adicione termos exatos encontrados na lista.</p>
+        <p>Escolha regras gerais ou adicione termos exatos encontrados na lista. Com busca ou filtro ativo, a limpeza fica limitada aos produtos visíveis.</p>
       </div>
       <div className="toolConfigGrid descriptionConfigGrid">
         <label className="toolCheck">

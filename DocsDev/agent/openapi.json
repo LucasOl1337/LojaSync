@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LojaSync",
-    "version": "1.2.4"
+    "version": "1.2.5"
   },
   "paths": {
     "/health": {
@@ -631,6 +631,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/JoinDuplicatesPayload"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -917,6 +934,23 @@
       "post": {
         "summary": "Restore Original Codes",
         "operationId": "restore_original_codes_actions_restore_original_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RestoreCodesPayload"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -924,6 +958,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RestoreCodesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1919,6 +1963,20 @@
             "type": "string",
             "title": "Valor",
             "default": ""
+          },
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
           }
         },
         "type": "object",
@@ -2016,6 +2074,20 @@
             "type": "boolean",
             "title": "Dry Run",
             "default": false
+          },
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
           },
           "remover_prefixo5": {
             "type": "boolean",
@@ -2748,6 +2820,20 @@
             "title": "Dry Run",
             "default": false
           },
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
+          },
           "remover_numeros": {
             "type": "boolean",
             "title": "Remover Numeros",
@@ -2768,6 +2854,26 @@
         },
         "type": "object",
         "title": "ImproveDescriptionPayload"
+      },
+      "JoinDuplicatesPayload": {
+        "properties": {
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
+          }
+        },
+        "type": "object",
+        "title": "JoinDuplicatesPayload"
       },
       "JoinGradesPayload": {
         "properties": {
@@ -2817,6 +2923,20 @@
               }
             ],
             "title": "Margem"
+          },
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
           }
         },
         "type": "object",
@@ -3272,6 +3392,26 @@
         },
         "type": "object",
         "title": "ReorderPayload"
+      },
+      "RestoreCodesPayload": {
+        "properties": {
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
+          }
+        },
+        "type": "object",
+        "title": "RestoreCodesPayload"
       },
       "RestoreCodesResponse": {
         "properties": {

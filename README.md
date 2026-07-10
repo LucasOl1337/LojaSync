@@ -1,6 +1,6 @@
 # LojaSync
 
-Release atual: v1.2.4, 2026-07-09
+Release atual: v1.2.5, 2026-07-10
 
 LojaSync e uma plataforma desktop-web para cadastro assistido de produtos no Byte Empresa. O sistema combina painel web em React, API FastAPI, leitura de romaneios/NF-e, consolidacao de grades, persistencia local e automacao desktop para reduzir trabalho manual em cadastros de estoque.
 

@@ -72,38 +72,13 @@ function sumSavedGradeValues(product: Pick<Product, "grades">) {
   return (product.grades || []).reduce((sum, item) => sum + (Number(item.quantidade || 0) || 0), 0);
 }
 
-type ProductReviewState = {
-  pendingGrades: boolean;
-  missingBrand: boolean;
-  missingCode: boolean;
-  missingCategory: boolean;
-  gradeMismatch: boolean;
-  savedGradeTotal: number;
-  productQuantity: number;
-};
-
-function buildProductReviewState(product: Product): ProductReviewState {
-  const savedGradeTotal = sumSavedGradeValues(product);
-  const hasSavedGrade = (product.grades || []).length > 0 || savedGradeTotal > 0;
-  const productQuantity = Number(product.quantidade || 0);
-
-  return {
-    pendingGrades: Boolean(product.pending_grade_import),
-    missingBrand: !String(product.marca || "").trim(),
-    missingCode: !String(product.codigo || "").trim(),
-    missingCategory: !String(product.categoria || "").trim(),
-    gradeMismatch: hasSavedGrade && savedGradeTotal !== productQuantity,
-    savedGradeTotal,
-    productQuantity,
-  };
+function hasAnySavedGrade(product: Pick<Product, "grades">) {
+  return (product.grades || []).length > 0 || sumSavedGradeValues(product) > 0;
 }
 
-function hasAnyReviewIssue(reviewState: ProductReviewState) {
-  return reviewState.pendingGrades
-    || reviewState.missingBrand
-    || reviewState.missingCode
-    || reviewState.missingCategory
-    || reviewState.gradeMismatch;
+function hasGradeMismatch(product: Product) {
+  if (!hasAnySavedGrade(product)) return false;
+  return sumSavedGradeValues(product) !== Number(product.quantidade || 0);
 }
 
 function isRecentImport(product: Product) {
@@ -111,7 +86,7 @@ function isRecentImport(product: Product) {
 }
 
 function needsReview(product: Product) {
-  return hasAnyReviewIssue(buildProductReviewState(product));
+  return buildProductReviewBadges(product).length > 0;
 }
 
 export function coerceProductQuickFilter(value: unknown, fallback: ProductQuickFilter = "all"): ProductQuickFilter {
@@ -121,25 +96,24 @@ export function coerceProductQuickFilter(value: unknown, fallback: ProductQuickF
 }
 
 export function buildProductReviewBadges(product: Product): ProductReviewBadge[] {
-  const reviewState = buildProductReviewState(product);
   const badges: ProductReviewBadge[] = [];
-  if (reviewState.pendingGrades) {
+  if (product.pending_grade_import) {
     badges.push({ key: "pending_grades", filter: "pending_grades", label: "Grade pendente", tone: "warning" });
   }
-  if (reviewState.missingBrand) {
+  if (!String(product.marca || "").trim()) {
     badges.push({ key: "missing_brand", filter: "missing_brand", label: "Sem marca", tone: "warning" });
   }
-  if (reviewState.missingCode) {
+  if (!String(product.codigo || "").trim()) {
     badges.push({ key: "missing_code", filter: "missing_code", label: "Sem código", tone: "warning" });
   }
-  if (reviewState.missingCategory) {
+  if (!String(product.categoria || "").trim()) {
     badges.push({ key: "missing_category", filter: "missing_category", label: "Sem categoria", tone: "warning" });
   }
-  if (reviewState.gradeMismatch) {
+  if (hasGradeMismatch(product)) {
     badges.push({
       key: "grade_mismatch",
       filter: "grade_mismatch",
-      label: `Grade ${reviewState.savedGradeTotal}/${reviewState.productQuantity}`,
+      label: `Grade ${sumSavedGradeValues(product)}/${Number(product.quantidade || 0)}`,
       tone: "error",
     });
   }
@@ -179,7 +153,7 @@ export function productMatchesQuickFilter(product: Product, filter: ProductQuick
     case "missing_category":
       return !String(product.categoria || "").trim();
     case "grade_mismatch":
-      return buildProductReviewState(product).gradeMismatch;
+      return hasGradeMismatch(product);
     case "all":
     default:
       return true;
@@ -214,60 +188,59 @@ function getProductSearchHaystack(product: Product) {
   ].join(" "));
 }
 
-type ProductSearchTerm = {
-  normalized: string;
-  compact: string;
+type ProductSearchIndexEntry = {
+  product: Product;
+  haystack: string;
+  compactHaystack: string;
 };
 
-function productSearchTermMatches(haystack: string, compactHaystack: string, term: ProductSearchTerm) {
-  if (haystack.includes(term.normalized)) return true;
+export type ProductSearchIndex = {
+  products: Product[];
+  entries: ProductSearchIndexEntry[];
+};
 
-  return Boolean(term.compact && compactHaystack.includes(term.compact));
+function productSearchTermMatches(haystack: string, compactHaystack: string, term: string) {
+  if (haystack.includes(term)) return true;
+
+  const compactTerm = compactProductSearchValue(term);
+  return Boolean(compactTerm && compactHaystack.includes(compactTerm));
+}
+
+export function buildProductSearchIndex(products: Product[]): ProductSearchIndex {
+  return {
+    products,
+    entries: products.map((product) => {
+      const haystack = getProductSearchHaystack(product);
+      return {
+        product,
+        haystack,
+        compactHaystack: compactProductSearchValue(haystack),
+      };
+    }),
+  };
+}
+
+export function filterProductSearchIndex(searchIndex: ProductSearchIndex, query: string) {
+  const terms = normalizeProductSearchValue(query).split(/\s+/g).filter(Boolean);
+  if (!terms.length) return searchIndex.products;
+
+  const matches: Product[] = [];
+  for (const entry of searchIndex.entries) {
+    if (terms.every((term) => productSearchTermMatches(entry.haystack, entry.compactHaystack, term))) {
+      matches.push(entry.product);
+    }
+  }
+  return matches;
 }
 
 export function filterProductsBySearch(products: Product[], query: string) {
-  const terms = normalizeProductSearchValue(query)
-    .split(/\s+/g)
-    .filter(Boolean)
-    .map((term) => ({
-      normalized: term,
-      compact: compactProductSearchValue(term),
-    }));
-  if (!terms.length) return products;
-
-  return products.filter((product) => {
-    const haystack = getProductSearchHaystack(product);
-    const compactHaystack = compactProductSearchValue(haystack);
-    return terms.every((term) => productSearchTermMatches(haystack, compactHaystack, term));
-  });
+  return filterProductSearchIndex(buildProductSearchIndex(products), query);
 }
 
 export function buildProductQuickFilterOptions(products: Product[]): ProductQuickFilterOption[] {
-  const counts: Record<ProductQuickFilter, number> = {
-    all: products.length,
-    needs_review: 0,
-    pending_grades: 0,
-    recent_imports: 0,
-    missing_brand: 0,
-    missing_code: 0,
-    missing_category: 0,
-    grade_mismatch: 0,
-  };
-
-  for (const product of products) {
-    const reviewState = buildProductReviewState(product);
-    if (hasAnyReviewIssue(reviewState)) counts.needs_review += 1;
-    if (reviewState.pendingGrades) counts.pending_grades += 1;
-    if (isRecentImport(product)) counts.recent_imports += 1;
-    if (reviewState.missingBrand) counts.missing_brand += 1;
-    if (reviewState.missingCode) counts.missing_code += 1;
-    if (reviewState.missingCategory) counts.missing_category += 1;
-    if (reviewState.gradeMismatch) counts.grade_mismatch += 1;
-  }
-
   return PRODUCT_QUICK_FILTER_DEFINITIONS.map((filter) => ({
     ...filter,
-    count: counts[filter.key],
+    count: filter.key === "all" ? products.length : products.filter((product) => productMatchesQuickFilter(product, filter.key)).length,
   }));
 }
 

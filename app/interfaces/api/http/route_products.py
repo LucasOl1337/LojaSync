@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from app.domain.products.entities import Product
+from app.application.products.service import ProductSetCompositionConflictError
 from app.interfaces.api.http.route_models import (
     BulkActionPayload,
     CreateSetPayload,
@@ -17,9 +18,11 @@ from app.interfaces.api.http.route_models import (
     ImproveDescriptionResponse,
     JoinGradesPayload,
     JoinGradesResponse,
+    JoinDuplicatesPayload,
     MarginPayload,
     MarginResponse,
     ReorderPayload,
+    RestoreCodesPayload,
     RestoreCodesResponse,
     SnapshotRestorePayload,
     SnapshotRestoreResponse,
@@ -192,7 +195,7 @@ async def get_totals(request: Request) -> TotalsResponse:
 async def apply_category(payload: BulkActionPayload, request: Request) -> dict[str, object]:
     service = get_product_service(request)
     _maybe_record_undo(service, dry_run=payload.dry_run)
-    total = service.apply_category(payload.valor, persist=not payload.dry_run)
+    total = service.apply_category(payload.valor, payload.keys, persist=not payload.dry_run)
     if total and not payload.dry_run:
         publish_state_changed(["products", "totals"])
     return _with_dry_run_meta(
@@ -205,7 +208,7 @@ async def apply_category(payload: BulkActionPayload, request: Request) -> dict[s
 async def apply_brand(payload: BulkActionPayload, request: Request) -> dict[str, object]:
     service = get_product_service(request)
     _maybe_record_undo(service, dry_run=payload.dry_run)
-    total = service.apply_brand(payload.valor, persist=not payload.dry_run)
+    total = service.apply_brand(payload.valor, payload.keys, persist=not payload.dry_run)
     if total and not payload.dry_run:
         publish_state_changed(["products", "totals", "brands"])
     return _with_dry_run_meta(
@@ -215,13 +218,13 @@ async def apply_brand(payload: BulkActionPayload, request: Request) -> dict[str,
 
 
 @router.post("/actions/join-duplicates")
-async def join_duplicates(request: Request, dry_run: bool = False) -> dict[str, object]:
+async def join_duplicates(request: Request, payload: JoinDuplicatesPayload | None = None, dry_run: bool = False) -> dict[str, object]:
     service = get_product_service(request)
     _maybe_record_undo(service, dry_run=dry_run)
-    result = service.join_duplicates(persist=not dry_run)
+    result = service.join_duplicates(payload.keys if payload else None, persist=not dry_run)
     if result.get("removidos") and not dry_run:
         publish_state_changed(["products", "totals"])
-    return _with_dry_run_meta(result, dry_run=dry_run)
+    return _with_dry_run_meta(result, dry_run=dry_run) if payload is None else result
 
 
 @router.post("/actions/reorder")
@@ -283,17 +286,17 @@ async def format_codes(payload: FormatCodesPayload, request: Request) -> dict[st
     service = get_product_service(request)
     _maybe_record_undo(service, dry_run=payload.dry_run)
     options = payload.model_dump(exclude={"dry_run"})
-    result = service.format_codes(options, persist=not payload.dry_run)
+    result = service.format_codes(options, payload.keys, persist=not payload.dry_run)
     if result.get("alterados") and not payload.dry_run:
         publish_state_changed(["products"])
     return _with_dry_run_meta(FormatCodesResponse(**result).model_dump(), dry_run=payload.dry_run)
 
 
 @router.post("/actions/restore-original-codes", response_model=RestoreCodesResponse)
-async def restore_original_codes(request: Request) -> RestoreCodesResponse:
+async def restore_original_codes(request: Request, payload: RestoreCodesPayload | None = None) -> RestoreCodesResponse:
     service = get_product_service(request)
     service.record_undo_snapshot(clear_redo=True)
-    result = service.restore_original_codes()
+    result = service.restore_original_codes(payload.keys if payload else None)
     if result.get("restaurados"):
         publish_state_changed(["products"])
     return RestoreCodesResponse(**result)
@@ -307,8 +310,7 @@ async def apply_margin(payload: MarginPayload, request: Request) -> dict[str, ob
     if margin_factor is None or margin_factor <= 0:
         raise HTTPException(status_code=400, detail="Margem invalida")
     service = get_product_service(request)
-    _maybe_record_undo(service, dry_run=payload.dry_run)
-    total = service.apply_margin_to_products(margin_factor, persist=not payload.dry_run)
+    total = service.apply_margin_to_products(margin_factor, payload.keys, persist=not payload.dry_run)
     percentual = (margin_factor - 1) * 100
     if total and not payload.dry_run:
         publish_state_changed(["products", "totals", "margin"])
@@ -325,10 +327,13 @@ async def apply_margin(payload: MarginPayload, request: Request) -> dict[str, ob
 @router.post("/actions/create-set", response_model=CreateSetResponse)
 async def create_set(payload: CreateSetPayload, request: Request) -> CreateSetResponse:
     service = get_product_service(request)
-    service.record_undo_snapshot(clear_redo=True)
-    result = service.create_set_by_keys(payload.key_a, payload.key_b)
+    try:
+        result = service.create_set_by_keys(payload.key_a, payload.key_b)
+    except ProductSetCompositionConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not result:
         raise HTTPException(status_code=400, detail="Nao foi possivel criar o conjunto selecionado.")
+    service.record_undo_snapshot(clear_redo=True)
     publish_state_changed(["products", "totals"])
     return CreateSetResponse(**result)
 
@@ -345,6 +350,7 @@ async def improve_descriptions(payload: ImproveDescriptionPayload, request: Requ
         payload.remover_especiais,
         False,
         payload.remover_termos,
+        payload.keys,
         persist=not payload.dry_run,
     )
     if result.get("modificados") and not payload.dry_run:

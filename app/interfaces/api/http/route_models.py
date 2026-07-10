@@ -11,6 +11,7 @@ class DryRunMixin(BaseModel):
 
 class BulkActionPayload(DryRunMixin):
     valor: str = ""
+    keys: list[str] | None = None
 
 
 class ReorderPayload(BaseModel):
@@ -67,6 +68,7 @@ class UndoRedoApplyResponse(UndoRedoHistoryResponse):
 
 
 class FormatCodesPayload(DryRunMixin):
+    keys: list[str] | None = None
     remover_prefixo5: bool = False
     remover_zeros_a_esquerda: bool = False
     ultimos_digitos: int | None = Field(default=None, ge=1, le=50)
@@ -90,6 +92,14 @@ class FormatCodesResponse(BaseModel):
 class RestoreCodesResponse(BaseModel):
     total: int
     restaurados: int
+
+
+class RestoreCodesPayload(BaseModel):
+    keys: list[str] | None = None
+
+
+class JoinDuplicatesPayload(BaseModel):
+    keys: list[str] | None = None
 
 
 class JoinGradesResponse(BaseModel):
@@ -119,6 +129,7 @@ class CreateSetResponse(BaseModel):
 class MarginPayload(DryRunMixin):
     percentual: float | None = Field(default=None, gt=0)
     margem: float | None = Field(default=None, gt=0)
+    keys: list[str] | None = None
 
 
 class MarginResponse(BaseModel):
@@ -164,6 +175,7 @@ class TargetCaptureResponse(BaseModel):
 
 
 class ImproveDescriptionPayload(DryRunMixin):
+    keys: list[str] | None = None
     remover_numeros: bool = False
     remover_especiais: bool = False
     remover_termos: list[str] = Field(default_factory=list)

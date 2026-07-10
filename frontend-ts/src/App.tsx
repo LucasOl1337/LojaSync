@@ -81,9 +81,14 @@ import {
 } from "./productForm";
 import type { ProductFormField } from "./productForm";
 import {
+  buildProductQuickFilterOptions,
+  buildProductSearchIndex,
   buildProductSearchEmptyState,
-  filterProductsBySearch,
+  filterProductsByQuickFilter,
+  filterProductSearchIndex,
+  resolveStaleProductQuickFilter,
 } from "./productFilters";
+import type { ProductQuickFilter } from "./productFilters";
 import {
   buildDescriptionCleanupSuggestions,
   parseDescriptionRemovalTerms,
@@ -91,12 +96,14 @@ import {
 import {
   GRADE_UI_VERSION,
   buildDefaultUiFamilies,
+  buildGradeItemsFromDraft,
   buildGradeProductStatus,
   buildVisualSizeOrder,
   compareGradeSizeLabels,
   findNextPendingGradeKey,
   getIncompleteGradeProducts,
   gradeItemsToMap,
+  hasGradeDraftChanges,
   normalizeGradeConfigState,
   normalizeGradeSizeLabel,
   normalizeUiFamiliesDraft,
@@ -110,6 +117,7 @@ import {
   buildImportDiagnosticsChips,
   buildImportGradesAvailableMessage,
   buildImportProgressMessage,
+  buildClearProductsConfirmation,
   buildProductOperationDiaryEntry,
   buildUndoRedoHistoryState,
   coerceStringList,
@@ -132,10 +140,12 @@ import {
   readInitialImportHistory,
   readInitialOperationDiary,
   readInitialOrderingDraft,
+  readInitialProductQuickFilter,
   readLastActiveGradeFamily,
   saveOrderingDraft,
   saveLastActiveGradeFamily,
   saveOperationDiary,
+  saveProductQuickFilter,
   saveRecentImportHistory,
 } from "./appLocalState";
 import type {
@@ -147,6 +157,7 @@ import { useNoticeCenter } from "./appNotifications";
 import { ImportStagePanel } from "./importStagePanel";
 import { ProductEntryPanel } from "./productEntryPanel";
 import { OperationalSummaryPanel } from "./operationalSummaryPanel";
+import { CatalogOverviewPanel } from "./catalogOverviewPanel";
 import { ExecutionCenterPanel } from "./executionCenterPanel";
 import { GradeModal } from "./gradeModal";
 import { ProductListControls } from "./productListControls";
@@ -158,6 +169,10 @@ import { TextInputDialog } from "./textInputDialog";
 import { NoticeDialog } from "./noticeDialog";
 import { NoticeToastStack } from "./noticeToastStack";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
+import { buildProductCsv, buildProductCsvFilename } from "./productExport";
+import { buildProductTemplatePayload } from "./productTemplate";
+import { buildCatalogOverview } from "./catalogOverview";
+import { buildUsageAnalytics } from "./usageAnalytics";
 import {
   buildDisplayedProducts,
   buildFinalOrderingKeys,
@@ -207,6 +222,7 @@ export default function App({ authSession = null }: AppProps) {
   const [bulkBrandValue, setBulkBrandValue] = useState("");
   const [simpleModeEnabled, setSimpleModeEnabled] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [productQuickFilter, setProductQuickFilter] = useState<ProductQuickFilter>(readInitialProductQuickFilter);
   const [undoRedoRevision, setUndoRedoRevision] = useState(0);
   const [globalEditMode, setGlobalEditMode] = useState(false);
   const [orderingMode, setOrderingMode] = useState(() => readInitialOrderingDraft().length > 0);
@@ -259,6 +275,9 @@ export default function App({ authSession = null }: AppProps) {
   const visitedProductFields = useRef<Set<ProductFormField>>(new Set());
   const gradeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingGradeInputFocus = useRef(false);
+  const gradeDraftBaselineRef = useRef<Record<string, string>>({});
+  const gradeTransitionPendingRef = useRef(false);
+  const gradeMutationPendingRef = useRef(false);
   const gradeConfigSaveSeq = useRef(0);
   const previousAutomationStateRef = useRef<string | null>(null);
   const inlineEditInputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
@@ -315,18 +334,60 @@ export default function App({ authSession = null }: AppProps) {
     () => buildDisplayedProducts(state.products, orderingDraftKeys, orderingMode),
     [orderingDraftKeys, orderingMode, state.products],
   );
+  const productQuickFilterOptions = useMemo(
+    () => buildProductQuickFilterOptions(orderedProducts),
+    [orderedProducts],
+  );
+  const quickFilteredProducts = useMemo(
+    () => filterProductsByQuickFilter(orderedProducts, productQuickFilter),
+    [orderedProducts, productQuickFilter],
+  );
+  const productSearchIndex = useMemo(
+    () => buildProductSearchIndex(quickFilteredProducts),
+    [quickFilteredProducts],
+  );
   const displayedProducts = useMemo(
-    () => filterProductsBySearch(orderedProducts, productSearchQuery),
-    [orderedProducts, productSearchQuery],
+    () => filterProductSearchIndex(productSearchIndex, productSearchQuery),
+    [productSearchIndex, productSearchQuery],
+  );
+  const visibleBulkActionKeys = useMemo<string[] | undefined>(
+    () => displayedProducts.length === state.products.length
+      ? undefined
+      : displayedProducts.map((product) => product.ordering_key),
+    [displayedProducts, state.products.length],
   );
   const descriptionCleanupSuggestions = useMemo(
-    () => buildDescriptionCleanupSuggestions(state.products, descriptionOptions.remover_termos),
-    [descriptionOptions.remover_termos, state.products],
+    () => buildDescriptionCleanupSuggestions(displayedProducts, descriptionOptions.remover_termos),
+    [descriptionOptions.remover_termos, displayedProducts],
   );
+  const catalogOverview = useMemo(
+    () => buildCatalogOverview(state.products, state.marginPercentual),
+    [state.marginPercentual, state.products],
+  );
+
+  useEffect(() => {
+    const nextFilter = resolveStaleProductQuickFilter(
+      productQuickFilter,
+      productQuickFilterOptions,
+      orderedProducts.length,
+    );
+    if (nextFilter === productQuickFilter) return;
+    setProductQuickFilter(saveProductQuickFilter(nextFilter));
+  }, [orderedProducts.length, productQuickFilter, productQuickFilterOptions]);
+
+  const handleCatalogFilterSelect = (filter: ProductQuickFilter) => {
+    setProductQuickFilter(saveProductQuickFilter(filter));
+    setProductSearchQuery("");
+    window.setTimeout(() => {
+      const workspacePanel = document.getElementById("workspace-panel");
+      workspacePanel?.focus({ preventScroll: true });
+      document.getElementById("list-tools-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
 
   const productTableEmptyState = useMemo(
     () => productSearchQuery.trim()
-      ? buildProductSearchEmptyState(productSearchQuery, orderedProducts.length)
+      ? buildProductSearchEmptyState(productSearchQuery, quickFilteredProducts.length)
       : {
           searchActive: false,
           title: state.products.length ? "Nenhum item visível" : "Lista vazia",
@@ -335,7 +396,7 @@ export default function App({ authSession = null }: AppProps) {
             : "Escolha um caminho para gerar o primeiro lote revisavel dentro do LojaSync.",
           actions: [],
         },
-    [orderedProducts.length, productSearchQuery, state.products.length],
+    [productSearchQuery, quickFilteredProducts.length, state.products.length],
   );
   const undoRedoHistoryState = useMemo(
     () => buildUndoRedoHistoryState(undoStackRef.current.length, redoStackRef.current.length),
@@ -384,6 +445,14 @@ export default function App({ authSession = null }: AppProps) {
     [activeGradeFamilyKey, groupedGradeSizes],
   );
   const currentGradeTotal = useMemo(() => sumGradeDraftValues(gradeDraft), [gradeDraft]);
+  const gradeDraftDirty = hasGradeDraftChanges(gradeDraft, gradeDraftBaselineRef.current);
+  const gradeDraftMutationBusy = busyAction === "salvar-grade"
+    || busyAction === "salvar-proxima-grade"
+    || busyAction === "limpar-grade";
+  const usageAnalytics = useMemo(
+    () => buildUsageAnalytics(operationDiary, sidebarClock.getTime()),
+    [operationDiary, sidebarClock],
+  );
   const selectedGradeStatus = useMemo(
     () => (selectedGradeProduct ? buildGradeProductStatus(selectedGradeProduct, currentGradeTotal) : null),
     [currentGradeTotal, selectedGradeProduct],
@@ -917,10 +986,13 @@ export default function App({ authSession = null }: AppProps) {
   useEffect(() => {
     if (!gradeModalOpen) return;
     if (!selectedGradeProduct) {
+      gradeDraftBaselineRef.current = {};
       setGradeDraft({});
       return;
     }
-    setGradeDraft(gradeItemsToMap(selectedGradeProduct.grades));
+    const savedDraft = gradeItemsToMap(selectedGradeProduct.grades);
+    gradeDraftBaselineRef.current = savedDraft;
+    setGradeDraft(savedDraft);
     setGradeValidationError(null);
   }, [gradeModalOpen, gradeSelectedKey]);
 
@@ -1151,6 +1223,19 @@ export default function App({ authSession = null }: AppProps) {
     });
   };
 
+  const handleUseProductAsTemplate = (product: Product) => {
+    setForm(buildProductTemplatePayload(product));
+    visitedProductFields.current.clear();
+    showNoticeDialog({
+      title: "Modelo pronto para cadastro",
+      message: `Os dados de ${product.nome} foram reaproveitados. Revise o nome e informe um novo código.`,
+      tone: "success",
+    });
+    window.requestAnimationFrame(() => {
+      focusProductField("nome");
+    });
+  };
+
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -1201,16 +1286,6 @@ export default function App({ authSession = null }: AppProps) {
     });
   };
 
-  const confirmFilteredBulkAction = async (fieldLabel: string, value: string) => {
-    if (displayedProducts.length >= state.products.length) return true;
-    return confirmWithDialog({
-      title: "Aplicar em toda a lista?",
-      message: `A lista visível mostra ${displayedProducts.length} de ${state.products.length} produtos.`,
-      detail: `Aplicar ${fieldLabel} "${value}" a todos os ${state.products.length} produtos, incluindo itens fora da busca atual.`,
-      confirmLabel: "Aplicar a todos",
-    });
-  };
-
   const openTextInputDialog = (dialog: TextInputDialogState) => {
     setTextInputError(null);
     setTextInputBusy(false);
@@ -1246,7 +1321,6 @@ export default function App({ authSession = null }: AppProps) {
   const submitBrand = async () => {
     if (!newBrand.trim()) return;
     const normalized = newBrand.trim();
-    if (!(await confirmFilteredBulkAction("a marca", normalized))) return;
     try {
       const result = await addBrand(normalized);
       setNewBrand("");
@@ -1256,7 +1330,7 @@ export default function App({ authSession = null }: AppProps) {
         setState((current) => ({ ...current, brands: result.marcas }));
       });
       await pushUndoSnapshot();
-      const applied = await applyBrand(normalized);
+      const applied = await applyBrand(normalized, visibleBulkActionKeys);
       rememberProductOperation({
         action: "bulk_brand",
         value: applied.marca || normalized,
@@ -1365,6 +1439,10 @@ export default function App({ authSession = null }: AppProps) {
 
   const handleClearProducts = async () => {
     if (!state.products.length) return;
+    const confirmed = await confirmWithDialog(
+      buildClearProductsConfirmation(state.products.length, displayedProducts.length),
+    );
+    if (!confirmed) return;
     await pushUndoSnapshot();
     const result = await clearProducts();
     rememberProductOperation({
@@ -1380,10 +1458,9 @@ export default function App({ authSession = null }: AppProps) {
       showNoticeDialog({ title: "Seleção obrigatória", message: "Selecione uma categoria antes de aplicar.", tone: "warning" });
       return;
     }
-    if (!(await confirmFilteredBulkAction("a categoria", category))) return;
     setBulkCategoryValue(category);
     await pushUndoSnapshot();
-    const result = await applyCategory(category);
+    const result = await applyCategory(category, visibleBulkActionKeys);
     rememberProductOperation({
       action: "bulk_category",
       value: result.categoria || category,
@@ -1399,10 +1476,9 @@ export default function App({ authSession = null }: AppProps) {
       showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione uma marca antes de aplicar.", tone: "warning" });
       return;
     }
-    if (!(await confirmFilteredBulkAction("a marca", brand))) return;
     setBulkBrandValue(brand);
     await pushUndoSnapshot();
-    const result = await applyBrand(brand);
+    const result = await applyBrand(brand, visibleBulkActionKeys);
     rememberProductOperation({
       action: "bulk_brand",
       value: result.marca || brand,
@@ -1413,12 +1489,52 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleJoinDuplicates = async () => {
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({
+        title: "Sem produtos visiveis",
+        message: "Ajuste ou limpe os filtros antes de juntar itens repetidos.",
+        tone: "warning",
+      });
+      return;
+    }
     await pushUndoSnapshot();
-    const result = await joinDuplicates();
+    const result = await joinDuplicates(visibleBulkActionKeys);
     queueRefresh(["products", "totals"]);
+    const scopeMessage = visibleBulkActionKeys === undefined
+      ? `Escopo: catalogo completo (${result.originais} produtos).`
+      : `Escopo: ${result.originais} de ${state.products.length} produtos visiveis. Itens fora do resultado atual foram preservados e podem continuar repetidos.`;
     showNoticeDialog({
-      title: "Itens repetidos reunidos",
-      message: `Originais: ${result.originais}\nResultantes: ${result.resultantes}\nRemovidos: ${result.removidos}`,
+      title: result.removidos ? "Itens repetidos reunidos" : "Nenhum repetido no resultado",
+      message: `${scopeMessage}\nOriginais: ${result.originais}\nResultantes: ${result.resultantes}\nRemovidos: ${result.removidos}`,
+      tone: result.removidos ? "success" : "info",
+    });
+  };
+
+  const handleExportVisibleProducts = () => {
+    if (!displayedProducts.length) {
+      showNoticeDialog({
+        title: "Nada para exportar",
+        message: "A busca atual não contém produtos para baixar.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    const csv = buildProductCsv(displayedProducts);
+    const downloadUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = buildProductCsvFilename();
+    link.hidden = true;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+
+    const isFiltered = displayedProducts.length < state.products.length;
+    showNoticeDialog({
+      title: "CSV pronto",
+      message: `${displayedProducts.length === 1 ? "1 produto exportado" : `${displayedProducts.length} produtos exportados`}${isFiltered ? " da busca atual" : " do catálogo"}.`,
       tone: "success",
     });
   };
@@ -1460,13 +1576,17 @@ export default function App({ authSession = null }: AppProps) {
       setMarginError("Informe um percentual maior que zero.");
       return;
     }
+    if (visibleBulkActionKeys?.length === 0) {
+      setMarginError("O resultado atual nao tem produtos para receber a margem.");
+      return;
+    }
 
     setMarginBusy(true);
     setMarginError(null);
     try {
       await pushUndoSnapshot();
       await saveMargin(percentual);
-      const result = await applyMargin(percentual);
+      const result = await applyMargin(percentual, visibleBulkActionKeys);
       rememberProductOperation({
         action: "margin",
         value: formatPercentDisplay(result.percentual_utilizado).replace("%", ""),
@@ -1482,6 +1602,10 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleFormatCodes = async () => {
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({ title: "Sem produtos visiveis", message: "Ajuste ou limpe os filtros antes de formatar codigos.", tone: "warning" });
+      return;
+    }
     const payload = {
       remover_prefixo5: false,
       remover_zeros_a_esquerda: false,
@@ -1495,6 +1619,7 @@ export default function App({ authSession = null }: AppProps) {
       remover_primeiros_numeros: parsePromptInteger(formatCodesOptions.remover_primeiros_numeros),
       ultimos_digitos: null,
       primeiros_digitos: null,
+      keys: visibleBulkActionKeys,
     };
     const hasAnyOption = Object.entries(payload).some(([key, value]) => {
       if (key === "remover_prefixo5" || key === "remover_zeros_a_esquerda") {
@@ -1528,6 +1653,10 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleImproveDescriptions = async () => {
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({ title: "Sem produtos visiveis", message: "Ajuste ou limpe os filtros antes de limpar nomes e descricoes.", tone: "warning" });
+      return;
+    }
     const termos = parseDescriptionRemovalTerms(descriptionOptions.remover_termos);
     if (!descriptionOptions.remover_numeros && !descriptionOptions.remover_especiais && !termos.length) {
       showNoticeDialog({ title: "Seleção obrigatória", message: "Selecione ao menos uma regra de limpeza.", tone: "warning" });
@@ -1538,6 +1667,7 @@ export default function App({ authSession = null }: AppProps) {
       remover_numeros: descriptionOptions.remover_numeros,
       remover_especiais: descriptionOptions.remover_especiais,
       remover_termos: termos,
+      keys: visibleBulkActionKeys,
     });
     rememberProductOperation({
       action: "improve_descriptions",
@@ -1554,6 +1684,14 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleExecuteGrades = async () => {
+    if (gradeModalOpen && gradeDraftDirty) {
+      showNoticeDialog({
+        title: "Salve a grade antes de executar",
+        message: "As quantidades alteradas ainda estão apenas no rascunho. Use Salvar para incluí-las na execução.",
+        tone: "warning",
+      });
+      return;
+    }
     await executeGradesProducts();
     queueRefresh(["automation"]);
   };
@@ -1604,9 +1742,70 @@ export default function App({ authSession = null }: AppProps) {
     }
   };
 
+  const confirmGradeDraftDiscard = async () => {
+    if (gradeMutationPendingRef.current) {
+      showNoticeDialog({
+        title: "Aguarde a atualização da grade",
+        message: "O salvamento atual precisa terminar antes de trocar de produto ou fechar esta tela.",
+        tone: "warning",
+      });
+      return false;
+    }
+    if (!hasGradeDraftChanges(gradeDraft, gradeDraftBaselineRef.current) || !selectedGradeProduct) {
+      return true;
+    }
+    if (gradeTransitionPendingRef.current) {
+      return false;
+    }
+    gradeTransitionPendingRef.current = true;
+    try {
+      return await confirmWithDialog({
+        title: "Descartar alterações da grade?",
+        message: `"${selectedGradeProduct.nome}" tem quantidades alteradas que ainda não foram salvas.`,
+        detail: "Ao continuar, o rascunho será perdido. Cancele e use Salvar ou Salvar e Próxima Pendência para manter as alterações.",
+        confirmLabel: "Descartar e continuar",
+      });
+    } finally {
+      gradeTransitionPendingRef.current = false;
+    }
+  };
+
   const closeGradeModal = () => {
-    setGradeModalOpen(false);
-    setGradeModalError(null);
+    void (async () => {
+      if (!(await confirmGradeDraftDiscard())) {
+        return;
+      }
+      setGradeDraft({ ...gradeDraftBaselineRef.current });
+      setGradeModalOpen(false);
+      setGradeModalError(null);
+    })();
+  };
+
+  const requestGradeProductSelection = async (
+    orderingKey: string,
+    options?: { focusInput?: boolean; skipDiscardCheck?: boolean },
+  ) => {
+    if (!orderingKey || orderingKey === gradeSelectedKey) {
+      return false;
+    }
+    if (!options?.skipDiscardCheck && !(await confirmGradeDraftDiscard())) {
+      return false;
+    }
+    const targetProduct = productsByKey.get(orderingKey);
+    if (!targetProduct) {
+      return false;
+    }
+    const targetDraft = gradeItemsToMap(targetProduct.grades);
+    gradeDraftBaselineRef.current = targetDraft;
+    setGradeDraft(targetDraft);
+    setGradeValidationError(null);
+    pendingGradeInputFocus.current = Boolean(options?.focusInput);
+    setGradeSelectedKey(orderingKey);
+    return true;
+  };
+
+  const handleSelectGradeProduct = (orderingKey: string) => {
+    void requestGradeProductSelection(orderingKey);
   };
 
   const persistVisualFamilies = async (nextFamilies: UiGradeFamily[]) => {
@@ -1760,6 +1959,9 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const updateGradeDraftValue = (size: string, value: string) => {
+    if (gradeMutationPendingRef.current) {
+      return;
+    }
     setGradeValidationError(null);
     setGradeDraft((current) => ({ ...current, [size]: value.replace(/[^\d]/g, "") }));
   };
@@ -1810,7 +2012,7 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const saveSelectedGrade = async () => {
-    if (!selectedGradeProduct) {
+    if (!selectedGradeProduct || gradeMutationPendingRef.current) {
       return false;
     }
     const validation = validateSelectedGrade();
@@ -1818,14 +2020,20 @@ export default function App({ authSession = null }: AppProps) {
       setGradeValidationError(validation.message);
       return false;
     }
-    const grades = Object.entries(gradeDraft)
-      .map(([tamanho, quantidade]) => ({ tamanho, quantidade: Number.parseInt(quantidade, 10) || 0 }))
-      .filter((item) => item.quantidade > 0);
-    await pushUndoSnapshot();
-    await patchProduct(selectedGradeProduct.ordering_key, { grades });
-    setGradeValidationError(null);
-    queueRefresh(["products", "totals"]);
-    return true;
+    const grades = buildGradeItemsFromDraft(gradeDraft);
+    gradeMutationPendingRef.current = true;
+    try {
+      await pushUndoSnapshot();
+      await patchProduct(selectedGradeProduct.ordering_key, { grades });
+      const savedDraft = gradeItemsToMap(grades);
+      gradeDraftBaselineRef.current = savedDraft;
+      setGradeDraft(savedDraft);
+      setGradeValidationError(null);
+      queueRefresh(["products", "totals"]);
+      return true;
+    } finally {
+      gradeMutationPendingRef.current = false;
+    }
   };
 
   const handleSaveSelectedGrade = async () => {
@@ -1842,31 +2050,44 @@ export default function App({ authSession = null }: AppProps) {
       return;
     }
     const nextPendingKey = findNextPendingGradeKey(state.products, currentOrderingKey, currentOrderingKey);
-    pendingGradeInputFocus.current = true;
-    setGradeSelectedKey(nextPendingKey ?? currentOrderingKey);
+    if (nextPendingKey) {
+      await requestGradeProductSelection(nextPendingKey, { focusInput: true, skipDiscardCheck: true });
+    }
   };
 
   const handleSelectNextPendingGrade = () => {
     if (!nextPendingGradeKey) {
       return;
     }
-    setGradeValidationError(null);
-    pendingGradeInputFocus.current = true;
-    setGradeSelectedKey(nextPendingGradeKey);
+    void requestGradeProductSelection(nextPendingGradeKey, { focusInput: true });
   };
 
   const handleClearSelectedGrade = async () => {
-    if (!selectedGradeProduct) {
+    if (!selectedGradeProduct || gradeMutationPendingRef.current) {
       return;
     }
-    await pushUndoSnapshot();
-    await patchProduct(selectedGradeProduct.ordering_key, { grades: [] });
-    setGradeDraft({});
-    setGradeValidationError(null);
-    queueRefresh(["products", "totals"]);
+    gradeMutationPendingRef.current = true;
+    try {
+      await pushUndoSnapshot();
+      await patchProduct(selectedGradeProduct.ordering_key, { grades: [] });
+      gradeDraftBaselineRef.current = {};
+      setGradeDraft({});
+      setGradeValidationError(null);
+      queueRefresh(["products", "totals"]);
+    } finally {
+      gradeMutationPendingRef.current = false;
+    }
   };
 
   const handleClearAllGrades = async () => {
+    if (gradeMutationPendingRef.current) {
+      showNoticeDialog({
+        title: "Aguarde a atualização da grade",
+        message: "O salvamento atual precisa terminar antes de limpar as grades.",
+        tone: "warning",
+      });
+      return;
+    }
     const productsWithGrades = state.products.filter((product) => (product.grades || []).length > 0 || product.ordering_key === gradeSelectedKey);
     openConfirmationDialog({
       title: "Limpar todas as grades?",
@@ -1874,17 +2095,23 @@ export default function App({ authSession = null }: AppProps) {
       detail: `${productsWithGrades.length} itens serao afetados. A lista de produtos e os dados de cadastro permanecem intactos.`,
       confirmLabel: "Limpar grades",
       onConfirm: async () => {
-        await pushUndoSnapshot();
-        await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
-        setGradeDraft({});
-        setGradeValidationError(null);
-        queueRefresh(["products", "totals"]);
+        gradeMutationPendingRef.current = true;
+        try {
+          await pushUndoSnapshot();
+          await Promise.all(productsWithGrades.map((product) => patchProduct(product.ordering_key, { grades: [] })));
+          gradeDraftBaselineRef.current = {};
+          setGradeDraft({});
+          setGradeValidationError(null);
+          queueRefresh(["products", "totals"]);
+        } finally {
+          gradeMutationPendingRef.current = false;
+        }
       },
     });
   };
 
   useEffect(() => {
-    if (!gradeModalOpen || !pendingGradeInputFocus.current) {
+    if (!gradeModalOpen || confirmationDialog || !pendingGradeInputFocus.current) {
       return;
     }
     pendingGradeInputFocus.current = false;
@@ -1892,7 +2119,7 @@ export default function App({ authSession = null }: AppProps) {
       focusFirstActiveGradeInput();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [gradeModalOpen, gradeSelectedKey, activeGradeFamilyKey]);
+  }, [activeGradeFamilyKey, confirmationDialog, gradeModalOpen, gradeSelectedKey]);
 
   const handleToggleSimpleMode = () => {
     setSimpleModeEnabled((current) => !current);
@@ -2350,6 +2577,7 @@ export default function App({ authSession = null }: AppProps) {
           <OperationalSummaryPanel
             totalsText={state.totalsText}
             totalsRaw={state.totalsRaw}
+            usageAnalytics={usageAnalytics}
           />
         </aside>
 
@@ -2359,6 +2587,12 @@ export default function App({ authSession = null }: AppProps) {
           tabIndex={-1}
           aria-label="Area de trabalho operacional"
         >
+          <CatalogOverviewPanel
+            overview={catalogOverview}
+            activeFilter={productQuickFilter}
+            onSelectFilter={handleCatalogFilterSelect}
+          />
+
           <ExecutionCenterPanel
             automationState={state.automation.estado}
             automationMessage={state.automation.message}
@@ -2409,11 +2643,16 @@ export default function App({ authSession = null }: AppProps) {
             onCancelOrdering={handleCancelOrdering}
             onToggleCreateSets={handleToggleCreateSets}
             onJoinDuplicates={handleJoinDuplicates}
+            onExportVisibleProducts={handleExportVisibleProducts}
             onClearProducts={handleClearProducts}
             onFormatCodeOptionChange={(field, value) => setFormatCodesOptions((current) => ({ ...current, [field]: value }))}
             onRestoreOriginalCodes={async () => {
+              if (visibleBulkActionKeys?.length === 0) {
+                showNoticeDialog({ title: "Sem produtos visiveis", message: "Ajuste ou limpe os filtros antes de restaurar codigos.", tone: "warning" });
+                return;
+              }
               await pushUndoSnapshot();
-              const result = await restoreOriginalCodes();
+              const result = await restoreOriginalCodes(visibleBulkActionKeys);
               rememberProductOperation({
                 action: "format_codes",
                 productCount: result.total,
@@ -2479,6 +2718,7 @@ export default function App({ authSession = null }: AppProps) {
             onOrderingSelection={handleOrderingSelection}
             onCreateSetSelection={handleCreateSetSelection}
             onMoveOrderingItem={moveOrderingItem}
+            onUseProductAsTemplate={handleUseProductAsTemplate}
             onProductSearchChange={setProductSearchQuery}
             onDeleteProduct={async (orderingKey) => {
               const product = productsByKey.get(orderingKey);
@@ -2595,6 +2835,8 @@ export default function App({ authSession = null }: AppProps) {
           nextPendingGradeKey={nextPendingGradeKey}
           currentGradeTotal={currentGradeTotal}
           gradeDraft={gradeDraft}
+          draftDirty={gradeDraftDirty}
+          transitionLocked={gradeDraftMutationBusy}
           gradeFamiliesDraft={gradeFamiliesDraft}
           groupedGradeSizes={groupedGradeSizes}
           activeGradeFamily={activeGradeFamily}
@@ -2609,7 +2851,7 @@ export default function App({ authSession = null }: AppProps) {
           onClose={closeGradeModal}
           onExecuteGrades={handleExecuteGrades}
           onStopGrades={handleStopGrades}
-          onSelectProduct={setGradeSelectedKey}
+          onSelectProduct={handleSelectGradeProduct}
           onGradeStartTab={handleGradeStartTab}
           onSelectNextPendingGrade={handleSelectNextPendingGrade}
           onAddFamily={addFamily}

@@ -81,10 +81,14 @@ import {
 } from "./productForm";
 import type { ProductFormField } from "./productForm";
 import {
+  buildProductQuickFilterOptions,
   buildProductSearchIndex,
   buildProductSearchEmptyState,
+  filterProductsByQuickFilter,
   filterProductSearchIndex,
+  resolveStaleProductQuickFilter,
 } from "./productFilters";
+import type { ProductQuickFilter } from "./productFilters";
 import {
   buildDescriptionCleanupSuggestions,
   parseDescriptionRemovalTerms,
@@ -133,10 +137,12 @@ import {
   readInitialImportHistory,
   readInitialOperationDiary,
   readInitialOrderingDraft,
+  readInitialProductQuickFilter,
   readLastActiveGradeFamily,
   saveOrderingDraft,
   saveLastActiveGradeFamily,
   saveOperationDiary,
+  saveProductQuickFilter,
   saveRecentImportHistory,
 } from "./appLocalState";
 import type {
@@ -148,6 +154,7 @@ import { useNoticeCenter } from "./appNotifications";
 import { ImportStagePanel } from "./importStagePanel";
 import { ProductEntryPanel } from "./productEntryPanel";
 import { OperationalSummaryPanel } from "./operationalSummaryPanel";
+import { CatalogOverviewPanel } from "./catalogOverviewPanel";
 import { ExecutionCenterPanel } from "./executionCenterPanel";
 import { GradeModal } from "./gradeModal";
 import { ProductListControls } from "./productListControls";
@@ -161,6 +168,7 @@ import { NoticeToastStack } from "./noticeToastStack";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
 import { buildProductCsv, buildProductCsvFilename } from "./productExport";
 import { buildProductTemplatePayload } from "./productTemplate";
+import { buildCatalogOverview } from "./catalogOverview";
 import {
   buildDisplayedProducts,
   buildFinalOrderingKeys,
@@ -210,6 +218,7 @@ export default function App({ authSession = null }: AppProps) {
   const [bulkBrandValue, setBulkBrandValue] = useState("");
   const [simpleModeEnabled, setSimpleModeEnabled] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [productQuickFilter, setProductQuickFilter] = useState<ProductQuickFilter>(readInitialProductQuickFilter);
   const [undoRedoRevision, setUndoRedoRevision] = useState(0);
   const [globalEditMode, setGlobalEditMode] = useState(false);
   const [orderingMode, setOrderingMode] = useState(() => readInitialOrderingDraft().length > 0);
@@ -318,9 +327,17 @@ export default function App({ authSession = null }: AppProps) {
     () => buildDisplayedProducts(state.products, orderingDraftKeys, orderingMode),
     [orderingDraftKeys, orderingMode, state.products],
   );
-  const productSearchIndex = useMemo(
-    () => buildProductSearchIndex(orderedProducts),
+  const productQuickFilterOptions = useMemo(
+    () => buildProductQuickFilterOptions(orderedProducts),
     [orderedProducts],
+  );
+  const quickFilteredProducts = useMemo(
+    () => filterProductsByQuickFilter(orderedProducts, productQuickFilter),
+    [orderedProducts, productQuickFilter],
+  );
+  const productSearchIndex = useMemo(
+    () => buildProductSearchIndex(quickFilteredProducts),
+    [quickFilteredProducts],
   );
   const displayedProducts = useMemo(
     () => filterProductSearchIndex(productSearchIndex, productSearchQuery),
@@ -330,10 +347,34 @@ export default function App({ authSession = null }: AppProps) {
     () => buildDescriptionCleanupSuggestions(state.products, descriptionOptions.remover_termos),
     [descriptionOptions.remover_termos, state.products],
   );
+  const catalogOverview = useMemo(
+    () => buildCatalogOverview(state.products, state.marginPercentual),
+    [state.marginPercentual, state.products],
+  );
+
+  useEffect(() => {
+    const nextFilter = resolveStaleProductQuickFilter(
+      productQuickFilter,
+      productQuickFilterOptions,
+      orderedProducts.length,
+    );
+    if (nextFilter === productQuickFilter) return;
+    setProductQuickFilter(saveProductQuickFilter(nextFilter));
+  }, [orderedProducts.length, productQuickFilter, productQuickFilterOptions]);
+
+  const handleCatalogFilterSelect = (filter: ProductQuickFilter) => {
+    setProductQuickFilter(saveProductQuickFilter(filter));
+    setProductSearchQuery("");
+    window.setTimeout(() => {
+      const workspacePanel = document.getElementById("workspace-panel");
+      workspacePanel?.focus({ preventScroll: true });
+      document.getElementById("list-tools-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
 
   const productTableEmptyState = useMemo(
     () => productSearchQuery.trim()
-      ? buildProductSearchEmptyState(productSearchQuery, orderedProducts.length)
+      ? buildProductSearchEmptyState(productSearchQuery, quickFilteredProducts.length)
       : {
           searchActive: false,
           title: state.products.length ? "Nenhum item visível" : "Lista vazia",
@@ -342,7 +383,7 @@ export default function App({ authSession = null }: AppProps) {
             : "Escolha um caminho para gerar o primeiro lote revisavel dentro do LojaSync.",
           actions: [],
         },
-    [orderedProducts.length, productSearchQuery, state.products.length],
+    [productSearchQuery, quickFilteredProducts.length, state.products.length],
   );
   const undoRedoHistoryState = useMemo(
     () => buildUndoRedoHistoryState(undoStackRef.current.length, redoStackRef.current.length),
@@ -2408,6 +2449,12 @@ export default function App({ authSession = null }: AppProps) {
           tabIndex={-1}
           aria-label="Area de trabalho operacional"
         >
+          <CatalogOverviewPanel
+            overview={catalogOverview}
+            activeFilter={productQuickFilter}
+            onSelectFilter={handleCatalogFilterSelect}
+          />
+
           <ExecutionCenterPanel
             automationState={state.automation.estado}
             automationMessage={state.automation.message}

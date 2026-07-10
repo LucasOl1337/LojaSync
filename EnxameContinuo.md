@@ -17,6 +17,28 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 ## Rodadas concluidas
 
+### 2026-07-09-04 - Visao comercial acionavel do catalogo
+
+- Area sorteada: Telas e paginas de frontend.
+- Entrega: a area de trabalho ganhou o painel `Visao do catalogo`, que mostra
+  capital no lote, venda projetada, ganho bruto potencial e percentual de
+  prontidao do catalogo.
+- Arquivos: `frontend-ts/src/catalogOverview.ts`,
+  `frontend-ts/src/catalogOverviewPanel.tsx`, `frontend-ts/src/App.tsx`,
+  `frontend-ts/src/styles.css`, `frontend-ts/test/catalogOverview.test.mjs`,
+  `frontend-ts/package.json`, `frontend-ts/dist/**`.
+- Antes: totais existiam na barra lateral e as regras de revisao estavam
+  implementadas, mas o dono precisava interpretar a tabela e nao conseguia
+  acionar os filtros de pendencia pela tela atual.
+- Depois: indicadores comerciais ficam visiveis no topo da area operacional;
+  cartoes de pendencias filtram a lista por revisao, grade, codigo, marca ou
+  categoria, persistem a escolha e removem automaticamente filtros obsoletos.
+- Evidencia literal da suite frontend: `tests 99`, `pass 99`, `fail 0`.
+- Evidencia literal do build final: `51 modules transformed.` e
+  `built in 168ms`.
+- Evidencia literal do diff de fontes: `git diff --check` sem erros.
+- Commit: este commit.
+
 ### 2026-07-09-03 - Produto existente como modelo de novo cadastro
 
 - Area sorteada: Novos recursos / capacidades criativas.

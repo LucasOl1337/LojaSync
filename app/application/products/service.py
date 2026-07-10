@@ -401,7 +401,7 @@ class ProductService:
             return {"originais": 0, "resultantes": 0, "removidos": 0}
 
         target_keys = {item.ordering_key() for item in targets}
-        grouped: dict[tuple[str, ...], Product] = {}
+        grouped: dict[tuple[object, ...], Product] = {}
         result: list[Product] = []
         for item in items:
             if item.ordering_key() not in target_keys:
@@ -413,6 +413,25 @@ class ProductService:
                 (item.preco or "").strip(),
                 (item.categoria or "").strip().lower(),
                 (item.marca or "").strip().lower(),
+                (item.preco_final or "").strip(),
+                (item.descricao_completa or "").strip(),
+                (item.codigo_original or "").strip().lower(),
+                tuple(
+                    sorted(
+                        ((grade.tamanho or "").strip().lower(), int(grade.quantidade or 0))
+                        for grade in (item.grades or [])
+                    )
+                ),
+                tuple(
+                    sorted(
+                        ((cor.cor or "").strip().lower(), int(cor.quantidade or 0))
+                        for cor in (item.cores or [])
+                    )
+                ),
+                (item.source_type or "").strip().lower(),
+                (item.import_batch_id or "").strip(),
+                (item.import_source_name or "").strip(),
+                bool(item.pending_grade_import),
             )
             existing = grouped.get(key)
             if existing is None:
@@ -421,6 +440,18 @@ class ProductService:
                 result.append(copy)
                 continue
             existing.quantidade += item.quantidade
+            grades_by_size = {
+                (grade.tamanho or "").strip().lower(): grade
+                for grade in (existing.grades or [])
+            }
+            for incoming_grade in item.grades or []:
+                grades_by_size[(incoming_grade.tamanho or "").strip().lower()].quantidade += incoming_grade.quantidade
+            colors_by_name = {
+                (color.cor or "").strip().lower(): color
+                for color in (existing.cores or [])
+            }
+            for incoming_color in item.cores or []:
+                colors_by_name[(incoming_color.cor or "").strip().lower()].quantidade += incoming_color.quantidade
         removed = len(targets) - len(grouped)
         if removed:
             self._products.replace_active(result)

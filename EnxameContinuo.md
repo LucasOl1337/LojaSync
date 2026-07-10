@@ -8,7 +8,7 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 - [ ] Isolar o CodeGraph da worktree: `codegraph status .` resolve o projeto como
   `C:\Projetos` e mistura milhares de arquivos externos; `codegraph index . --force`
   foi tentado nesta rodada, mas tambem herdou o indice ancestral.
-- [ ] Auditar a identidade usada por `Juntar repetidos`: hoje nome, codigo, preco,
+- [x] Auditar a identidade usada por `Juntar repetidos`: hoje nome, codigo, preco,
   categoria e marca iguais podem reunir itens com grades, cores ou descricoes
   diferentes; confirmar a regra de negocio e impedir perda de detalhes distintos.
 
@@ -19,6 +19,26 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 | - | - | - | - | nenhum claim ativo |
 
 ## Rodadas concluidas
+
+### 2026-07-09-10 - Variacoes preservadas ao juntar repetidos
+
+- Area: Correcao de bugs reais.
+- Entrega: `Juntar repetidos` agora so reune produtos quando preco de venda,
+  descricao, codigo original, grades, cores e metadados de origem tambem
+  coincidem; produtos realmente identicos somam as quantidades internas de
+  tamanhos e cores junto com a quantidade total.
+- Arquivos: `app/application/products/service.py`,
+  `tests/test_product_routes_sqlite.py`.
+- Antes: produtos com os mesmos cinco campos basicos podiam perder preco de
+  venda, descricao, grade, cor e proveniencia porque somente a primeira copia
+  era mantida; grades e cores identicas tambem nao tinham suas quantidades
+  somadas.
+- Depois: variacoes comercialmente distintas permanecem separadas e duplicatas
+  exatas sao consolidadas sem deixar a composicao interna abaixo do total.
+- Evidencia literal do contrato focal: `2 passed, 9 deselected in 2.00s`.
+- Evidencia literal da suite backend: `139 passed, 5 deselected, 5 subtests passed in 11.52s`.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Commit: este commit.
 
 ### 2026-07-09-09 - Juntar repetidos limitado ao resultado atual
 

@@ -301,6 +301,77 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(listed[created[0]["ordering_key"]]["quantidade"], 3)
                 self.assertEqual(listed[created[2]["ordering_key"]]["quantidade"], 4)
 
+    def test_join_duplicates_preserves_distinct_product_details(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                base = {
+                    "nome": "Camisa Basica",
+                    "codigo": "CAM-1",
+                    "quantidade": 2,
+                    "preco": "10,00",
+                    "preco_final": "19,90",
+                    "categoria": "Camisetas",
+                    "marca": "Marca A",
+                    "descricao_completa": "Malha premium",
+                    "grades": [
+                        {"tamanho": "P", "quantidade": 1},
+                        {"tamanho": "M", "quantidade": 1},
+                    ],
+                    "cores": [
+                        {"cor": "Azul", "quantidade": 1},
+                        {"cor": "Verde", "quantidade": 1},
+                    ],
+                }
+                payloads = [
+                    base,
+                    {
+                        **base,
+                        "grades": list(reversed(base["grades"])),
+                        "cores": list(reversed(base["cores"])),
+                    },
+                    {**base, "descricao_completa": "Malha leve"},
+                    {**base, "grades": [{"tamanho": "G", "quantidade": 2}]},
+                    {**base, "cores": [{"cor": "Preto", "quantidade": 2}]},
+                    {**base, "preco_final": "21,90"},
+                ]
+                created = [client.post("/products", json=payload).json()["item"] for payload in payloads]
+
+                response = client.post(
+                    "/actions/join-duplicates",
+                    json={"keys": [item["ordering_key"] for item in created]},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"originais": 6, "resultantes": 5, "removidos": 1})
+                listed = client.get("/products").json()["items"]
+                self.assertEqual(len(listed), 5)
+
+                merged = next(item for item in listed if item["ordering_key"] == created[0]["ordering_key"])
+                self.assertEqual(merged["quantidade"], 4)
+                self.assertEqual(
+                    {item["tamanho"]: item["quantidade"] for item in merged["grades"]},
+                    {"P": 2, "M": 2},
+                )
+                self.assertEqual(
+                    {item["cor"]: item["quantidade"] for item in merged["cores"]},
+                    {"Azul": 2, "Verde": 2},
+                )
+                self.assertEqual({item["descricao_completa"] for item in listed}, {"Malha premium", "Malha leve"})
+                self.assertEqual({item["preco_final"] for item in listed}, {"19,90", "21,90"})
+                self.assertEqual(
+                    {item["grades"][0]["tamanho"] for item in listed},
+                    {"P", "G"},
+                )
+                self.assertEqual(
+                    {item["cores"][0]["cor"] for item in listed},
+                    {"Azul", "Preto"},
+                )
+
     def test_restore_snapshot_preserves_ordering_keys(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

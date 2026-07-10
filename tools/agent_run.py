@@ -44,6 +44,9 @@ def request_json(base: str, method: str, path: str, body: Any | None = None, dry
         except json.JSONDecodeError:
             payload = {"detail": raw}
         return exc.code, payload
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", exc)
+        return 0, {"detail": f"Request failed: {reason}"}
 
 
 def cmd_list(index: dict[str, Any]) -> int:
@@ -67,7 +70,14 @@ def find_action(index: dict[str, Any], name: str) -> dict[str, Any] | None:
     return None
 
 
-def cmd_run(base: str, index: dict[str, Any], name: str, dry_run: bool, body_json: str | None) -> int:
+def cmd_run(
+    base: str,
+    index: dict[str, Any],
+    name: str,
+    dry_run: bool,
+    body_json: str | None,
+    path_override: str | None = None,
+) -> int:
     action = find_action(index, name)
     if action is None:
         print(f"Unknown action: {name}", file=sys.stderr)
@@ -77,10 +87,17 @@ def cmd_run(base: str, index: dict[str, Any], name: str, dry_run: bool, body_jso
         return 3
     body = None
     if body_json:
-        body = json.loads(body_json)
+        try:
+            body = json.loads(body_json)
+        except json.JSONDecodeError as exc:
+            print(f"Invalid JSON body: {exc.msg}", file=sys.stderr)
+            return 2
     elif isinstance(action.get("body"), dict):
         body = {k: v for k, v in action["body"].items() if k != "dry_run"}
-    path = action["path"]
+    path = path_override or action["path"]
+    if path_override and not path_override.startswith("/"):
+        print(f"Concrete path must start with '/': {path_override}", file=sys.stderr)
+        return 2
     if "{" in path:
         print(f"Path has placeholders: {path}. Pass a concrete path via --path.", file=sys.stderr)
         return 2
@@ -101,6 +118,7 @@ def main() -> int:
     run_p.add_argument("name")
     run_p.add_argument("--dry-run", action="store_true")
     run_p.add_argument("--body", default=None, help="JSON body override")
+    run_p.add_argument("--path", default=None, help="Concrete path for catalog actions with placeholders")
 
     args = parser.parse_args()
     index = load_index()
@@ -109,7 +127,7 @@ def main() -> int:
     if args.cmd == "health":
         return cmd_health(args.base)
     if args.cmd == "run":
-        return cmd_run(args.base, index, args.name, args.dry_run, args.body)
+        return cmd_run(args.base, index, args.name, args.dry_run, args.body, args.path)
     return 2
 
 

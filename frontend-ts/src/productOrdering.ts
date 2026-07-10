@@ -29,7 +29,8 @@ export function buildDisplayedProducts<T extends OrderingItem>(products: T[], dr
   const productByKey = new Map(products.map((product) => [product.ordering_key, product] as const));
   const originalKeys = buildOrderingKeys(products);
   const selectedKeys = sanitizeOrderingDraft(draftKeys, originalKeys);
-  const remainingKeys = originalKeys.filter((key) => !selectedKeys.includes(key));
+  const selectedKeySet = new Set(selectedKeys);
+  const remainingKeys = originalKeys.filter((key) => !selectedKeySet.has(key));
   return [...selectedKeys, ...remainingKeys].map((key) => productByKey.get(key)).filter((product): product is T => Boolean(product));
 }
 
@@ -40,7 +41,8 @@ export function buildOrderingSelectionIndex<T extends OrderingItem>(products: T[
 
 export function buildFinalOrderingKeys(originalKeys: string[], draftKeys: string[]) {
   const selectedKeys = sanitizeOrderingDraft(draftKeys, originalKeys);
-  const remainingKeys = originalKeys.filter((key) => !selectedKeys.includes(key));
+  const selectedKeySet = new Set(selectedKeys);
+  const remainingKeys = originalKeys.filter((key) => !selectedKeySet.has(key));
   return [...selectedKeys, ...remainingKeys];
 }
 

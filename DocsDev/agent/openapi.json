@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LojaSync",
-    "version": "1.2.3"
+    "version": "1.2.4"
   },
   "paths": {
     "/health": {
@@ -40,7 +40,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Auth Session Auth Session Get"
                 }
@@ -73,7 +72,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Auth Bootstrap Auth Bootstrap Post"
                 }
@@ -116,7 +114,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Auth Login Auth Login Post"
                 }
@@ -281,7 +278,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response Clear Products Products Delete"
                 }
               }
@@ -561,7 +557,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Apply Category Actions Apply Category Post"
                 }
@@ -601,7 +596,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Apply Brand Actions Apply Brand Post"
                 }
@@ -644,7 +638,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response Join Duplicates Actions Join Duplicates Post"
                 }
               }
@@ -725,7 +718,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Join Grades Actions Join Grades Post"
                 }
@@ -902,7 +894,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Format Codes Actions Format Codes Post"
                 }
@@ -960,7 +951,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Apply Margin Actions Apply Margin Post"
                 }
@@ -1038,7 +1028,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Improve Descriptions Actions Improve Descriptions Post"
                 }
@@ -1176,7 +1165,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Automation Status Automation Status Get"
                 }
@@ -1264,7 +1252,6 @@
                 "schema": {
                   "additionalProperties": {
                     "items": {
-                      "additionalProperties": true,
                       "type": "object"
                     },
                     "type": "array"
@@ -1288,7 +1275,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Byteempresa Context Automation Byteempresa Context Get"
                 }
@@ -1308,7 +1294,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Byteempresa Prepare Automation Byteempresa Prepare Post"
                 }
@@ -1328,7 +1313,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Grades Config Get Automation Grades Config Get"
                 }
@@ -1356,7 +1340,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Grades Config Set Automation Grades Config Post"
                 }
@@ -1438,7 +1421,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Grades Batch Automation Grades Batch Post"
                 }
@@ -1468,7 +1450,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Grades Execute Products Automation Grades Execute Products Post"
                 }
@@ -1859,7 +1840,7 @@
         "properties": {
           "file": {
             "type": "string",
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File"
           }
         },
@@ -1873,7 +1854,7 @@
         "properties": {
           "file": {
             "type": "string",
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File"
           }
         },
@@ -1887,7 +1868,7 @@
         "properties": {
           "file": {
             "type": "string",
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File"
           }
         },
@@ -2265,7 +2246,6 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
                   "type": "object"
                 },
                 "type": "array"
@@ -2679,7 +2659,6 @@
             "title": "Import Batch Id"
           },
           "metrics": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Metrics"
           }
@@ -2748,7 +2727,6 @@
             "title": "Error"
           },
           "metrics": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Metrics"
           }
@@ -3394,7 +3372,6 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
                   "type": "object"
                 },
                 "type": "array"
@@ -3409,7 +3386,6 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
                   "type": "object"
                 },
                 "type": "array"
@@ -3870,13 +3846,6 @@
           "type": {
             "type": "string",
             "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
           }
         },
         "type": "object",

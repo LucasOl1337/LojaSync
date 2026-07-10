@@ -121,5 +121,6 @@ TS_BUILD_INPUTS = (
     FRONTEND_TS_DIR / "tsconfig.json",
     FRONTEND_TS_DIR / "tsconfig.app.json",
     FRONTEND_TS_DIR / "vite.config.ts",
+    FRONTEND_TS_DIR / "public",
     FRONTEND_TS_DIR / "src",
 )

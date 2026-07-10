@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import launcher
+from app.bootstrap.launcher.env import FRONTEND_TS_DIR, TS_BUILD_INPUTS
 
 
 class LauncherFrontendPreparationTests(unittest.TestCase):
@@ -160,3 +161,7 @@ def test_iter_files_collects_nested_files(tmp_path: Path) -> None:
     files = launcher._iter_files((tmp_path / "src",))
 
     assert files == [target]
+
+
+def test_typescript_build_inputs_include_public_assets() -> None:
+    assert FRONTEND_TS_DIR / "public" in TS_BUILD_INPUTS

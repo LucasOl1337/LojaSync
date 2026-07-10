@@ -37,6 +37,7 @@ const GRADE_SIZE_PRIORITY = [
   "9M",
   "12M",
   "18M",
+  "32",
   "34",
   "36",
   "38",

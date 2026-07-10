@@ -28,6 +28,7 @@ type ProductTableRowProps = {
   onOrderingSelection: (orderingKey: string, options?: { allowRemove?: boolean }) => void;
   onCreateSetSelection: (orderingKey: string) => Promise<void>;
   onMoveOrderingItem: (orderingKey: string, direction: -1 | 1) => void;
+  onUseProductAsTemplate: (product: Product) => void;
   onDeleteProduct: (orderingKey: string) => Promise<void>;
 };
 
@@ -53,6 +54,7 @@ export function ProductTableRow({
   onOrderingSelection,
   onCreateSetSelection,
   onMoveOrderingItem,
+  onUseProductAsTemplate,
   onDeleteProduct,
 }: ProductTableRowProps) {
   const reviewBadges = buildProductNameReviewBadges(product);
@@ -212,24 +214,43 @@ export function ProductTableRow({
               </>
             ) : null}
             {!orderingMode && !createSetMode ? (
-              <button
-                className="rowDeleteButtonTs"
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void runBusyAction(`excluir-${product.ordering_key}`, async () => onDeleteProduct(product.ordering_key));
-                }}
-                aria-label={`Excluir ${product.nome}`}
-                title={`Excluir ${product.nome}`}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
-              </button>
+              <>
+                <button
+                  className="rowTemplateButtonTs"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUseProductAsTemplate(product);
+                  }}
+                  aria-label={`Usar ${product.nome} como modelo de novo produto`}
+                  title="Usar como modelo"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="11" height="11" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    <path d="M14.5 12v5" />
+                    <path d="M12 14.5h5" />
+                  </svg>
+                </button>
+                <button
+                  className="rowDeleteButtonTs"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void runBusyAction(`excluir-${product.ordering_key}`, async () => onDeleteProduct(product.ordering_key));
+                  }}
+                  aria-label={`Excluir ${product.nome}`}
+                  title={`Excluir ${product.nome}`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+              </>
             ) : null}
             {createSetMode ? (
               <button

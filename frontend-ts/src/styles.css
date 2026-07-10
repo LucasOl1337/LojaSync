@@ -3525,7 +3525,8 @@ tbody tr:hover {
   color: #ff8f8f;
 }
 
-.rowDeleteButtonTs {
+.rowDeleteButtonTs,
+.rowTemplateButtonTs {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3540,6 +3541,20 @@ tbody tr:hover {
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
+}
+
+.rowTemplateButtonTs {
+  border-color: rgba(34, 211, 238, 0.14);
+  background: rgba(8, 47, 73, 0.18);
+  color: rgba(103, 232, 249, 0.76);
+}
+
+tbody tr:hover .rowTemplateButtonTs,
+.rowTemplateButtonTs:hover,
+.rowTemplateButtonTs:focus-visible {
+  border-color: rgba(34, 211, 238, 0.38);
+  background: rgba(8, 145, 178, 0.22);
+  color: #cffafe;
 }
 
 tbody tr:hover .rowDeleteButtonTs {
@@ -5637,7 +5652,8 @@ button:disabled {
     height: 5px;
   }
 
-  .rowDeleteButtonTs {
+  .rowDeleteButtonTs,
+  .rowTemplateButtonTs {
     width: 20px;
     height: 20px;
     border-radius: 7px;

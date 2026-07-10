@@ -17,6 +17,28 @@ Arquivo de coordenacao da automacao `enxame-cont-nuo-lojasync` na worktree
 
 ## Rodadas concluidas
 
+### 2026-07-09-03 - Produto existente como modelo de novo cadastro
+
+- Area sorteada: Novos recursos / capacidades criativas.
+- Entrega: cada linha da lista ganhou a acao acessivel `Usar como modelo`, que
+  preenche o cadastro manual com nome, custo, venda, categoria, marca,
+  descricao, grades e cores do produto escolhido.
+- Arquivos: `frontend-ts/src/productTemplate.ts`,
+  `frontend-ts/test/productTemplate.test.mjs`, `frontend-ts/package.json`,
+  `frontend-ts/src/productTableRow.tsx`, `frontend-ts/src/productTable.tsx`,
+  `frontend-ts/src/App.tsx`, `frontend-ts/src/styles.css`,
+  `frontend-ts/dist/**`.
+- Antes: cadastrar uma variacao parecida exigia redigitar os dados do produto
+  ou editar uma copia fora do LojaSync.
+- Depois: um clique prepara o formulario, leva o foco ao nome e confirma a acao;
+  codigo e quantidade sao reiniciados para evitar duplicacao acidental, e as
+  colecoes aninhadas sao clonadas sem alterar a linha original.
+- Evidencia literal da suite frontend: `tests 96`, `pass 96`, `fail 0`.
+- Evidencia literal do build final: `49 modules transformed.` e
+  `built in 179ms`.
+- Evidencia literal do diff: `git diff --check` sem erros.
+- Commit: este commit.
+
 ### 2026-07-09-01 - Busca responsiva em catalogos grandes
 
 - Area sorteada: Performance perceptivel.

@@ -160,6 +160,7 @@ import { NoticeDialog } from "./noticeDialog";
 import { NoticeToastStack } from "./noticeToastStack";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
 import { buildProductCsv, buildProductCsvFilename } from "./productExport";
+import { buildProductTemplatePayload } from "./productTemplate";
 import {
   buildDisplayedProducts,
   buildFinalOrderingKeys,
@@ -1152,6 +1153,19 @@ export default function App({ authSession = null }: AppProps) {
 
   const handleStartManualEntry = () => {
     setProductSearchQuery("");
+    window.requestAnimationFrame(() => {
+      focusProductField("nome");
+    });
+  };
+
+  const handleUseProductAsTemplate = (product: Product) => {
+    setForm(buildProductTemplatePayload(product));
+    visitedProductFields.current.clear();
+    showNoticeDialog({
+      title: "Modelo pronto para cadastro",
+      message: `Os dados de ${product.nome} foram reaproveitados. Revise o nome e informe um novo código.`,
+      tone: "success",
+    });
     window.requestAnimationFrame(() => {
       focusProductField("nome");
     });
@@ -2515,6 +2529,7 @@ export default function App({ authSession = null }: AppProps) {
             onOrderingSelection={handleOrderingSelection}
             onCreateSetSelection={handleCreateSetSelection}
             onMoveOrderingItem={moveOrderingItem}
+            onUseProductAsTemplate={handleUseProductAsTemplate}
             onProductSearchChange={setProductSearchQuery}
             onDeleteProduct={async (orderingKey) => {
               const product = productsByKey.get(orderingKey);

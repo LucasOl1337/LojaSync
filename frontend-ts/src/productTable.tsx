@@ -52,6 +52,7 @@ type ProductTableProps = {
   onOrderingSelection: (orderingKey: string, options?: { allowRemove?: boolean }) => void;
   onCreateSetSelection: (orderingKey: string) => Promise<void>;
   onMoveOrderingItem: (orderingKey: string, direction: -1 | 1) => void;
+  onUseProductAsTemplate: (product: Product) => void;
   onDeleteProduct: (orderingKey: string) => Promise<void>;
   onProductSearchChange: (query: string) => void;
 };
@@ -187,6 +188,7 @@ export function ProductTable({
   onOrderingSelection,
   onCreateSetSelection,
   onMoveOrderingItem,
+  onUseProductAsTemplate,
   onDeleteProduct,
   onProductSearchChange,
 }: ProductTableProps) {
@@ -441,6 +443,7 @@ export function ProductTable({
                     onOrderingSelection={onOrderingSelection}
                     onCreateSetSelection={onCreateSetSelection}
                     onMoveOrderingItem={onMoveOrderingItem}
+                    onUseProductAsTemplate={onUseProductAsTemplate}
                     onDeleteProduct={onDeleteProduct}
                   />
                 );

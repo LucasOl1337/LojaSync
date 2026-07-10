@@ -131,6 +131,47 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(len(listed), 1)
                 self.assertEqual(listed[0]["preco"], "10,00")
 
+    def test_patch_product_ignores_null_core_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            with patch("app.interfaces.api.http.app.build_container", return_value=container):
+                client = TestClient(create_app())
+                self._authenticate(client)
+
+                created = client.post(
+                    "/products",
+                    json={
+                        "nome": "Produto Base",
+                        "codigo": "BASE-1",
+                        "quantidade": 2,
+                        "preco": "10,00",
+                        "categoria": "Infantil",
+                        "marca": "Marca 1",
+                    },
+                ).json()["item"]
+
+                response = client.patch(
+                    f"/products/{created['ordering_key']}",
+                    json={
+                        "nome": None,
+                        "codigo": None,
+                        "quantidade": None,
+                        "preco": None,
+                        "categoria": None,
+                        "marca": None,
+                    },
+                )
+
+                self.assertEqual(response.status_code, 200)
+                updated = response.json()["item"]
+                self.assertEqual(updated["nome"], "Produto Base")
+                self.assertEqual(updated["codigo"], "BASE-1")
+                self.assertEqual(updated["quantidade"], 2)
+                self.assertEqual(updated["preco"], "10,00")
+                self.assertEqual(updated["categoria"], "Infantil")
+                self.assertEqual(updated["marca"], "Marca 1")
+
     def test_reorder_route_changes_only_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

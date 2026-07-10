@@ -100,6 +100,5 @@ class AgentRunCliTests(unittest.TestCase):
         self.assertEqual(result, 2)
         request_json.assert_not_called()
 
-
 if __name__ == "__main__":
     unittest.main()

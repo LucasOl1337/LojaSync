@@ -58,11 +58,12 @@ def test_prepare_grade_tasks_skips_invalid_or_zero_quantities_without_losing_val
         grades=[
             GradeItem(tamanho="P", quantidade=0),
             SimpleNamespace(tamanho="M", quantidade="x"),
+            SimpleNamespace(tamanho="GG", quantidade="2,0"),
             GradeItem(tamanho="G", quantidade=2),
         ],
     )
 
-    assert prepare_grade_tasks([product]) == [{"grades": {"G": 2}}]
+    assert prepare_grade_tasks([product]) == [{"grades": {"GG": 2, "G": 2}}]
 
 
 def test_prepare_grade_tasks_combines_repeated_sizes() -> None:

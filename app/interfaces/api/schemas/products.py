@@ -98,7 +98,9 @@ class ProductPatchPayload(BaseModel):
 
     @field_validator("preco")
     @classmethod
-    def validate_preco(cls, value: str | None) -> str:
+    def validate_preco(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         return _validate_price_text(value, allow_empty=False) or ""
 
     @field_validator("preco_final")

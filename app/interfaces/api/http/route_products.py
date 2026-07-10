@@ -107,9 +107,13 @@ async def create_product(payload: ProductPayload, request: Request) -> ProductIt
 
 @router.patch("/products/{ordering_key:path}", response_model=ProductItemResponse)
 async def patch_product(ordering_key: str, payload: ProductPatchPayload, request: Request) -> ProductItemResponse:
+    changes = payload.model_dump(exclude_unset=True)
+    for field_name in ("nome", "codigo", "quantidade", "preco", "categoria", "marca"):
+        if field_name in changes and changes[field_name] is None:
+            changes.pop(field_name)
     updated = get_product_service(request).update_product(
         ordering_key,
-        payload.model_dump(exclude_unset=True),
+        changes,
     )
     if updated is None:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")

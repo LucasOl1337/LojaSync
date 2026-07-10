@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.domain.products.entities import Product
+from app.domain.products.entities import Product, parse_non_negative_quantity
 
 
 def coerce_nonnegative_int(value: Any) -> int:
-    try:
-        return max(int(value or 0), 0)
-    except Exception:
-        return 0
+    return parse_non_negative_quantity(value)
 
 
 def build_catalog_description(product: Product) -> str:

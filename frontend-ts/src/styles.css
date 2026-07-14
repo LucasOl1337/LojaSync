@@ -497,8 +497,13 @@ button {
   margin-bottom: 6px;
 }
 
-.importDiagnosticsTs {
+.importDiagnosticsGroupTs {
+  display: grid;
+  gap: 6px;
   margin-top: 6px;
+}
+
+.importDiagnosticsTs {
   border-radius: 8px;
   border: 1px solid rgba(96, 165, 250, 0.14);
   background: rgba(8, 14, 26, 0.58);
@@ -583,6 +588,49 @@ button {
   color: var(--text);
   font-size: 0.68rem;
   text-align: right;
+}
+
+.importWarningsTs {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 8px;
+  background: rgba(120, 53, 15, 0.16);
+  color: rgba(254, 243, 199, 0.92);
+}
+
+.importWarningsHeaderTs {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.importWarningsHeaderTs strong {
+  color: #fde68a;
+  font-size: 0.72rem;
+}
+
+.importWarningsHeaderTs span {
+  flex: 0 0 auto;
+  color: rgba(253, 230, 138, 0.72);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.importWarningsTs ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.importWarningsTs li {
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .importValidationBadge {
@@ -1480,6 +1528,138 @@ button {
   font-size: 0.74rem;
 }
 
+.usageAnalyticsPanelTs {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(145deg, rgba(34, 211, 238, 0.1), rgba(14, 23, 42, 0.35) 58%),
+    rgba(8, 14, 26, 0.76);
+}
+
+.leftPanelTs .usageAnalyticsPanelTs {
+  gap: 5px;
+  padding: 7px;
+}
+
+.usageAnalyticsPanelTs.empty {
+  border-style: dashed;
+  background: rgba(8, 14, 26, 0.56);
+}
+
+.usageAnalyticsHeadTs,
+.usageAnalyticsCategoryTs > div,
+.usageAnalyticsFootTs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.usageAnalyticsHeadTs strong {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 0.78rem;
+}
+
+.usageAnalyticsHeadTs > span,
+.usageAnalyticsPanelTs.empty p,
+.usageAnalyticsFootTs {
+  color: var(--text-3);
+  font-size: 0.61rem;
+}
+
+.usageAnalyticsPanelTs.empty p {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.usageAnalyticsMetricsTs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.usageAnalyticsMetricsTs > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.66);
+}
+
+.usageAnalyticsMetricsTs strong {
+  color: var(--cyan);
+  font-size: 0.8rem;
+}
+
+.usageAnalyticsMetricsTs span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usageAnalyticsBreakdownTs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 8px;
+}
+
+.usageAnalyticsCategoryTs {
+  min-width: 0;
+}
+
+.usageAnalyticsCategoryTs > div span,
+.usageAnalyticsCategoryTs > div strong {
+  color: var(--muted);
+  font-size: 0.57rem;
+}
+
+.usageAnalyticsCategoryTs > div strong {
+  color: var(--text-2);
+}
+
+.usageAnalyticsTrackTs {
+  display: block;
+  height: 3px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.usageAnalyticsTrackTs > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+}
+
+.usageAnalyticsFootTs {
+  min-width: 0;
+  margin: 0;
+  padding-top: 2px;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.usageAnalyticsFootTs span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usageAnalyticsFootTs strong {
+  color: var(--text-2);
+}
+
 .totalsRowTs span {
   color: var(--muted);
 }
@@ -2064,6 +2244,216 @@ button {
 
 .executionReadinessChipsTs .importInsightChipTs strong {
   font-size: 0.64rem;
+}
+
+.catalogOverviewTs {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(390px, 1.28fr) minmax(290px, 0.9fr);
+  align-items: stretch;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(34, 211, 238, 0.17);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(34, 211, 238, 0.09), transparent 38%),
+    linear-gradient(135deg, rgba(12, 21, 34, 0.96), rgba(14, 18, 29, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.catalogOverviewHeaderTs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 10px;
+}
+
+.catalogOverviewHeaderTs > div:first-child {
+  min-width: 0;
+}
+
+.catalogOverviewHeaderTs h2 {
+  margin: 3px 0 1px;
+  color: rgba(248, 250, 252, 0.98);
+  font-size: 0.92rem;
+  line-height: 1.1;
+}
+
+.catalogOverviewHeaderTs p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 0.64rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalogReadinessTs {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 5px;
+  border: 1px solid rgba(52, 211, 153, 0.26);
+  border-radius: 13px;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.catalogReadinessTs.needsReview {
+  border-color: rgba(251, 191, 36, 0.25);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.catalogReadinessTs strong {
+  color: #a7f3d0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.catalogReadinessTs.needsReview strong {
+  color: #fde68a;
+}
+
+.catalogReadinessTs span {
+  color: var(--text-3);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.catalogCommercialGridTs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.catalogCommercialGridTs article {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: 10px;
+  background: rgba(8, 14, 26, 0.55);
+}
+
+.catalogCommercialGridTs span,
+.catalogCommercialGridTs small {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalogCommercialGridTs strong {
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.96);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalogCommercialGridTs .catalogGainMetricTs {
+  border-color: rgba(52, 211, 153, 0.17);
+  background: rgba(16, 185, 129, 0.055);
+}
+
+.catalogGainMetricTs strong {
+  color: #a7f3d0;
+}
+
+.catalogReviewStripTs {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.catalogReviewSummaryTs,
+.catalogIssueButtonTs,
+.catalogClearFilterTs {
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 9px;
+  color: var(--text-2);
+  background: rgba(8, 14, 26, 0.56);
+}
+
+.catalogReviewSummaryTs {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  font-size: 0.61rem;
+  text-align: left;
+}
+
+.catalogReviewSummaryTs strong,
+.catalogIssueButtonTs strong {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.catalogReviewSummaryTs.active,
+.catalogIssueButtonTs.active {
+  border-color: rgba(34, 211, 238, 0.48);
+  color: #cffafe;
+  background: rgba(8, 145, 178, 0.14);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08);
+}
+
+.catalogIssueButtonsTs {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.catalogIssueButtonTs {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  font-size: 0.59rem;
+  white-space: nowrap;
+}
+
+.catalogIssueButtonTs.warning strong {
+  color: #fde68a;
+}
+
+.catalogIssueButtonTs.error strong {
+  color: #fca5a5;
+}
+
+.catalogClearFilterTs {
+  padding: 5px 8px;
+  color: #a5f3fc;
+  font-size: 0.59rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.catalogNoIssuesTs {
+  align-self: center;
+  color: #a7f3d0;
+  font-size: 0.62rem;
+}
+
+.catalogReviewSummaryTs:hover:not(:disabled),
+.catalogIssueButtonTs:hover,
+.catalogClearFilterTs:hover {
+  border-color: rgba(34, 211, 238, 0.34);
+  transform: translateY(-1px);
 }
 
 .miniError {
@@ -2953,6 +3343,19 @@ button {
   background: rgba(22, 101, 52, 0.36);
 }
 
+.toolButtonTs.exportToolButtonTs {
+  color: #a5f3fc;
+  background: rgba(14, 116, 144, 0.24);
+  border-color: rgba(34, 211, 238, 0.28);
+}
+
+.toolButtonTs.exportToolButtonTs:hover,
+.toolButtonTs.exportToolButtonTs:focus-visible {
+  color: #ecfeff;
+  background: rgba(14, 116, 144, 0.38);
+  border-color: rgba(103, 232, 249, 0.52);
+}
+
 .toolButtonTs.accent {
   color: rgba(207, 250, 254, 0.98);
   background: rgba(14, 116, 144, 0.32);
@@ -3238,6 +3641,53 @@ button {
   flex: 1 1 auto;
   overflow: auto;
   padding: 0 6px 6px;
+}
+
+.tableWindowFooterTs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 7px 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.tableWindowProgressTs {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tableWindowProgressTs strong {
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.tableWindowProgressTs span,
+.tableWindowCompleteTs {
+  color: var(--text-3);
+  font-size: 0.7rem;
+}
+
+.tableWindowMoreButtonTs {
+  min-height: 30px;
+  padding: 5px 11px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 9px;
+  color: #cffafe;
+  background: rgba(8, 145, 178, 0.14);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tableWindowMoreButtonTs:hover,
+.tableWindowMoreButtonTs:focus-visible {
+  border-color: rgba(34, 211, 238, 0.68);
+  background: rgba(8, 145, 178, 0.28);
 }
 
 .tableScrollStateTs .productsTableTs {
@@ -3572,7 +4022,8 @@ tbody tr:hover {
   color: #ff8f8f;
 }
 
-.rowDeleteButtonTs {
+.rowDeleteButtonTs,
+.rowTemplateButtonTs {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3587,6 +4038,20 @@ tbody tr:hover {
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
+}
+
+.rowTemplateButtonTs {
+  border-color: rgba(34, 211, 238, 0.14);
+  background: rgba(8, 47, 73, 0.18);
+  color: rgba(103, 232, 249, 0.76);
+}
+
+tbody tr:hover .rowTemplateButtonTs,
+.rowTemplateButtonTs:hover,
+.rowTemplateButtonTs:focus-visible {
+  border-color: rgba(34, 211, 238, 0.38);
+  background: rgba(8, 145, 178, 0.22);
+  color: #cffafe;
 }
 
 tbody tr:hover .rowDeleteButtonTs {
@@ -5364,6 +5829,14 @@ button:disabled {
 }
 
 @media (max-width: 1480px) {
+  .catalogOverviewTs {
+    grid-template-columns: minmax(210px, 0.7fr) minmax(420px, 1.3fr);
+  }
+
+  .catalogReviewStripTs {
+    grid-column: 1 / -1;
+  }
+
   .batchInlineRowTs {
     grid-template-columns: minmax(142px, 0.44fr) minmax(0, 1fr);
     gap: 8px;
@@ -5646,6 +6119,11 @@ button:disabled {
     padding: 0 5px 5px;
   }
 
+  .tableWindowFooterTs {
+    min-height: 40px;
+    padding: 5px 8px;
+  }
+
   .productsTableTs th,
   .productsTableTs td {
     padding: 4px 8px;
@@ -5690,7 +6168,8 @@ button:disabled {
     height: 5px;
   }
 
-  .rowDeleteButtonTs {
+  .rowDeleteButtonTs,
+  .rowTemplateButtonTs {
     width: 20px;
     height: 20px;
     border-radius: 7px;
@@ -5754,6 +6233,21 @@ button:disabled {
 }
 
 @media (max-width: 720px) {
+  .catalogOverviewTs,
+  .catalogCommercialGridTs,
+  .catalogReviewStripTs {
+    grid-template-columns: 1fr;
+  }
+
+  .catalogReviewStripTs {
+    grid-column: auto;
+  }
+
+  .catalogIssueButtonsTs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
   .listToolbarTs {
     grid-template-columns: 1fr;
   }

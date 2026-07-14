@@ -1,0 +1,42 @@
+{
+  "brand": {
+    "name": "LojaSync",
+    "vendor": "LojaSync",
+    "footer": "PLATAFORMA DESKTOP-WEB LOCAL",
+    "masthead": "NOTAS DA ATUALIZACAO",
+    "footerLeft": "Notas completas no GitHub Releases",
+    "bgGradient": ["#F7FBFC", "#DFF7F3", "#0F4C5C"],
+    "pillGradient": ["#0F766E", "#22C55E"]
+  },
+  "version": "v1.2.7",
+  "date": "14 de julho de 2026 - Release oficial",
+  "categories": [
+    {
+      "label": "Integracao",
+      "title": "TRABALHO CONSOLIDADO",
+      "color": "#22C55E",
+      "items": [
+        {"name": "Multiagente", "desc": "branches e sessoes auditadas", "tag": "MERGE"},
+        {"name": "Preservacao", "desc": "nenhum conteudo local perdido", "tag": "SAFE"}
+      ]
+    },
+    {
+      "label": "Agent-First",
+      "title": "CLI MAIS ROBUSTA",
+      "color": "#38BDF8",
+      "items": [
+        {"name": "JSON invalido", "desc": "erro acionavel sem requisicao", "tag": "CLI"},
+        {"name": "Conexao", "desc": "falha tratada sem traceback", "tag": "HTTP"}
+      ]
+    },
+    {
+      "label": "Qualidade",
+      "title": "GATES APROVADOS",
+      "color": "#F59E0B",
+      "items": [
+        {"name": "Backend", "desc": "170 testes aprovados", "tag": "PYTEST"},
+        {"name": "Frontend", "desc": "112 testes e build aprovados", "tag": "VITE"}
+      ]
+    }
+  ]
+}

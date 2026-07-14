@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LojaSync — Conceito A: Operacional Clássico</title>
+    <style id="theme-vars">
+/* LojaSync Conceito A — Operacional Clássico (Dark refinado) */
+:root {
+  color-scheme: dark;
+  /* Single brand hue: teal */
+  --brand-primary: #2dd4bf;
+  --brand-primary-hover: #5eead4;
+  --brand-primary-dim: rgba(45, 212, 191, 0.12);
+  --brand-primary-border: rgba(45, 212, 191, 0.28);
+
+  /* Neutral surfaces (layered dark, not flat black) */
+  --surface-base: #0f141b;
+  --surface-1: #161c26;
+  --surface-2: #1c2430;
+  --surface-3: #232d3d;
+  --surface-elevated: #2a3548;
+
+  /* Borders & text */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #64748b;
+
+  /* Status only (semantic) */
+  --state-success: #34d399;
+  --state-success-dim: rgba(52, 211, 153, 0.14);
+  --state-warning: #fbbf24;
+  --state-warning-dim: rgba(251, 191, 36, 0.14);
+  --state-error: #f87171;
+  --state-error-dim: rgba(248, 113, 113, 0.14);
+  --state-info: #60a5fa;
+  --state-info-dim: rgba(96, 165, 250, 0.14);
+
+  /* Radius scale (restrained) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-sans: "Inter", "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  /* Spacing rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shadows (restrained: floating only) */
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-primary: var(--brand-primary);
+  }
+  @layer base {
+    body { background: var(--brand-background); color: var(--brand-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="min-h-screen flex flex-col" style="background: var(--surface-base); color: var(--text-primary); font-family: var(--font-sans);">
+      <!-- =================== TOPO: HEADER + STEPPER + STATUS GLOBAL =================== -->
+      <header class="flex-shrink-0" style="background: var(--surface-1); border-bottom: 1px solid var(--border-default);">
+        <!-- Linha 1: logo + status global + relógio -->
+        <div class="flex items-center justify-between px-6 py-3" style="border-bottom: 1px solid var(--border-subtle);">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-9 h-9" style="background: var(--brand-primary-dim); border-radius: var(--radius-md); color: var(--brand-primary);">
+              <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-[15px] font-semibold tracking-tight" style="color: var(--text-primary);">LojaSync</span>
+              <span class="text-[11px] uppercase tracking-wider" style="color: var(--text-tertiary);">Cadastro assistido · Byte Empresa</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Chip status backend -->
+            <div class="inline-flex items-center gap-2 px-3 py-1.5" data-dom-id="chip-backend" style="background: var(--state-success-dim); border-radius: var(--radius-full);">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success); box-shadow: 0 0 0 3px rgba(52,211,153,0.12);"></span>
+              <span class="text-[12px] font-medium" style="color: var(--state-success);">Backend online</span>
+            </div>
+            <!-- Chip automação -->
+            <div class="inline-flex items-center gap-2 px-3 py-1.5" data-dom-id="chip-automacao" style="background: var(--brand-primary-dim); border-radius: var(--radius-full);">
+              <i data-lucide="zap" class="w-3.5 h-3.5" style="color: var(--brand-primary);"></i>
+              <span class="text-[12px] font-medium" style="color: var(--brand-primary);">Automação pronta</span>
+            </div>
+            <!-- Relógio -->
+            <div class="inline-flex items-center gap-2 px-3 py-1.5" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+              <i data-lucide="clock" class="w-3.5 h-3.5" style="color: var(--text-tertiary);"></i>
+              <span class="text-[12px] font-medium tabular-nums" style="color: var(--text-secondary);">14:37:22</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Linha 2: Stepper horizontal 4 etapas -->
+        <nav class="px-6 py-4" aria-label="Progresso de cadastro">
+          <ol class="flex items-center gap-2">
+            <!-- Etapa 1: concluída -->
+            <li class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-2.5">
+                <div class="flex items-center justify-center w-7 h-7 shrink-0" style="background: var(--state-success-dim); border-radius: var(--radius-full);">
+                  <i data-lucide="check" class="w-4 h-4" style="color: var(--state-success);"></i>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Etapa 1</span>
+                  <span class="text-[13px] font-medium" style="color: var(--text-secondary);">Importar</span>
+                </div>
+              </div>
+              <div class="flex-1 h-px" style="background: var(--state-success); opacity: 0.4;"></div>
+            </li>
+            <!-- Etapa 2: ativa -->
+            <li class="flex items-center gap-3 flex-1" data-dom-id="step-revisar">
+              <div class="flex items-center gap-2.5">
+                <div class="flex items-center justify-center w-7 h-7 shrink-0" style="background: var(--brand-primary); border-radius: var(--radius-full);">
+                  <span class="text-[12px] font-semibold" style="color: var(--surface-base);">2</span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-[10px] uppercase tracking-wider font-semibold" style="color: var(--brand-primary);">Etapa 2 · atual</span>
+                  <span class="text-[13px] font-semibold" style="color: var(--text-primary);">Revisar</span>
+                </div>
+              </div>
+              <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+            </li>
+            <!-- Etapa 3: pendente -->
+            <li class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-2.5">
+                <div class="flex items-center justify-center w-7 h-7 shrink-0" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+                  <span class="text-[12px] font-semibold" style="color: var(--text-tertiary);">3</span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Etapa 3</span>
+                  <span class="text-[13px] font-medium" style="color: var(--text-tertiary);">Grades</span>
+                </div>
+              </div>
+              <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+            </li>
+            <!-- Etapa 4: pendente (sem conector final) -->
+            <li class="flex items-center gap-2.5">
+              <div class="flex items-center justify-center w-7 h-7 shrink-0" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+                <span class="text-[12px] font-semibold" style="color: var(--text-tertiary);">4</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Etapa 4</span>
+                <span class="text-[13px] font-medium" style="color: var(--text-tertiary);">Cadastrar</span>
+              </div>
+            </li>
+          </ol>
+        </nav>
+      </header>
+
+      <!-- =================== MEIO: GRID 2 COLUNAS (PAINEL ESTREITO + ÁREA PRINCIPAL) =================== -->
+      <div class="flex-1 flex gap-5 p-5 overflow-hidden">
+
+        <!-- ===== PAINEL ESQUERDO (narrow 320px) ===== -->
+        <aside class="flex flex-col gap-5 shrink-0" style="width: 320px;">
+
+          <!-- Card: Importar romaneio -->
+          <section class="p-5" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-lg);">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-[15px] font-semibold" style="color: var(--text-primary);">Importar romaneio</h2>
+              <i data-lucide="file-up" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+            </div>
+
+            <!-- Zona de drag-drop de PDF -->
+            <div class="flex flex-col items-center justify-center text-center px-4 py-6 cursor-pointer" data-dom-id="dropzone-pdf"
+                 style="background: var(--surface-1); border: 1.5px dashed var(--border-strong); border-radius: var(--radius-md); transition: border-color 160ms cubic-bezier(.2,.8,.2,1), background 160ms cubic-bezier(.2,.8,.2,1);"
+                 onmouseover="this.style.borderColor='var(--brand-primary-border)'; this.style.background='var(--brand-primary-dim)';"
+                 onmouseout="this.style.borderColor='var(--border-strong)'; this.style.background='var(--surface-1)';">
+              <div class="flex items-center justify-center w-10 h-10 mb-2.5" style="background: var(--surface-3); border-radius: var(--radius-full);">
+                <i data-lucide="upload-cloud" class="w-5 h-5" style="color: var(--brand-primary);"></i>
+              </div>
+              <p class="text-[13px] font-medium mb-0.5" style="color: var(--text-secondary);">Arraste o PDF aqui</p>
+              <p class="text-[11px]" style="color: var(--text-tertiary);">Romaneio ou NF-e · até 10 MB</p>
+            </div>
+
+            <!-- Separador "ou" -->
+            <div class="flex items-center gap-3 my-3">
+              <div class="flex-1 h-px" style="background: var(--border-subtle);"></div>
+              <span class="text-[11px] uppercase tracking-wider" style="color: var(--text-tertiary);">ou</span>
+              <div class="flex-1 h-px" style="background: var(--border-subtle);"></div>
+            </div>
+
+            <!-- Botão Entrada manual -->
+            <button type="button" data-dom-id="btn-entrada-manual"
+                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                    style="background: var(--surface-3); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                    onmouseover="this.style.background='var(--surface-elevated)'; this.style.color='var(--text-primary)';"
+                    onmouseout="this.style.background='var(--surface-3)'; this.style.color='var(--text-secondary)';">
+              <i data-lucide="keyboard" class="w-4 h-4"></i>
+              Entrada manual
+            </button>
+          </section>
+
+          <!-- Card: Totais da sessão -->
+          <section class="p-5" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-lg);">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-[15px] font-semibold" style="color: var(--text-primary);">Totais da sessão</h2>
+              <i data-lucide="calculator" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <!-- Quantidade -->
+              <div class="flex items-center justify-between py-2" style="border-bottom: 1px solid var(--border-subtle);">
+                <span class="text-[12px] uppercase tracking-wide" style="color: var(--text-tertiary);">Quantidade</span>
+                <span class="text-[16px] font-semibold tabular-nums" style="color: var(--text-primary);">312<span class="text-[11px] font-normal ml-1" style="color: var(--text-tertiary);">un.</span></span>
+              </div>
+              <!-- Custo -->
+              <div class="flex items-center justify-between py-2" style="border-bottom: 1px solid var(--border-subtle);">
+                <span class="text-[12px] uppercase tracking-wide" style="color: var(--text-tertiary);">Custo total</span>
+                <span class="text-[16px] font-semibold tabular-nums" style="color: var(--text-primary);">R$ 8.472,30</span>
+              </div>
+              <!-- Venda -->
+              <div class="flex items-center justify-between py-2">
+                <span class="text-[12px] uppercase tracking-wide" style="color: var(--text-tertiary);">Venda projetada</span>
+                <span class="text-[16px] font-semibold tabular-nums" style="color: var(--brand-primary);">R$ 18.940,00</span>
+              </div>
+            </div>
+
+            <!-- Margem resumida -->
+            <div class="flex items-center justify-between mt-4 pt-3" style="border-top: 1px solid var(--border-subtle);">
+              <span class="text-[11px] uppercase tracking-wider" style="color: var(--text-tertiary);">Margem</span>
+              <span class="text-[12px] font-semibold tabular-nums" style="color: var(--state-success);">+ 123,5%</span>
+            </div>
+          </section>
+
+          <!-- Mini histórico recolhível -->
+          <section class="p-4" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-lg);">
+            <button type="button" data-dom-id="toggle-historico"
+                    class="w-full flex items-center justify-between text-left">
+              <div class="flex items-center gap-2">
+                <i data-lucide="history" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+                <span class="text-[13px] font-medium" style="color: var(--text-secondary);">Histórico recente</span>
+              </div>
+              <i data-lucide="chevron-down" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+            </button>
+            <ul class="mt-3 flex flex-col gap-2">
+              <li class="flex items-center justify-between text-[12px]">
+                <span class="truncate" style="color: var(--text-tertiary);">Romaneio #4821 · 28 jun</span>
+                <span class="shrink-0 ml-2" style="color: var(--state-success);">142 itens</span>
+              </li>
+              <li class="flex items-center justify-between text-[12px]">
+                <span class="truncate" style="color: var(--text-tertiary);">NF-e 17/06 · 25 jun</span>
+                <span class="shrink-0 ml-2" style="color: var(--state-success);">88 itens</span>
+              </li>
+              <li class="flex items-center justify-between text-[12px]">
+                <span class="truncate" style="color: var(--text-tertiary);">Romaneio #4790 · 21 jun</span>
+                <span class="shrink-0 ml-2" style="color: var(--state-warning);">parcial</span>
+              </li>
+            </ul>
+          </section>
+        </aside>
+
+        <!-- ===== ÁREA PRINCIPAL (flex) ===== -->
+        <section class="flex-1 flex flex-col min-w-0 overflow-hidden" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-lg);">
+
+          <!-- Toolbar de ferramentas -->
+          <div class="flex items-center gap-2 px-4 py-3 flex-wrap" style="border-bottom: 1px solid var(--border-default);">
+            <!-- Busca -->
+            <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-[200px]" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+              <i data-lucide="search" class="w-4 h-4 shrink-0" style="color: var(--text-tertiary);"></i>
+              <input type="text" placeholder="Buscar produto, marca ou código…" class="bg-transparent border-0 outline-none text-[13px] flex-1 min-w-0" style="color: var(--text-primary);">
+              <kbd class="text-[10px] px-1.5 py-0.5 shrink-0" style="background: var(--surface-3); color: var(--text-tertiary); border-radius: var(--radius-sm);">⌘K</kbd>
+            </div>
+
+            <!-- Grupo undo/redo -->
+            <div class="flex items-center shrink-0" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+              <button type="button" data-dom-id="btn-undo" aria-label="Desfazer"
+                      class="flex items-center justify-center w-9 h-9 transition-colors duration-150"
+                      style="color: var(--text-tertiary); border-right: 1px solid var(--border-default);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                <i data-lucide="undo-2" class="w-4 h-4"></i>
+              </button>
+              <button type="button" data-dom-id="btn-redo" aria-label="Refazer"
+                      class="flex items-center justify-center w-9 h-9 transition-colors duration-150"
+                      style="color: var(--text-tertiary);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                <i data-lucide="redo-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Ferramentas de código/descrição -->
+            <div class="flex items-center shrink-0" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+              <button type="button" data-dom-id="tool-codigo" class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="color: var(--text-secondary); border-right: 1px solid var(--border-default);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent';">
+                <i data-lucide="barcode" class="w-3.5 h-3.5"></i> Código
+              </button>
+              <button type="button" data-dom-id="tool-descricao" class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="color: var(--text-secondary);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent';">
+                <i data-lucide="align-left" class="w-3.5 h-3.5"></i> Descrição
+              </button>
+            </div>
+
+            <!-- Modos ordenar/conjunto -->
+            <div class="flex items-center shrink-0" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 2px;">
+              <button type="button" data-dom-id="modo-ordenar" class="flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-3); color: var(--text-primary); border-radius: var(--radius-sm);">
+                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5"></i> Ordenar
+              </button>
+              <button type="button" data-dom-id="modo-conjunto" class="flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="color: var(--text-tertiary);"
+                      onmouseover="this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.color='var(--text-tertiary)';">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Conjunto
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabela densa de produtos -->
+          <div class="flex-1 overflow-auto">
+            <table class="w-full" style="border-collapse: separate; border-spacing: 0;">
+              <thead class="sticky top-0 z-10">
+                <tr style="background: var(--surface-1);">
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-left px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 48px;">#</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-left px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); min-width: 200px;">Nome</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-left px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); min-width: 110px;">Marca</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-left px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); min-width: 120px;">Código</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-right px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 70px;">Qtd</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-right px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 110px;">Custo</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-right px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 110px;">Venda</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-left px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 120px;">Categoria</th>
+                  <th class="text-[11px] uppercase tracking-wider font-semibold text-right px-4 py-3" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 80px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Linha 1 -->
+                <tr data-dom-id="row-prod-1" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-3)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-4 py-3 text-[13px] tabular-nums" style="color: var(--text-tertiary);">01</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Camiseta Polo Algodão Piquet</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">Grade pendente</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] truncate" style="color: var(--text-secondary);">Malhas Brasil</td>
+                  <td class="px-4 py-3 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230015</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">48</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 18,90</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 49,90</td>
+                  <td class="px-4 py-3 text-[12px]" style="color: var(--text-secondary);">Vestuário</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" aria-label="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Mais ações" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 2 -->
+                <tr data-dom-id="row-prod-2" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-3)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-4 py-3 text-[13px] tabular-nums" style="color: var(--text-tertiary);">02</td>
+                  <td class="px-4 py-3">
+                    <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Calça Jeans Skinny Fem</span>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] truncate" style="color: var(--text-secondary);">Denim Co.</td>
+                  <td class="px-4 py-3 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230022</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">36</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 42,00</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 119,90</td>
+                  <td class="px-4 py-3 text-[12px]" style="color: var(--text-secondary);">Vestuário</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" aria-label="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Mais ações" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 3 -->
+                <tr data-dom-id="row-prod-3" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-3)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-4 py-3 text-[13px] tabular-nums" style="color: var(--text-tertiary);">03</td>
+                  <td class="px-4 py-3">
+                    <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Tênis Esportivo Air</span>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] truncate" style="color: var(--text-secondary);">Sport Dynamics</td>
+                  <td class="px-4 py-3 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230039</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">24</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 87,50</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 229,90</td>
+                  <td class="px-4 py-3 text-[12px]" style="color: var(--text-secondary);">Calçados</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" aria-label="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Mais ações" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 4 -->
+                <tr data-dom-id="row-prod-4" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-3)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-4 py-3 text-[13px] tabular-nums" style="color: var(--text-tertiary);">04</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Bota Couro Montaria</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-sm);">Sem marca</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] italic truncate" style="color: var(--text-disabled);">— não informada</td>
+                  <td class="px-4 py-3 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230046</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">18</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 124,00</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 299,00</td>
+                  <td class="px-4 py-3 text-[12px]" style="color: var(--text-secondary);">Calçados</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" aria-label="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Mais ações" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 5 -->
+                <tr data-dom-id="row-prod-5" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-3)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-4 py-3 text-[13px] tabular-nums" style="color: var(--text-tertiary);">05</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Vestido Floral Verão</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">Grade pendente</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] truncate" style="color: var(--text-secondary);">Estilo Único</td>
+                  <td class="px-4 py-3 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230053</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">30</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 34,00</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 89,90</td>
+                  <td class="px-4 py-3 text-[12px]" style="color: var(--text-secondary);">Vestuário</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" aria-label="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Mais ações" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 6 -->
+                <tr data-dom-id="row-prod-6" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-3)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-4 py-3 text-[13px] tabular-nums" style="color: var(--text-tertiary);">06</td>
+                  <td class="px-4 py-3">
+                    <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Mochila Resistente 30L</span>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] truncate" style="color: var(--text-secondary);">Trail Pro</td>
+                  <td class="px-4 py-3 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230060</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">22</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 56,00</td>
+                  <td class="px-4 py-3 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 159,90</td>
+                  <td class="px-4 py-3 text-[12px]" style="color: var(--text-secondary);">Acessórios</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" aria-label="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Mais ações" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Rodapé da tabela: paginação/resumo -->
+          <div class="flex items-center justify-between px-4 py-2.5" style="background: var(--surface-1); border-top: 1px solid var(--border-default);">
+            <div class="flex items-center gap-3 text-[12px]" style="color: var(--text-tertiary);">
+              <span><span class="tabular-nums" style="color: var(--text-secondary);">6</span> de <span class="tabular-nums">312</span> produtos</span>
+              <span class="px-2 py-0.5" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">2 com grade pendente</span>
+              <span class="px-2 py-0.5" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-sm);">1 sem marca</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-disabled); border-radius: var(--radius-sm);">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+              <span class="text-[12px] tabular-nums px-2" style="color: var(--text-secondary);">1 / 52</span>
+              <button type="button" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- =================== BASE: CENTRO DE EXECUÇÃO + HEALTH BAR =================== -->
+      <footer class="flex-shrink-0" style="background: var(--surface-1); border-top: 1px solid var(--border-default);">
+
+        <!-- Centro de execução -->
+        <div class="px-5 py-4">
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+
+            <!-- Lado esquerdo: barra de prontidão -->
+            <div class="flex items-center gap-3 flex-1 min-w-[280px]">
+              <div class="flex items-center gap-2">
+                <i data-lucide="circle-dot" class="w-4 h-4" style="color: var(--state-warning);"></i>
+                <span class="text-[12px] uppercase tracking-wider font-medium" style="color: var(--text-tertiary);">Prontidão</span>
+              </div>
+              <div class="flex items-center gap-2 flex-1 max-w-md">
+                <div class="flex-1 h-1.5 overflow-hidden" style="background: var(--surface-3); border-radius: var(--radius-full);">
+                  <div class="h-full" style="width: 35%; background: var(--state-warning); border-radius: var(--radius-full);"></div>
+                </div>
+                <span class="text-[12px] font-medium whitespace-nowrap" style="color: var(--state-warning);">2 pendências de grade</span>
+              </div>
+            </div>
+
+            <!-- Lado direito: botões de ação -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button" data-dom-id="btn-executar-grades"
+                      class="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-3); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--surface-elevated)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-3)'; this.style.color='var(--text-secondary)';">
+                <i data-lucide="grid-3x3" class="w-4 h-4"></i>
+                Executar grades
+              </button>
+              <button type="button" data-dom-id="btn-executar-cadastro"
+                      class="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-3); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--surface-elevated)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-3)'; this.style.color='var(--text-secondary)';">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                Executar cadastro
+              </button>
+              <button type="button" data-dom-id="btn-parar"
+                      class="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: transparent; color: var(--state-error); border: 1px solid var(--state-error-dim); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--state-error-dim)';"
+                      onmouseout="this.style.background='transparent';">
+                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                Parar
+              </button>
+              <button type="button" data-dom-id="btn-cadastro-completo"
+                      class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-[14px] font-semibold whitespace-nowrap transition-all duration-150"
+                      style="background: var(--brand-primary); color: var(--surface-base); border-radius: var(--radius-md); box-shadow: 0 0 0 0 var(--brand-primary);"
+                      onmouseover="this.style.background='var(--brand-primary-hover)'; this.style.transform='translateY(-1px)';"
+                      onmouseout="this.style.background='var(--brand-primary)'; this.style.transform='translateY(0)';">
+                <i data-lucide="rocket" class="w-4 h-4"></i>
+                Cadastro completo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rodapé fino: health bar -->
+        <div class="flex items-center justify-between px-5 py-2" style="background: var(--surface-base); border-top: 1px solid var(--border-subtle);">
+          <div class="flex items-center gap-4 text-[11px]">
+            <!-- Backend -->
+            <div class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success);"></span>
+              <span style="color: var(--text-tertiary);">Backend</span>
+              <span class="font-medium tabular-nums" style="color: var(--text-secondary);">12 ms</span>
+            </div>
+            <!-- Auth -->
+            <div class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success);"></span>
+              <span style="color: var(--text-tertiary);">Auth</span>
+              <span class="font-medium" style="color: var(--text-secondary);">ativo</span>
+            </div>
+            <!-- WebSocket -->
+            <div class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success);"></span>
+              <span style="color: var(--text-tertiary);">WebSocket</span>
+              <span class="font-medium" style="color: var(--text-secondary);">conectado</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-[11px]" style="color: var(--text-tertiary);">
+            <span>v2.4.1</span>
+            <span class="opacity-50">·</span>
+            <span>Operador: <span style="color: var(--text-secondary);">Carlos M.</span></span>
+            <span class="opacity-50">·</span>
+            <span class="tabular-nums">Sessão 14:37</span>
+          </div>
+        </div>
+      </footer>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

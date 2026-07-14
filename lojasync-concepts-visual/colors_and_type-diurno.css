@@ -1,0 +1,57 @@
+/* LojaSync Conceito B — Clareza Diurna (Light mode) */
+:root {
+  color-scheme: light;
+  /* Single brand hue: indigo */
+  --brand-primary: #4f46e5;
+  --brand-primary-hover: #6366f1;
+  --brand-primary-dim: rgba(79, 70, 229, 0.08);
+  --brand-primary-border: rgba(79, 70, 229, 0.22);
+
+  /* Neutral warm-white surfaces */
+  --surface-base: #fafaf9;
+  --surface-1: #ffffff;
+  --surface-2: #f5f5f4;
+  --surface-3: #ebebe9;
+  --surface-elevated: #ffffff;
+
+  /* Borders & text */
+  --border-subtle: rgba(15, 23, 42, 0.06);
+  --border-default: rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-disabled: #94a3b8;
+
+  /* Status only (semantic) */
+  --state-success: #059669;
+  --state-success-dim: rgba(5, 150, 105, 0.10);
+  --state-warning: #d97706;
+  --state-warning-dim: rgba(217, 119, 6, 0.10);
+  --state-error: #dc2626;
+  --state-error-dim: rgba(220, 38, 38, 0.10);
+  --state-info: #2563eb;
+  --state-info-dim: rgba(37, 99, 235, 0.10);
+
+  /* Radius scale (restrained) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Spacing rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shadows (restrained: floating only) */
+  --shadow-pop: 0 12px 32px rgba(15, 23, 42, 0.12);
+}

@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LojaSync — Conceito A: Operacional Clássico (Completo)</title>
+    <style id="theme-vars">
+/* LojaSync Conceito A — Operacional Clássico (Dark refinado) */
+:root {
+  color-scheme: dark;
+  /* Single brand hue: teal */
+  --brand-primary: #2dd4bf;
+  --brand-primary-hover: #5eead4;
+  --brand-primary-dim: rgba(45, 212, 191, 0.12);
+  --brand-primary-border: rgba(45, 212, 191, 0.28);
+
+  /* Neutral surfaces (layered dark, not flat black) */
+  --surface-base: #0f141b;
+  --surface-1: #161c26;
+  --surface-2: #1c2430;
+  --surface-3: #232d3d;
+  --surface-elevated: #2a3548;
+
+  /* Borders & text */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #64748b;
+
+  /* Status only (semantic) */
+  --state-success: #34d399;
+  --state-success-dim: rgba(52, 211, 153, 0.14);
+  --state-warning: #fbbf24;
+  --state-warning-dim: rgba(251, 191, 36, 0.14);
+  --state-error: #f87171;
+  --state-error-dim: rgba(248, 113, 113, 0.14);
+  --state-info: #60a5fa;
+  --state-info-dim: rgba(96, 165, 250, 0.14);
+
+  /* Radius scale (restrained) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-sans: "Inter", "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  /* Spacing rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shadows (restrained: floating only) */
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+
+  @layer base {
+    body { background: var(--ls-background); color: var(--ls-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="min-h-screen flex flex-col" style="background: var(--surface-base); color: var(--text-primary); font-family: var(--font-sans);">
+
+      <!-- ================================================================== -->
+      <!-- ZONA 1 — TOPO: HEADER COMPACTO + STEPPER + STATUS + DIAGNÓSTICO   -->
+      <!-- ================================================================== -->
+      <header class="flex-shrink-0" style="background: var(--surface-1); border-bottom: 1px solid var(--border-default);">
+
+        <!-- Linha 1: logo + identidade  ·  status chips  ·  relógio/engrenagem/toggle -->
+        <div class="flex items-center justify-between px-6 py-3 gap-4" style="border-bottom: 1px solid var(--border-subtle);">
+          <!-- Logo + identidade -->
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="flex items-center justify-center w-9 h-9" style="background: var(--brand-primary-dim); border-radius: var(--radius-md); color: var(--brand-primary);">
+              <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </div>
+            <div class="flex flex-col leading-tight">
+              <span class="text-[15px] font-semibold tracking-tight" style="color: var(--text-primary);">LojaSync</span>
+              <span class="text-[11px] uppercase tracking-wider" style="color: var(--text-tertiary);">Cadastro assistido · Byte Empresa</span>
+            </div>
+          </div>
+
+          <!-- Centro: chips de status (backend + automação) -->
+          <div class="hidden md:flex items-center gap-2 flex-1 justify-center">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5" data-dom-id="chip-backend" style="background: var(--state-success-dim); border-radius: var(--radius-full);" title="API do backend responde em 12 ms">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success); box-shadow: 0 0 0 3px var(--state-success-dim);"></span>
+              <span class="text-[12px] font-medium whitespace-nowrap" style="color: var(--state-success);">Backend online</span>
+            </div>
+            <div class="inline-flex items-center gap-2 px-3 py-1.5" data-dom-id="chip-automacao" style="background: var(--brand-primary-dim); border-radius: var(--radius-full);" title="Automação de cadastro configurada e pronta">
+              <i data-lucide="zap" class="w-3.5 h-3.5" style="color: var(--brand-primary);"></i>
+              <span class="text-[12px] font-medium whitespace-nowrap" style="color: var(--brand-primary);">Automação pronta</span>
+            </div>
+          </div>
+
+          <!-- Direita: relógio + engrenagem + toggle modo simples -->
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5" data-dom-id="relogio" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-full);" title="Horário local do operador">
+              <i data-lucide="clock" class="w-3.5 h-3.5" style="color: var(--text-tertiary);"></i>
+              <span class="text-[12px] font-medium tabular-nums whitespace-nowrap" style="color: var(--text-secondary);">14:37 · Ter, 07 jul</span>
+            </div>
+            <button type="button" data-dom-id="btn-config" aria-label="Abrir configurações"
+                    class="inline-flex items-center justify-center w-9 h-9 transition-colors duration-150"
+                    style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                    onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                    onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';"
+                    title="Configurações">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+            </button>
+            <!-- Toggle "Modo simples" (visual estático, estado off) -->
+            <button type="button" data-dom-id="toggle-modo-simples" role="switch" aria-checked="false" aria-label="Alternar modo simples"
+                    class="inline-flex items-center gap-2 px-2.5 h-9 transition-colors duration-150"
+                    style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                    onmouseover="this.style.borderColor='var(--border-strong)';"
+                    onmouseout="this.style.borderColor='var(--border-default)';"
+                    title="Modo simples oculta ferramentas avançadas">
+              <span class="w-4 h-4 rounded-full relative shrink-0" style="background: var(--surface-3);">
+                <span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full" style="background: var(--text-tertiary);"></span>
+              </span>
+              <span class="text-[12px] font-medium whitespace-nowrap" style="color: var(--text-tertiary);">Modo simples</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Linha 2: Stepper horizontal de 4 etapas -->
+        <nav class="px-6 py-3" aria-label="Progresso de cadastro">
+          <ol class="flex items-center gap-2">
+            <!-- Etapa 1: concluída -->
+            <li class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-2.5 shrink-0">
+                <div class="flex items-center justify-center w-7 h-7" style="background: var(--state-success-dim); border-radius: var(--radius-full);">
+                  <i data-lucide="check" class="w-4 h-4" style="color: var(--state-success);"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                  <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Etapa 1</span>
+                  <span class="text-[13px] font-medium whitespace-nowrap" style="color: var(--text-secondary);">Importar</span>
+                </div>
+              </div>
+              <div class="flex-1 h-px" style="background: var(--state-success); opacity: 0.4;"></div>
+            </li>
+            <!-- Etapa 2: ativa -->
+            <li class="flex items-center gap-3 flex-1" data-dom-id="step-revisar">
+              <div class="flex items-center gap-2.5 shrink-0">
+                <div class="flex items-center justify-center w-7 h-7" style="background: var(--brand-primary); border-radius: var(--radius-full);">
+                  <span class="text-[12px] font-semibold" style="color: var(--surface-base);">2</span>
+                </div>
+                <div class="flex flex-col leading-tight">
+                  <span class="text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap" style="color: var(--brand-primary);">Etapa 2 · atual</span>
+                  <span class="text-[13px] font-semibold whitespace-nowrap" style="color: var(--text-primary);">Revisar</span>
+                </div>
+              </div>
+              <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+            </li>
+            <!-- Etapa 3: pendente -->
+            <li class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-2.5 shrink-0">
+                <div class="flex items-center justify-center w-7 h-7" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+                  <span class="text-[12px] font-semibold" style="color: var(--text-tertiary);">3</span>
+                </div>
+                <div class="flex flex-col leading-tight">
+                  <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Etapa 3</span>
+                  <span class="text-[13px] font-medium whitespace-nowrap" style="color: var(--text-tertiary);">Grades</span>
+                </div>
+              </div>
+              <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+            </li>
+            <!-- Etapa 4: pendente (sem conector final) -->
+            <li class="flex items-center gap-2.5 shrink-0">
+              <div class="flex items-center justify-center w-7 h-7" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+                <span class="text-[12px] font-semibold" style="color: var(--text-tertiary);">4</span>
+              </div>
+              <div class="flex flex-col leading-tight">
+                <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Etapa 4</span>
+                <span class="text-[13px] font-medium whitespace-nowrap" style="color: var(--text-tertiary);">Cadastrar</span>
+              </div>
+            </li>
+          </ol>
+        </nav>
+
+        <!-- Linha 3: Diagnóstico de importação (recolhível, aberto) -->
+        <div class="px-6 pb-3">
+          <div data-dom-id="diagnostico-import" style="background: var(--surface-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+            <button type="button" class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <i data-lucide="file-check-2" class="w-4 h-4 shrink-0" style="color: var(--state-success);"></i>
+                <span class="text-[13px] font-medium truncate" style="color: var(--text-secondary);">Importação concluída</span>
+                <span class="text-[12px] tabular-nums shrink-0" style="color: var(--text-tertiary);">· 47 produtos · 312 unidades</span>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[11px] uppercase tracking-wider" style="color: var(--state-success);">Sucesso</span>
+                <i data-lucide="chevron-down" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+              </div>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- ================================================================== -->
+      <!-- MEIO: GRID 2 COLUNAS — PAINEL ESQUERDO (320px) + ÁREA PRINCIPAL   -->
+      <!-- ================================================================== -->
+      <div class="flex-1 flex gap-5 p-5 overflow-hidden min-h-0">
+
+        <!-- ============================================================== -->
+        <!-- ZONA 2 — PAINEL ESQUERDO (narrow ~320px)                        -->
+        <!-- ============================================================== -->
+        <aside class="flex flex-col gap-4 shrink-0 overflow-y-auto" style="width: 320px;">
+
+          <!-- Card: Importar romaneio -->
+          <section class="p-5" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-[15px] font-semibold" style="color: var(--text-primary);">Importar romaneio</h2>
+              <i data-lucide="file-up" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+            </div>
+
+            <!-- Dropzone PDF -->
+            <div class="flex flex-col items-center justify-center text-center px-4 py-6 cursor-pointer" data-dom-id="dropzone-pdf"
+                 style="background: var(--surface-base); border: 1.5px dashed var(--border-strong); border-radius: var(--radius-md); transition: border-color 160ms cubic-bezier(.2,.8,.2,1), background 160ms cubic-bezier(.2,.8,.2,1);"
+                 onmouseover="this.style.borderColor='var(--brand-primary-border)'; this.style.background='var(--brand-primary-dim)';"
+                 onmouseout="this.style.borderColor='var(--border-strong)'; this.style.background='var(--surface-base)';">
+              <div class="flex items-center justify-center w-10 h-10 mb-2.5" style="background: var(--surface-3); border-radius: var(--radius-full);">
+                <i data-lucide="upload-cloud" class="w-5 h-5" style="color: var(--brand-primary);"></i>
+              </div>
+              <p class="text-[13px] font-medium mb-0.5" style="color: var(--text-secondary);">Arraste o PDF aqui</p>
+              <p class="text-[11px]" style="color: var(--text-tertiary);">Romaneio ou NF-e · até 10 MB</p>
+            </div>
+
+            <!-- Botão primário: Selecionar arquivo -->
+            <button type="button" data-dom-id="btn-selecionar-arquivo"
+                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 mt-3 text-[13px] font-semibold whitespace-nowrap transition-all duration-150"
+                    style="background: var(--brand-primary); color: var(--surface-base); border-radius: var(--radius-md);"
+                    onmouseover="this.style.background='var(--brand-primary-hover)'; this.style.transform='translateY(-1px)';"
+                    onmouseout="this.style.background='var(--brand-primary)'; this.style.transform='translateY(0)';">
+              <i data-lucide="folder-open" class="w-4 h-4"></i>
+              Selecionar arquivo
+            </button>
+
+            <!-- Botão secundário: Experimento local -->
+            <button type="button" data-dom-id="btn-experimento-local"
+                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 mt-2 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                    style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                    onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                    onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';">
+              <i data-lucide="flask-conical" class="w-4 h-4"></i>
+              Experimento local
+            </button>
+          </section>
+
+          <!-- Card: Importações recentes (recolhível, aberto) -->
+          <section class="p-4" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+            <button type="button" data-dom-id="toggle-recentes" class="w-full flex items-center justify-between text-left mb-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="history" class="w-4 h-4 shrink-0" style="color: var(--text-tertiary);"></i>
+                <span class="text-[13px] font-medium truncate" style="color: var(--text-secondary);">Importações recentes</span>
+              </div>
+              <i data-lucide="chevron-down" class="w-4 h-4 shrink-0" style="color: var(--text-tertiary);"></i>
+            </button>
+            <!-- Última origem destacada -->
+            <div class="flex items-center justify-between gap-2 px-2.5 py-2 mb-2" style="background: var(--brand-primary-dim); border-radius: var(--radius-sm);">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="file-text" class="w-3.5 h-3.5 shrink-0" style="color: var(--brand-primary);"></i>
+                <span class="text-[12px] font-medium truncate" style="color: var(--text-primary);">Romaneio #4821</span>
+              </div>
+              <span class="text-[11px] tabular-nums shrink-0" style="color: var(--text-tertiary);">14:22</span>
+            </div>
+            <!-- Lista recolhível -->
+            <ul class="flex flex-col gap-1.5">
+              <li class="flex items-center justify-between text-[12px] px-1">
+                <span class="truncate" style="color: var(--text-tertiary);">NF-e 17/06 · 25 jun</span>
+                <span class="shrink-0 ml-2 tabular-nums" style="color: var(--state-success);">88 itens</span>
+              </li>
+              <li class="flex items-center justify-between text-[12px] px-1">
+                <span class="truncate" style="color: var(--text-tertiary);">Romaneio #4790 · 21 jun</span>
+                <span class="shrink-0 ml-2" style="color: var(--state-warning);">parcial</span>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Card: Cadastro manual (formulário completo) -->
+          <section class="p-5" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-[15px] font-semibold" style="color: var(--text-primary);">Cadastro manual</h2>
+              <i data-lucide="keyboard" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <!-- Nome -->
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] uppercase tracking-wide font-medium" style="color: var(--text-tertiary);">Nome</label>
+                <input type="text" placeholder="Ex.: Bolsa Couro" class="px-3 py-2 text-[13px] outline-none transition-colors duration-150" style="background: var(--surface-base); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary);" onfocus="this.style.borderColor='var(--brand-primary-border)';" onblur="this.style.borderColor='var(--border-default)';">
+              </div>
+              <!-- Código + Quantidade (linha) -->
+              <div class="grid grid-cols-2 gap-2">
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] uppercase tracking-wide font-medium" style="color: var(--text-tertiary);">Código</label>
+                  <input type="text" placeholder="000000" class="px-3 py-2 text-[13px] tabular-nums font-mono outline-none transition-colors duration-150" style="background: var(--surface-base); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary);" onfocus="this.style.borderColor='var(--brand-primary-border)';" onblur="this.style.borderColor='var(--border-default)';">
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] uppercase tracking-wide font-medium" style="color: var(--text-tertiary);">Quantidade</label>
+                  <input type="number" placeholder="0" class="px-3 py-2 text-[13px] tabular-nums outline-none transition-colors duration-150" style="background: var(--surface-base); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary);" onfocus="this.style.borderColor='var(--brand-primary-border)';" onblur="this.style.borderColor='var(--border-default)';">
+                </div>
+              </div>
+              <!-- Preço -->
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] uppercase tracking-wide font-medium" style="color: var(--text-tertiary);">Preço</label>
+                <input type="text" placeholder="R$ 0,00" class="px-3 py-2 text-[13px] tabular-nums outline-none transition-colors duration-150" style="background: var(--surface-base); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary);" onfocus="this.style.borderColor='var(--brand-primary-border)';" onblur="this.style.borderColor='var(--border-default)';">
+              </div>
+              <!-- Botão: Alterar margem padrão (secundário) -->
+              <button type="button" data-dom-id="btn-margem-padrao"
+                      class="inline-flex items-center justify-between gap-2 px-3 py-2 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-base); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.background='var(--surface-2)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-base)'; this.style.color='var(--text-secondary)';">
+                <span class="flex items-center gap-1.5">
+                  <i data-lucide="percent" class="w-3.5 h-3.5"></i>
+                  Margem padrão
+                </span>
+                <span class="flex items-center gap-1.5 tabular-nums" style="color: var(--brand-primary);">
+                  123,5%
+                  <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </span>
+              </button>
+              <!-- Botão primário: Adicionar produto -->
+              <button type="button" data-dom-id="btn-adicionar-produto"
+                      class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 mt-1 text-[13px] font-semibold whitespace-nowrap transition-all duration-150"
+                      style="background: var(--brand-primary); color: var(--surface-base); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--brand-primary-hover)'; this.style.transform='translateY(-1px)';"
+                      onmouseout="this.style.background='var(--brand-primary)'; this.style.transform='translateY(0)';">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Adicionar produto
+              </button>
+            </div>
+          </section>
+
+          <!-- Card: Totais da sessão -->
+          <section class="p-5" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-[15px] font-semibold" style="color: var(--text-primary);">Totais da sessão</h2>
+              <i data-lucide="calculator" class="w-4 h-4" style="color: var(--text-tertiary);"></i>
+            </div>
+            <div class="flex flex-col gap-0">
+              <div class="flex items-center justify-between py-2" style="border-bottom: 1px solid var(--border-subtle);">
+                <span class="text-[12px] uppercase tracking-wide" style="color: var(--text-tertiary);">Quantidade</span>
+                <span class="text-[15px] font-semibold tabular-nums" style="color: var(--text-primary);">312<span class="text-[11px] font-normal ml-1" style="color: var(--text-tertiary);">un.</span></span>
+              </div>
+              <div class="flex items-center justify-between py-2" style="border-bottom: 1px solid var(--border-subtle);">
+                <span class="text-[12px] uppercase tracking-wide" style="color: var(--text-tertiary);">Custo total</span>
+                <span class="text-[15px] font-semibold tabular-nums" style="color: var(--text-primary);">R$ 8.472,30</span>
+              </div>
+              <div class="flex items-center justify-between py-2">
+                <span class="text-[12px] uppercase tracking-wide" style="color: var(--text-tertiary);">Venda total</span>
+                <span class="text-[15px] font-semibold tabular-nums" style="color: var(--brand-primary);">R$ 18.940,00</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-3 pt-3" style="border-top: 1px solid var(--border-subtle);">
+              <span class="text-[11px] uppercase tracking-wider" style="color: var(--text-tertiary);">Margem</span>
+              <span class="text-[12px] font-semibold tabular-nums" style="color: var(--state-success);">+ 123,5%</span>
+            </div>
+          </section>
+
+          <!-- Card: Acumulado global (histórico, tratamento visual diferente) -->
+          <section class="p-5" style="background: var(--surface-base); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="archive" class="w-4 h-4" style="color: var(--brand-primary);"></i>
+                <h2 class="text-[14px] font-semibold" style="color: var(--text-secondary);">Acumulado global</h2>
+              </div>
+              <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Histórico</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <span class="text-[11px] uppercase tracking-wide" style="color: var(--text-tertiary);">Produtos</span>
+                <span class="text-[18px] font-semibold tabular-nums" style="color: var(--text-primary);">4.812</span>
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-[11px] uppercase tracking-wide" style="color: var(--text-tertiary);">Cadastros</span>
+                <span class="text-[18px] font-semibold tabular-nums" style="color: var(--text-primary);">142</span>
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-[11px] uppercase tracking-wide" style="color: var(--text-tertiary);">Custo</span>
+                <span class="text-[14px] font-semibold tabular-nums" style="color: var(--text-secondary);">R$ 184k</span>
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-[11px] uppercase tracking-wide" style="color: var(--text-tertiary);">Venda</span>
+                <span class="text-[14px] font-semibold tabular-nums" style="color: var(--text-secondary);">R$ 412k</span>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <!-- ============================================================== -->
+        <!-- ZONA 3 — ÁREA PRINCIPAL (centro-direita, flex)                  -->
+        <!-- ============================================================== -->
+        <section class="flex-1 flex flex-col min-w-0 overflow-hidden" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-md);">
+
+          <!-- ====== TOOLBAR COMPLETA (productListControls) — 4 grupos ====== -->
+          <div class="flex items-center gap-2 px-4 py-3 flex-wrap" style="border-bottom: 1px solid var(--border-default);">
+
+            <!-- GRUPO 1: Histórico (undo + redo) -->
+            <div class="flex items-center shrink-0" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);">
+              <button type="button" data-dom-id="btn-undo" aria-label="Desfazer" title="Desfazer (Ctrl+Z)"
+                      class="flex items-center justify-center w-9 h-9 transition-colors duration-150"
+                      style="color: var(--text-tertiary); border-right: 1px solid var(--border-default);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                <i data-lucide="undo-2" class="w-4 h-4"></i>
+              </button>
+              <button type="button" data-dom-id="btn-redo" aria-label="Refazer" title="Refazer (Ctrl+Y)"
+                      class="flex items-center justify-center w-9 h-9 transition-colors duration-150"
+                      style="color: var(--text-disabled);"
+                      onmouseover="this.style.color='var(--text-secondary)';"
+                      onmouseout="this.style.color='var(--text-disabled)';">
+                <i data-lucide="redo-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- GRUPO 2: Busca (input + limpar) -->
+            <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-[220px]" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);">
+              <i data-lucide="search" class="w-4 h-4 shrink-0" style="color: var(--text-tertiary);"></i>
+              <input type="text" placeholder="Nome, marca, código ou categoria" class="bg-transparent border-0 outline-none text-[13px] flex-1 min-w-0" style="color: var(--text-primary);">
+              <button type="button" data-dom-id="btn-limpar-busca" aria-label="Limpar busca" title="Limpar"
+                      class="flex items-center justify-center w-5 h-5 shrink-0 transition-colors duration-150"
+                      style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- GRUPO 3: Edição (global, formatar códigos, melhorar descrição) -->
+            <div class="flex items-center shrink-0 gap-1.5">
+              <span class="text-[10px] uppercase tracking-wider hidden xl:inline" style="color: var(--text-disabled);">Edição</span>
+              <div class="flex items-center" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);">
+                <button type="button" data-dom-id="toggle-edicao-global" aria-pressed="false" title="Edição global em massa"
+                        class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--text-secondary); border-right: 1px solid var(--border-default);"
+                        onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                        onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent';">
+                  <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">Edição global</span>
+                </button>
+                <button type="button" data-dom-id="toggle-formatar-codigos" aria-pressed="true" title="Formatar códigos (ativo)"
+                        class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--brand-primary); background: var(--brand-primary-dim); border-right: 1px solid var(--border-default);"
+                        onmouseover="this.style.background='var(--brand-primary-border)';"
+                        onmouseout="this.style.background='var(--brand-primary-dim)';">
+                  <i data-lucide="barcode" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">Formatar códigos</span>
+                </button>
+                <button type="button" data-dom-id="toggle-melhorar-descricao" aria-pressed="true" title="Melhorar descrição (ativo)"
+                        class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--brand-primary); background: var(--brand-primary-dim);"
+                        onmouseover="this.style.background='var(--brand-primary-border)';"
+                        onmouseout="this.style.background='var(--brand-primary-dim)';">
+                  <i data-lucide="align-left" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">Melhorar descrição</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- GRUPO 4: Assistida (ordenar, criar conjunto, juntar repetidos) -->
+            <div class="flex items-center shrink-0 gap-1.5">
+              <span class="text-[10px] uppercase tracking-wider hidden xl:inline" style="color: var(--text-disabled);">Assistida</span>
+              <div class="flex items-center" style="background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);">
+                <button type="button" data-dom-id="toggle-ordenar" aria-pressed="true" title="Modo ordenar (ativo)"
+                        class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--brand-primary); background: var(--brand-primary-dim); border-right: 1px solid var(--border-default);"
+                        onmouseover="this.style.background='var(--brand-primary-border)';"
+                        onmouseout="this.style.background='var(--brand-primary-dim)';">
+                  <i data-lucide="arrow-down-up" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">Ordenar</span>
+                </button>
+                <button type="button" data-dom-id="toggle-criar-conjunto" aria-pressed="false" title="Criar conjunto de produtos"
+                        class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--text-secondary); border-right: 1px solid var(--border-default);"
+                        onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                        onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent';">
+                  <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">Criar conjunto</span>
+                </button>
+                <button type="button" data-dom-id="btn-juntar-repetidos" title="Juntar produtos repetidos"
+                        class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--text-secondary);"
+                        onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                        onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent';">
+                  <i data-lucide="combine" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">Juntar repetidos</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- GRUPO 5: Risco/Organização (limpar lista - danger) -->
+            <div class="flex items-center shrink-0">
+              <button type="button" data-dom-id="btn-limpar-lista" title="Limpar lista de produtos"
+                      class="flex items-center gap-1.5 px-3 h-9 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="color: var(--state-error); background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.background='var(--state-error-dim)'; this.style.borderColor='var(--state-error)';"
+                      onmouseout="this.style.background='var(--surface-2)'; this.style.borderColor='var(--border-default)';">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span class="hidden lg:inline">Limpar lista</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Botão contextual: Cancelar ordenação (visível pq modo ordenar ativo) -->
+          <div class="flex items-center gap-2 px-4 py-2" style="background: var(--brand-primary-dim); border-bottom: 1px solid var(--border-subtle);">
+            <i data-lucide="info" class="w-3.5 h-3.5 shrink-0" style="color: var(--brand-primary);"></i>
+            <span class="text-[12px] flex-1" style="color: var(--text-secondary);">Modo ordenação ativo · arraste as linhas para reordenar</span>
+            <button type="button" data-dom-id="btn-cancelar-ordenacao"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                    style="color: var(--text-primary); background: var(--surface-3); border: 1px solid var(--border-default); border-radius: var(--radius-sm);"
+                    onmouseover="this.style.background='var(--surface-elevated)';"
+                    onmouseout="this.style.background='var(--surface-3)';">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+              Cancelar ordenação
+            </button>
+          </div>
+
+          <!-- ====== PAINÉIS LATERAIS DE FERRAMENTA (abertos) ====== -->
+          <div class="flex gap-3 px-4 py-3" style="border-bottom: 1px solid var(--border-default); background: var(--surface-2);">
+
+            <!-- Painel: Formatar códigos (aberto) -->
+            <div data-dom-id="panel-formatar-codigos" class="flex-1 min-w-0 p-3" style="background: var(--surface-base); border: 1px solid var(--brand-primary-border); border-radius: var(--radius-sm);">
+              <div class="flex items-center justify-between mb-2.5 gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <i data-lucide="barcode" class="w-4 h-4 shrink-0" style="color: var(--brand-primary);"></i>
+                  <span class="text-[13px] font-semibold truncate" style="color: var(--text-primary);">Formatar códigos</span>
+                </div>
+                <button type="button" aria-label="Fechar painel" class="flex items-center justify-center w-6 h-6 shrink-0 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                        onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                        onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <!-- Targets de formatação -->
+              <div class="flex flex-col gap-1.5 mb-2.5">
+                <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-tertiary);">Alvos</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <label class="inline-flex items-center gap-1.5 text-[12px] px-2 py-1 whitespace-nowrap" style="background: var(--surface-3); color: var(--text-secondary); border-radius: var(--radius-sm);">
+                    <span class="w-3 h-3 flex items-center justify-center" style="background: var(--brand-primary); border-radius: 2px;"><i data-lucide="check" class="w-2.5 h-2.5" style="color: var(--surface-base);"></i></span>
+                    Todos
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-[12px] px-2 py-1 whitespace-nowrap" style="background: var(--surface-3); color: var(--text-secondary); border-radius: var(--radius-sm);">
+                    <span class="w-3 h-3 flex items-center justify-center" style="background: var(--brand-primary); border-radius: 2px;"><i data-lucide="check" class="w-2.5 h-2.5" style="color: var(--surface-base);"></i></span>
+                    Sem código
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-[12px] px-2 py-1 whitespace-nowrap" style="background: var(--surface-3); color: var(--text-tertiary); border-radius: var(--radius-sm);">
+                    <span class="w-3 h-3" style="border: 1px solid var(--border-strong); border-radius: 2px;"></span>
+                    Duplicados
+                  </label>
+                </div>
+              </div>
+              <!-- Input + ações -->
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5 px-2.5 py-1.5 flex-1 min-w-0" style="background: var(--surface-1); border: 1px solid var(--border-default); border-radius: var(--radius-sm);">
+                  <span class="text-[11px] uppercase tracking-wide shrink-0" style="color: var(--text-tertiary);">Tamanho</span>
+                  <input type="text" value="2" class="bg-transparent border-0 outline-none text-[13px] tabular-nums w-12" style="color: var(--text-primary);">
+                </div>
+                <button type="button" data-dom-id="btn-restaurar-codigos" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                        style="color: var(--text-secondary); background: var(--surface-3); border: 1px solid var(--border-default); border-radius: var(--radius-sm);"
+                        onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-elevated)';"
+                        onmouseout="this.style.color='var(--text-secondary)'; this.style.background='var(--surface-3)';">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                  Restaurar
+                </button>
+                <button type="button" data-dom-id="btn-formatar-codigos" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all duration-150"
+                        style="color: var(--surface-base); background: var(--brand-primary); border-radius: var(--radius-sm);"
+                        onmouseover="this.style.background='var(--brand-primary-hover)';"
+                        onmouseout="this.style.background='var(--brand-primary)';">
+                  <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+                  Formatar
+                </button>
+              </div>
+            </div>
+
+            <!-- Painel: Melhorar descrição (aberto) -->
+            <div data-dom-id="panel-melhorar-descricao" class="flex-1 min-w-0 p-3" style="background: var(--surface-base); border: 1px solid var(--brand-primary-border); border-radius: var(--radius-sm);">
+              <div class="flex items-center justify-between mb-2.5 gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <i data-lucide="align-left" class="w-4 h-4 shrink-0" style="color: var(--brand-primary);"></i>
+                  <span class="text-[13px] font-semibold truncate" style="color: var(--text-primary);">Melhorar descrição</span>
+                </div>
+                <button type="button" aria-label="Fechar painel" class="flex items-center justify-center w-6 h-6 shrink-0 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                        onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                        onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <span class="text-[10px] uppercase tracking-wider block mb-1.5" style="color: var(--text-tertiary);">Termos para remover</span>
+              <div class="flex flex-wrap gap-1.5 mb-2.5">
+                <span class="inline-flex items-center gap-1 text-[11px] px-2 py-1 whitespace-nowrap font-mono" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">OGPT <i data-lucide="x" class="w-3 h-3"></i></span>
+                <span class="inline-flex items-center gap-1 text-[11px] px-2 py-1 whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">USE EXPERIENCE <i data-lucide="x" class="w-3 h-3"></i></span>
+                <span class="inline-flex items-center gap-1 text-[11px] px-2 py-1 whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">ORIGINAL <i data-lucide="x" class="w-3 h-3"></i></span>
+                <span class="inline-flex items-center gap-1 text-[11px] px-2 py-1 whitespace-nowrap" style="background: var(--surface-3); color: var(--text-tertiary); border-radius: var(--radius-sm);">+ Adicionar</span>
+              </div>
+              <button type="button" data-dom-id="btn-melhorar-descricao" class="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all duration-150"
+                      style="color: var(--surface-base); background: var(--brand-primary); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.background='var(--brand-primary-hover)';"
+                      onmouseout="this.style.background='var(--brand-primary)';">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                Melhorar descrição
+              </button>
+            </div>
+          </div>
+
+          <!-- ====== CHIPS DE RESUMO DA TABELA + AÇÕES EM LOTE + CHECKLIST ====== -->
+          <div class="flex items-center gap-3 px-4 py-2.5 flex-wrap" style="border-bottom: 1px solid var(--border-default); background: var(--surface-1);">
+            <!-- Chips de resumo com contadores -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap" style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+                <i data-lucide="package" class="w-3 h-3" style="color: var(--text-tertiary);"></i>
+                Qtd total <span class="tabular-nums font-semibold" style="color: var(--text-primary);">312</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap" style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-full);">
+                Custo <span class="tabular-nums font-semibold" style="color: var(--text-primary);">R$ 8.472</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-full);">
+                Sem marca <span class="tabular-nums font-semibold">3</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-full);">
+                Sem categoria <span class="tabular-nums font-semibold">1</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-full);">
+                Sem código <span class="tabular-nums font-semibold">2</span>
+              </span>
+            </div>
+
+            <div class="flex-1 min-w-0"></div>
+
+            <!-- Ações em lote (dropdowns) -->
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" data-dom-id="btn-lote-marca" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="color: var(--text-secondary); background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';">
+                <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+                Aplicar marca
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-60"></i>
+              </button>
+              <button type="button" data-dom-id="btn-lote-categoria" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="color: var(--text-secondary); background: var(--surface-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';">
+                <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                Aplicar categoria
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-60"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dropdown "Aplicar marca em lote" aberto (demonstra criar nova + lista) -->
+          <div class="absolute" style="display:none;"></div>
+
+          <!-- ====== CHECKLIST DE PRÓXIMOS PASSOS ====== -->
+          <div class="flex items-center gap-2 px-4 py-2 flex-wrap" style="border-bottom: 1px solid var(--border-subtle); background: var(--surface-base);">
+            <div class="flex items-center gap-1.5 shrink-0">
+              <i data-lucide="list-checks" class="w-3.5 h-3.5" style="color: var(--brand-primary);"></i>
+              <span class="text-[11px] uppercase tracking-wider font-medium" style="color: var(--text-tertiary);">Próximos passos</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 text-[12px] px-2 py-1 whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">
+                <span class="w-3 h-3 rounded-full flex items-center justify-center" style="border: 1.5px solid var(--state-warning);"></span>
+                2 produtos sem grade
+              </span>
+              <span class="inline-flex items-center gap-1.5 text-[12px] px-2 py-1 whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-sm);">
+                <span class="w-3 h-3 rounded-full flex items-center justify-center" style="border: 1.5px solid var(--state-error);"></span>
+                3 produtos sem marca
+              </span>
+              <span class="inline-flex items-center gap-1.5 text-[12px] px-2 py-1 whitespace-nowrap" style="background: var(--state-success-dim); color: var(--state-success); border-radius: var(--radius-sm);">
+                <span class="w-3 h-3 rounded-full flex items-center justify-center" style="background: var(--state-success);"><i data-lucide="check" class="w-2 h-2" style="color: var(--surface-base);"></i></span>
+                Códigos formatados
+              </span>
+            </div>
+          </div>
+
+          <!-- ====== TABELA DENSA DE PRODUTOS ====== -->
+          <div class="flex-1 overflow-auto min-h-0">
+            <table class="w-full" style="border-collapse: separate; border-spacing: 0;">
+              <thead class="sticky top-0 z-10">
+                <tr style="background: var(--surface-2);">
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-left px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 40px;">
+                    <span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span>
+                  </th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-left px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 44px;">#</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-left px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); min-width: 220px;">Nome</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-left px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); min-width: 120px;">Marca</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-left px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); min-width: 130px;">Código</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-right px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 64px;">Qtd</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-right px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 96px;">Custo</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-right px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 96px;">Venda</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-left px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 110px;">Categoria</th>
+                  <th class="text-[10px] uppercase tracking-wider font-semibold text-right px-3 py-2.5" style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-default); width: 130px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Linha 1 -->
+                <tr data-dom-id="row-prod-1" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">01</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Camiseta Polo Algodão Piquet</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">Grade pendente</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] truncate" style="color: var(--text-secondary);">Malhas Brasil</td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230015</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">48</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 18,90</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 49,90</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Vestuário</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 2 (com edição inline ativa na coluna Marca) -->
+                <tr data-dom-id="row-prod-2" class="transition-colors duration-150" style="border-bottom: 1px solid var(--brand-primary-border); background: var(--brand-primary-dim);"
+                    onmouseover="this.style.background='var(--brand-primary-border)';"
+                    onmouseout="this.style.background='var(--brand-primary-dim)';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="background: var(--brand-primary); border-radius: 3px;"><i data-lucide="check" class="w-2.5 h-2.5" style="color: var(--surface-base);"></i></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">02</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--brand-primary); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Calça Jeans Skinny Fem</span>
+                    </div>
+                  </td>
+                  <!-- Célula em edição inline -->
+                  <td class="px-3 py-2.5">
+                    <input type="text" value="Denim Co." class="w-full px-2 py-1 text-[13px] outline-none" style="background: var(--surface-base); border: 1px solid var(--brand-primary); border-radius: var(--radius-sm); color: var(--text-primary); box-shadow: 0 0 0 3px var(--brand-primary-dim);">
+                  </td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230022</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">36</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 42,00</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 119,90</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Vestuário</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar (em edição)" class="flex items-center justify-center w-7 h-7" style="color: var(--brand-primary); border-radius: var(--radius-sm);">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 3 -->
+                <tr data-dom-id="row-prod-3" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">03</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Tênis Esportivo Air Run</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] truncate" style="color: var(--text-secondary);">Sport Dynamics</td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230039</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">24</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 87,50</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 229,90</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Calçados</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 4 (sem marca) -->
+                <tr data-dom-id="row-prod-4" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">04</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Bolsa Couro Handbag</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-sm);">Sem marca</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] italic truncate" style="color: var(--text-disabled);">— não informada</td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230046</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">18</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 124,00</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 299,00</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Acessórios</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 5 -->
+                <tr data-dom-id="row-prod-5" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">05</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Vestido Floral Midi</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">Grade pendente</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] truncate" style="color: var(--text-secondary);">Estilo Único</td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230053</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">30</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 34,00</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 89,90</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Vestuário</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 6 (sem categoria e sem código) -->
+                <tr data-dom-id="row-prod-6" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">06</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Relógio Pulseira Aço</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-sm);">Sem código</span>
+                      <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">Sem categoria</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] truncate" style="color: var(--text-secondary);">Time Brand</td>
+                  <td class="px-3 py-2.5 text-[12px] italic" style="color: var(--text-disabled);">— gerar</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">12</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 96,00</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 259,90</td>
+                  <td class="px-3 py-2.5 text-[12px] italic" style="color: var(--text-disabled);">— definir</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 7 -->
+                <tr data-dom-id="row-prod-7" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">07</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Óculos Sol Aviator</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] truncate" style="color: var(--text-secondary);">Sun Optics</td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230077</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">28</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 31,50</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 99,90</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Acessórios</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Linha 8 -->
+                <tr data-dom-id="row-prod-8" class="transition-colors duration-150" style="border-bottom: 1px solid var(--border-subtle);"
+                    onmouseover="this.style.background='var(--surface-2)';"
+                    onmouseout="this.style.background='transparent';">
+                  <td class="px-3 py-2.5"><span class="w-3.5 h-3.5 flex items-center justify-center" style="border: 1.5px solid var(--border-strong); border-radius: 3px;"></span></td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums" style="color: var(--text-tertiary);">08</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="grip-vertical" class="w-3.5 h-3.5 shrink-0" style="color: var(--text-disabled); cursor: grab;"></i>
+                      <span class="text-[13px] font-medium truncate" style="color: var(--text-primary);">Mochila Notebook 15"</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-[13px] truncate" style="color: var(--text-secondary);">Trail Pro</td>
+                  <td class="px-3 py-2.5 text-[12px] tabular-nums font-mono" style="color: var(--text-tertiary);">7894561230084</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-primary);">22</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums" style="color: var(--text-secondary);">R$ 56,00</td>
+                  <td class="px-3 py-2.5 text-[13px] text-right tabular-nums font-medium" style="color: var(--text-primary);">R$ 159,90</td>
+                  <td class="px-3 py-2.5 text-[12px]" style="color: var(--text-secondary);">Acessórios</td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-0.5">
+                      <button type="button" aria-label="Editar" title="Editar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--brand-primary)'; this.style.background='var(--brand-primary-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Abrir grade" title="Abrir grade" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Duplicar" title="Duplicar" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" aria-label="Remover" title="Remover" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                              onmouseover="this.style.color='var(--state-error)'; this.style.background='var(--state-error-dim)';"
+                              onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Rodapé da tabela: paginação/resumo -->
+          <div class="flex items-center justify-between px-4 py-2.5" style="background: var(--surface-2); border-top: 1px solid var(--border-default);">
+            <div class="flex items-center gap-2 text-[12px] flex-wrap" style="color: var(--text-tertiary);">
+              <span><span class="tabular-nums font-medium" style="color: var(--text-secondary);">8</span> de <span class="tabular-nums">47</span> produtos</span>
+              <span class="opacity-50">·</span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5" style="background: var(--state-warning-dim); color: var(--state-warning); border-radius: var(--radius-sm);">2 sem grade</span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5" style="background: var(--state-error-dim); color: var(--state-error); border-radius: var(--radius-sm);">3 sem marca</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-disabled); border-radius: var(--radius-sm);" aria-label="Página anterior">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+              <span class="text-[12px] tabular-nums px-2" style="color: var(--text-secondary);">1 / 6</span>
+              <button type="button" class="flex items-center justify-center w-7 h-7 transition-colors duration-150" style="color: var(--text-tertiary); border-radius: var(--radius-sm);"
+                      onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--surface-3)';"
+                      onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent';"
+                      aria-label="Próxima página">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================================================================== -->
+      <!-- ZONA 4 — BASE: CENTRO DE EXECUÇÃO + HEALTH BAR                    -->
+      <!-- ================================================================== -->
+      <footer class="flex-shrink-0" style="background: var(--surface-1); border-top: 1px solid var(--border-default);">
+
+        <!-- Centro de execução -->
+        <div class="px-5 py-4">
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+
+            <!-- Esquerda: status de automação + barra de prontidão -->
+            <div class="flex items-center gap-4 flex-1 min-w-[280px]">
+              <!-- Status de automação compacto -->
+              <div role="status" aria-live="polite" class="flex items-center gap-2 shrink-0" data-dom-id="status-automacao">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background: var(--state-success); box-shadow: 0 0 0 3px var(--state-success-dim);"></span>
+                <div class="flex flex-col leading-tight">
+                  <span class="text-[12px] font-medium whitespace-nowrap" style="color: var(--text-secondary);">Última execução há 2 min</span>
+                  <span class="text-[11px] whitespace-nowrap" style="color: var(--state-success);">Pronto</span>
+                </div>
+              </div>
+
+              <!-- Barra de prontidão -->
+              <div class="flex items-center gap-2 flex-1 max-w-md min-w-0">
+                <i data-lucide="circle-dot" class="w-4 h-4 shrink-0" style="color: var(--state-warning);"></i>
+                <span class="text-[11px] uppercase tracking-wider font-medium shrink-0" style="color: var(--text-tertiary);">Prontidão</span>
+                <div class="flex-1 h-1.5 overflow-hidden" style="background: var(--surface-3); border-radius: var(--radius-full);">
+                  <div class="h-full" style="width: 65%; background: var(--state-warning); border-radius: var(--radius-full);"></div>
+                </div>
+                <span class="text-[11px] font-medium whitespace-nowrap" style="color: var(--state-warning);">2 grades · 3 sem marca</span>
+              </div>
+            </div>
+
+            <!-- Direita: botões de ação -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button" data-dom-id="btn-importar-grades"
+                      class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';"
+                      title="Importar grades de um arquivo externo">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                Importar grades
+              </button>
+              <button type="button" data-dom-id="btn-inserir-grade"
+                      class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';"
+                      title="Inserir grade manualmente">
+                <i data-lucide="plus-square" class="w-4 h-4"></i>
+                Inserir grade
+              </button>
+              <button type="button" data-dom-id="btn-executar-grades"
+                      class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--surface-3)'; this.style.color='var(--text-primary)';"
+                      onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)';"
+                      title="Executar criação automática de grades">
+                <i data-lucide="grid-3x3" class="w-4 h-4"></i>
+                Executar grades
+              </button>
+              <button type="button" data-dom-id="btn-cadastro-massa"
+                      class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: var(--brand-primary-dim); color: var(--brand-primary); border: 1px solid var(--brand-primary-border); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--brand-primary-border)';"
+                      onmouseout="this.style.background='var(--brand-primary-dim)';"
+                      title="Cadastro em massa (accent)">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                Cadastro em massa
+              </button>
+              <button type="button" data-dom-id="btn-parar"
+                      class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
+                      style="background: transparent; color: var(--state-error); border: 1px solid var(--state-error); border-radius: var(--radius-md);"
+                      onmouseover="this.style.background='var(--state-error-dim)';"
+                      onmouseout="this.style.background='transparent';"
+                      title="Parar automação em execução">
+                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                Parar automação
+              </button>
+              <button type="button" data-dom-id="btn-cadastro-completo"
+                      class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-[14px] font-semibold whitespace-nowrap transition-all duration-150"
+                      style="background: var(--brand-primary); color: var(--surface-base); border-radius: var(--radius-md); box-shadow: var(--shadow-pop);"
+                      onmouseover="this.style.background='var(--brand-primary-hover)'; this.style.transform='translateY(-1px)';"
+                      onmouseout="this.style.background='var(--brand-primary)'; this.style.transform='translateY(0)';"
+                      title="Executar cadastro completo (grades + cadastro ERP)">
+                <i data-lucide="rocket" class="w-4 h-4"></i>
+                Cadastro completo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rodapé fino: health bar -->
+        <div class="flex items-center justify-between px-5 py-2 flex-wrap gap-3" style="background: var(--surface-base); border-top: 1px solid var(--border-subtle);">
+          <div class="flex items-center gap-4 text-[11px] flex-wrap">
+            <!-- Backend -->
+            <div class="flex items-center gap-1.5" title="Backend respondendo em 12 ms">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success);"></span>
+              <span style="color: var(--text-tertiary);">Backend</span>
+              <span class="font-medium tabular-nums" style="color: var(--text-secondary);">ok · 12 ms</span>
+            </div>
+            <!-- Auth -->
+            <div class="flex items-center gap-1.5" title="Sessão autenticada">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success);"></span>
+              <span style="color: var(--text-tertiary);">Auth</span>
+              <span class="font-medium" style="color: var(--text-secondary);">ok</span>
+            </div>
+            <!-- WebSocket -->
+            <div class="flex items-center gap-1.5" title="WebSocket conectado ao ERP">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--state-success);"></span>
+              <span style="color: var(--text-tertiary);">WebSocket</span>
+              <span class="font-medium" style="color: var(--text-secondary);">connected</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-[11px]" style="color: var(--text-tertiary);">
+            <span>v2.4.1</span>
+            <span class="opacity-50">·</span>
+            <span>Operador: <span style="color: var(--text-secondary);">Carlos M.</span></span>
+            <span class="opacity-50">·</span>
+            <span class="tabular-nums">Sessão 14:37</span>
+          </div>
+        </div>
+      </footer>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

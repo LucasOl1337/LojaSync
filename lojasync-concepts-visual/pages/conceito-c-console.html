@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conceito C — Console Técnico</title>
+    <style id="theme-vars">
+/* LojaSync Conceito C — Console Técnico (Terminal/IDE) */
+:root {
+  color-scheme: dark;
+  /* Single brand hue: phosphor green */
+  --brand-primary: #4ade80;
+  --brand-primary-hover: #86efac;
+  --brand-primary-dim: rgba(74, 222, 128, 0.10);
+  --brand-primary-border: rgba(74, 222, 128, 0.30);
+
+  /* Deep near-black surfaces */
+  --surface-base: #050708;
+  --surface-1: #0a0e12;
+  --surface-2: #0f1419;
+  --surface-3: #161b22;
+  --surface-elevated: #1c222b;
+
+  /* Sharp high-contrast borders */
+  --border-subtle: rgba(74, 222, 128, 0.08);
+  --border-default: rgba(74, 222, 128, 0.16);
+  --border-strong: rgba(74, 222, 128, 0.30);
+  --text-primary: #e6edf3;
+  --text-secondary: #9da7b3;
+  --text-tertiary: #6e7681;
+  --text-disabled: #484f58;
+
+  /* Status only (semantic) */
+  --state-success: #4ade80;
+  --state-success-dim: rgba(74, 222, 128, 0.10);
+  --state-warning: #f0b429;
+  --state-warning-dim: rgba(240, 180, 41, 0.10);
+  --state-error: #ff6b6b;
+  --state-error-dim: rgba(255, 107, 107, 0.10);
+  --state-info: #56d4dd;
+  --state-info-dim: rgba(86, 212, 221, 0.10);
+
+  /* Radius scale (minimal — technical feel) */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+
+  /* Typography: mono-first */
+  --font-sans: "JetBrains Mono", "IBM Plex Mono", "Consolas", monospace;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  /* Spacing rhythm (compact) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shadows (almost none; borders do the work) */
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-primary: var(--brand-primary);
+  }
+  @layer base {
+    body { background: var(--brand-background); color: var(--brand-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="min-h-screen" style="background: var(--surface-base); color: var(--text-primary); font-family: var(--font-mono);">
+
+      <!-- ============== APP SHELL (IDE-STYLE) ============== -->
+      <div class="flex flex-col" style="min-height: 100vh;">
+
+        <!-- ===== TOPBAR: terminal prompt-style status ===== -->
+        <header
+          class="flex items-center justify-between flex-nowrap gap-3 border-b"
+          data-dom-id="topbar-console"
+          style="background: var(--surface-1); border-color: var(--border-strong); padding: 8px 16px; min-height: 40px;"
+        >
+          <!-- Left: prompt + step flow -->
+          <div class="flex items-center flex-nowrap gap-3 min-w-0">
+            <span class="shrink-0" style="color: var(--brand-primary); font-weight: 600; font-size: 13px;">$ lojasync --status</span>
+            <span class="shrink-0 hidden sm:inline" style="color: var(--text-tertiary); font-size: 12px;">›</span>
+            <div class="flex items-center flex-nowrap gap-1 overflow-x-auto no-scrollbar" role="list" aria-label="Etapas do fluxo">
+              <span class="shrink-0" style="color: var(--text-secondary); font-size: 12px;">[1]import</span>
+              <span class="shrink-0" style="color: var(--text-tertiary);">›</span>
+              <span class="shrink-0 whitespace-nowrap" style="color: var(--brand-primary); font-weight: 600; font-size: 12px;">[2]revisar*</span>
+              <span class="shrink-0" style="color: var(--text-tertiary);">›</span>
+              <span class="shrink-0" style="color: var(--text-tertiary); font-size: 12px;">[3]grades</span>
+              <span class="shrink-0" style="color: var(--text-tertiary);">›</span>
+              <span class="shrink-0" style="color: var(--text-tertiary); font-size: 12px;">[4]cadastrar</span>
+            </div>
+          </div>
+
+          <!-- Right: status indicators -->
+          <div class="flex items-center flex-nowrap gap-3 shrink-0">
+            <span class="inline-flex items-center gap-1 whitespace-nowrap" style="color: var(--brand-primary); font-size: 12px; font-weight: 600;">
+              <span class="inline-block" style="width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--brand-primary);"></span>
+              ONLINE
+            </span>
+            <span class="hidden md:inline whitespace-nowrap" style="color: var(--text-secondary); font-size: 12px;">AUTOMACAO:PRONTO</span>
+            <span class="hidden lg:inline whitespace-nowrap" style="color: var(--text-tertiary); font-size: 11px;">14:32:07</span>
+          </div>
+        </header>
+
+        <!-- ===== BODY: sidebar (tree-view) + main (table grid) ===== -->
+        <div class="flex flex-1 min-h-0">
+
+          <!-- ===== SIDEBAR: IDE tree-view ===== -->
+          <aside
+            class="hidden md:flex flex-col shrink-0 border-r"
+            data-dom-id="sidebar-tree"
+            style="background: var(--surface-1); border-color: var(--border-default); width: 260px;"
+          >
+            <!-- IMPORT section -->
+            <div style="padding: 12px 12px 4px 12px;">
+              <div class="flex items-center gap-1" style="color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: 0.04em;">
+                <span style="color: var(--brand-primary);">▾</span>
+                <span>IMPORT</span>
+              </div>
+              <div class="mt-1.5" style="padding-left: 12px;">
+                <div
+                  class="flex items-center gap-2 border"
+                  style="border-color: var(--border-default); background: var(--surface-2); padding: 8px 10px; border-radius: var(--radius-sm);"
+                >
+                  <i data-lucide="file-down" style="width: 14px; height: 14px; color: var(--brand-primary);"></i>
+                  <span class="truncate" style="color: var(--text-primary); font-size: 12px;">dropzone_pdf</span>
+                </div>
+                <div class="mt-1 truncate" style="color: var(--text-tertiary); font-size: 11px;">romaneio-0832.pdf</div>
+              </div>
+            </div>
+
+            <!-- MANUAL section -->
+            <div style="padding: 8px 12px 4px 12px;">
+              <div class="flex items-center gap-1" style="color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: 0.04em;">
+                <span style="color: var(--brand-primary);">▾</span>
+                <span>MANUAL</span>
+              </div>
+              <div class="mt-1.5" style="padding-left: 12px;">
+                <div class="flex items-center gap-2" style="padding: 2px 0;">
+                  <span style="color: var(--text-tertiary);">›</span>
+                  <span style="color: var(--text-secondary); font-size: 12px;">entry</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- TOTALS { ... } block -->
+            <div style="padding: 8px 12px 4px 12px;">
+              <div class="flex items-center gap-1" style="color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: 0.04em;">
+                <span style="color: var(--brand-primary);">▾</span>
+                <span>TOTALS {</span>
+              </div>
+              <div class="mt-1 space-y-1" style="padding-left: 16px; border-left: 1px dashed var(--border-default); margin-left: 6px;">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="truncate" style="color: var(--text-tertiary); font-size: 12px;">qtd:</span>
+                  <span class="whitespace-nowrap" style="color: var(--text-primary); font-size: 12px; font-weight: 600;">47</span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="truncate" style="color: var(--text-tertiary); font-size: 12px;">custo:</span>
+                  <span class="whitespace-nowrap" style="color: var(--text-primary); font-size: 12px; font-weight: 600;">R$ 1.234</span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="truncate" style="color: var(--text-tertiary); font-size: 12px;">venda:</span>
+                  <span class="whitespace-nowrap" style="color: var(--brand-primary); font-size: 12px; font-weight: 600;">R$ 2.890</span>
+                </div>
+              </div>
+              <div style="color: var(--text-secondary); font-size: 11px; font-weight: 600; padding-left: 12px;">}</div>
+            </div>
+
+            <!-- HISTORY } collapsible -->
+            <div style="padding: 8px 12px 4px 12px;">
+              <div class="flex items-center gap-1" style="color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: 0.04em;">
+                <span style="color: var(--text-tertiary);">▸</span>
+                <span>HISTORY }</span>
+              </div>
+            </div>
+
+            <!-- spacer -->
+            <div class="flex-1"></div>
+
+            <!-- footer mini-status inside sidebar -->
+            <div class="border-t" style="border-color: var(--border-default); padding: 8px 12px;">
+              <div class="flex items-center justify-between gap-2">
+                <span class="truncate" style="color: var(--text-tertiary); font-size: 10px;">last_sync</span>
+                <span class="whitespace-nowrap" style="color: var(--text-secondary); font-size: 10px;">2m ago</span>
+              </div>
+            </div>
+          </aside>
+
+          <!-- ===== MAIN CONTENT: toolbar + table grid + exec center ===== -->
+          <div class="flex flex-col flex-1 min-w-0">
+
+            <!-- ===== TOOLBAR: IDE command bar ===== -->
+            <div
+              class="flex items-center gap-2 border-b flex-nowrap overflow-x-auto no-scrollbar"
+              data-dom-id="toolbar-cmdbar"
+              style="background: var(--surface-1); border-color: var(--border-default); padding: 6px 12px; min-height: 38px;"
+            >
+              <!-- search prompt -->
+              <div
+                class="flex items-center gap-1.5 border shrink-0"
+                style="border-color: var(--border-default); background: var(--surface-2); padding: 4px 8px; border-radius: var(--radius-sm);"
+              >
+                <span style="color: var(--brand-primary); font-size: 12px;">&gt;</span>
+                <span class="whitespace-nowrap" style="color: var(--text-tertiary); font-size: 12px;">search</span>
+              </div>
+
+              <!-- undo/redo -->
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center border"
+                  data-dom-id="btn-undo"
+                  style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-secondary); width: 26px; height: 26px; border-radius: var(--radius-sm); transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                  aria-label="Undo"
+                >
+                  <i data-lucide="undo-2" style="width: 13px; height: 13px;"></i>
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center border"
+                  data-dom-id="btn-redo"
+                  style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-secondary); width: 26px; height: 26px; border-radius: var(--radius-sm); transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                  aria-label="Redo"
+                >
+                  <i data-lucide="redo-2" style="width: 13px; height: 13px;"></i>
+                </button>
+              </div>
+
+              <!-- format / desc colon commands -->
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center border whitespace-nowrap"
+                  data-dom-id="btn-format"
+                  style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-secondary); padding: 4px 8px; height: 26px; border-radius: var(--radius-sm); font-size: 11px; transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  :format
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center border whitespace-nowrap"
+                  data-dom-id="btn-desc"
+                  style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-secondary); padding: 4px 8px; height: 26px; border-radius: var(--radius-sm); font-size: 11px; transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  :desc
+                </button>
+              </div>
+
+              <!-- mode selectors -->
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center border whitespace-nowrap"
+                  data-dom-id="btn-mode-sort"
+                  style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-secondary); padding: 4px 8px; height: 26px; border-radius: var(--radius-sm); font-size: 11px; transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  mode:sort
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center border whitespace-nowrap"
+                  data-dom-id="btn-mode-set"
+                  style="border-color: var(--brand-primary-border); background: var(--brand-primary-dim); color: var(--brand-primary); padding: 4px 8px; height: 26px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600;"
+                >
+                  mode:set
+                </button>
+              </div>
+
+              <div class="flex-1"></div>
+
+              <!-- row count -->
+              <span class="shrink-0 whitespace-nowrap hidden sm:inline" style="color: var(--text-tertiary); font-size: 11px;">rows: 6/47</span>
+            </div>
+
+            <!-- ===== TABLE: console log grid ===== -->
+            <div class="flex-1 overflow-auto" data-dom-id="table-log-wrap">
+              <table class="w-full" style="border-collapse: collapse; font-size: 12px;">
+                <thead>
+                  <tr style="background: var(--surface-1); border-bottom: 1px solid var(--border-strong);">
+                    <th class="text-left whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; width: 44px;">#</th>
+                    <th class="text-left whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 140px;">NOME</th>
+                    <th class="text-left whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 90px;">MARCA</th>
+                    <th class="text-left whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 100px;">COD</th>
+                    <th class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; width: 56px;">QTD</th>
+                    <th class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 90px;">CUSTO</th>
+                    <th class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 90px;">VENDA</th>
+                    <th class="text-left whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 90px;">CAT</th>
+                    <th class="text-left whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; min-width: 130px;">ACOES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Row 1 -->
+                  <tr
+                    class="group"
+                    data-dom-id="row-1"
+                    style="border-bottom: 1px solid var(--border-subtle); transition: background 140ms cubic-bezier(.2,.8,.2,1), box-shadow 140ms cubic-bezier(.2,.8,.2,1); box-shadow: inset 2px 0 0 transparent;"
+                  >
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">01</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="truncate inline-block max-w-[180px]" style="color: var(--text-primary);">Camiseta Algodão Pima</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary);">Trussardi</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">CUS-4821</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-primary); font-variant-numeric: tabular-nums;">12</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">R$ 28,90</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--brand-primary); font-variant-numeric: tabular-nums;">R$ 89,90</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="border: 1px solid var(--border-default); color: var(--text-secondary); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px;">vestuario</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;">
+                      <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border: 1px solid rgba(240,180,41,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">GRADE:PEND</span>
+                        <span class="inline-flex items-center justify-center border" style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-tertiary); width: 20px; height: 20px; border-radius: var(--radius-sm);"><i data-lucide="pencil" style="width: 11px; height: 11px;"></i></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- Row 2 -->
+                  <tr
+                    class="group"
+                    data-dom-id="row-2"
+                    style="border-bottom: 1px solid var(--border-subtle); transition: background 140ms cubic-bezier(.2,.8,.2,1), box-shadow 140ms cubic-bezier(.2,.8,.2,1); box-shadow: inset 2px 0 0 transparent;"
+                  >
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">02</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="truncate inline-block max-w-[180px]" style="color: var(--text-primary);">Calça Jeans Slim Fit</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border: 1px solid rgba(255,107,107,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">MARCA:NULL</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">JNS-1190</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-primary); font-variant-numeric: tabular-nums;">8</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">R$ 52,00</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--brand-primary); font-variant-numeric: tabular-nums;">R$ 159,90</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="border: 1px solid var(--border-default); color: var(--text-secondary); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px;">vestuario</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;">
+                      <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center justify-center border" style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-tertiary); width: 20px; height: 20px; border-radius: var(--radius-sm);"><i data-lucide="pencil" style="width: 11px; height: 11px;"></i></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- Row 3 -->
+                  <tr
+                    class="group"
+                    data-dom-id="row-3"
+                    style="border-bottom: 1px solid var(--border-subtle); transition: background 140ms cubic-bezier(.2,.8,.2,1), box-shadow 140ms cubic-bezier(.2,.8,.2,1); box-shadow: inset 2px 0 0 transparent;"
+                  >
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">03</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="truncate inline-block max-w-[180px]" style="color: var(--text-primary);">Tênis Runner Pro</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary);">Olympikus</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">TNR-7755</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-primary); font-variant-numeric: tabular-nums;">15</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">R$ 95,00</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--brand-primary); font-variant-numeric: tabular-nums;">R$ 249,90</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="border: 1px solid var(--border-default); color: var(--text-secondary); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px;">calcado</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;">
+                      <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-success-dim); color: var(--state-success); border: 1px solid rgba(74,222,128,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">GRADE:OK</span>
+                        <span class="inline-flex items-center justify-center border" style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-tertiary); width: 20px; height: 20px; border-radius: var(--radius-sm);"><i data-lucide="pencil" style="width: 11px; height: 11px;"></i></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- Row 4 -->
+                  <tr
+                    class="group"
+                    data-dom-id="row-4"
+                    style="border-bottom: 1px solid var(--border-subtle); transition: background 140ms cubic-bezier(.2,.8,.2,1), box-shadow 140ms cubic-bezier(.2,.8,.2,1); box-shadow: inset 2px 0 0 transparent;"
+                  >
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">04</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="truncate inline-block max-w-[180px]" style="color: var(--text-primary);">Mochila Trek 30L</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary);">Nautika</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">MCH-3340</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-primary); font-variant-numeric: tabular-nums;">6</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">R$ 110,00</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--brand-primary); font-variant-numeric: tabular-nums;">R$ 329,00</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="border: 1px solid var(--border-default); color: var(--text-secondary); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px;">acessorio</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;">
+                      <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border: 1px solid rgba(240,180,41,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">GRADE:PEND</span>
+                        <span class="inline-flex items-center justify-center border" style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-tertiary); width: 20px; height: 20px; border-radius: var(--radius-sm);"><i data-lucide="pencil" style="width: 11px; height: 11px;"></i></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- Row 5 -->
+                  <tr
+                    class="group"
+                    data-dom-id="row-5"
+                    style="border-bottom: 1px solid var(--border-subtle); transition: background 140ms cubic-bezier(.2,.8,.2,1), box-shadow 140ms cubic-bezier(.2,.8,.2,1); box-shadow: inset 2px 0 0 transparent;"
+                  >
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">05</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="truncate inline-block max-w-[180px]" style="color: var(--text-primary);">Meia Cano Alto Pack</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary);">Bullyng</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">MEI-0091</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-primary); font-variant-numeric: tabular-nums;">47</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">R$ 6,50</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--brand-primary); font-variant-numeric: tabular-nums;">R$ 19,90</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="border: 1px solid var(--border-default); color: var(--text-secondary); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px;">vestuario</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;">
+                      <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-success-dim); color: var(--state-success); border: 1px solid rgba(74,222,128,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">GRADE:OK</span>
+                        <span class="inline-flex items-center justify-center border" style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-tertiary); width: 20px; height: 20px; border-radius: var(--radius-sm);"><i data-lucide="pencil" style="width: 11px; height: 11px;"></i></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- Row 6 -->
+                  <tr
+                    class="group"
+                    data-dom-id="row-6"
+                    style="border-bottom: 1px solid var(--border-subtle); transition: background 140ms cubic-bezier(.2,.8,.2,1), box-shadow 140ms cubic-bezier(.2,.8,.2,1); box-shadow: inset 2px 0 0 transparent;"
+                  >
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">06</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="truncate inline-block max-w-[180px]" style="color: var(--text-primary);">Boné Aba Reta</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-error-dim); color: var(--state-error); border: 1px solid rgba(255,107,107,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">MARCA:NULL</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">BNE-5520</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-primary); font-variant-numeric: tabular-nums;">9</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums;">R$ 14,00</td>
+                    <td class="text-right whitespace-nowrap" style="padding: 8px 10px; color: var(--brand-primary); font-variant-numeric: tabular-nums;">R$ 49,90</td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;"><span class="inline-flex items-center whitespace-nowrap" style="border: 1px solid var(--border-default); color: var(--text-secondary); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px;">acessorio</span></td>
+                    <td class="whitespace-nowrap" style="padding: 8px 10px;">
+                      <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center whitespace-nowrap" style="background: var(--state-warning-dim); color: var(--state-warning); border: 1px solid rgba(240,180,41,0.25); padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600;">GRADE:PEND</span>
+                        <span class="inline-flex items-center justify-center border" style="border-color: var(--border-default); background: var(--surface-2); color: var(--text-tertiary); width: 20px; height: 20px; border-radius: var(--radius-sm);"><i data-lucide="pencil" style="width: 11px; height: 11px;"></i></span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- ===== EXEC CENTER ===== -->
+            <div
+              class="border-t"
+              data-dom-id="exec-center"
+              style="background: var(--surface-1); border-color: var(--border-strong); padding: 12px 16px;"
+            >
+              <!-- Section label -->
+              <div class="flex items-center gap-2 mb-2">
+                <span style="color: var(--text-tertiary); font-size: 11px; font-weight: 600; letter-spacing: 0.05em;">EXEC CENTER</span>
+                <div class="flex-1 border-t" style="border-color: var(--border-subtle);"></div>
+              </div>
+
+              <!-- Buttons row -->
+              <div class="flex items-center gap-2 flex-wrap mb-2.5">
+                <!-- Primary: EXECUTE_FULL -->
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  data-dom-id="btn-execute-full"
+                  style="background: var(--brand-primary); color: #050708; border: 1px solid var(--brand-primary); padding: 7px 14px; min-height: 34px; border-radius: var(--radius-sm); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; transition: background 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  <i data-lucide="play" style="width: 13px; height: 13px;"></i>
+                  EXECUTE_FULL
+                </button>
+                <!-- Secondary: EXEC_GRADES -->
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center whitespace-nowrap"
+                  data-dom-id="btn-exec-grades"
+                  style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); padding: 7px 12px; min-height: 34px; border-radius: var(--radius-sm); font-weight: 600; font-size: 12px; transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  EXEC_GRADES
+                </button>
+                <!-- Secondary: EXEC_CAD -->
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center whitespace-nowrap"
+                  data-dom-id="btn-exec-cad"
+                  style="background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); padding: 7px 12px; min-height: 34px; border-radius: var(--radius-sm); font-weight: 600; font-size: 12px; transition: color 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  EXEC_CAD
+                </button>
+                <!-- Danger: HALT -->
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center gap-1 whitespace-nowrap"
+                  data-dom-id="btn-halt"
+                  style="background: var(--state-error-dim); color: var(--state-error); border: 1px solid rgba(255,107,107,0.30); padding: 7px 12px; min-height: 34px; border-radius: var(--radius-sm); font-weight: 600; font-size: 12px; transition: background 140ms cubic-bezier(.2,.8,.2,1);"
+                >
+                  <i data-lucide="octagon-x" style="width: 13px; height: 13px;"></i>
+                  HALT
+                </button>
+
+                <div class="flex-1"></div>
+
+                <!-- Disabled example to show state coverage -->
+                <button
+                  type="button"
+                  disabled
+                  class="inline-flex items-center justify-center whitespace-nowrap"
+                  data-dom-id="btn-rollback"
+                  style="background: transparent; color: var(--text-disabled); border: 1px solid var(--border-subtle); padding: 7px 12px; min-height: 34px; border-radius: var(--radius-sm); font-weight: 600; font-size: 12px; cursor: not-allowed;"
+                >
+                  ROLLBACK
+                </button>
+              </div>
+
+              <!-- Prompt line with blinking cursor -->
+              <div
+                class="flex items-center gap-1.5 border"
+                style="border-color: var(--border-default); background: var(--surface-base); padding: 7px 10px; border-radius: var(--radius-sm);"
+              >
+                <span style="color: var(--brand-primary); font-size: 12px; font-weight: 600;">ready:</span>
+                <span style="color: var(--text-secondary); font-size: 12px;">2 pendgrades</span>
+                <span style="color: var(--text-tertiary); font-size: 12px;">&gt;</span>
+                <span class="terminal-cursor" style="display:inline-block; width: 8px; height: 14px; background: var(--brand-primary); vertical-align: middle;"></span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ===== STATUS BAR (IDE footer) ===== -->
+        <footer
+          class="flex items-center gap-3 border-t flex-nowrap overflow-x-auto no-scrollbar"
+          data-dom-id="status-bar"
+          style="background: var(--surface-1); border-color: var(--border-strong); padding: 5px 16px; min-height: 26px;"
+        >
+          <span class="inline-flex items-center gap-1 whitespace-nowrap" style="color: var(--brand-primary); font-size: 11px;">
+            <span class="inline-block" style="width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--brand-primary);"></span>
+            backend:ok
+          </span>
+          <span style="color: var(--text-tertiary);">|</span>
+          <span class="whitespace-nowrap" style="color: var(--text-secondary); font-size: 11px;">auth:ok</span>
+          <span style="color: var(--text-tertiary);">|</span>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap" style="color: var(--brand-primary); font-size: 11px;">
+            ws:connected
+          </span>
+          <span style="color: var(--text-tertiary);">|</span>
+          <span class="whitespace-nowrap" style="color: var(--text-secondary); font-size: 11px;">mem:42MB</span>
+          <div class="flex-1"></div>
+          <span class="hidden sm:inline whitespace-nowrap" style="color: var(--text-tertiary); font-size: 11px;">UTF-8</span>
+          <span style="color: var(--text-tertiary);">|</span>
+          <span class="hidden md:inline whitespace-nowrap" style="color: var(--text-tertiary); font-size: 11px;">ln:06 col:09</span>
+        </footer>
+
+      </div>
+
+      <!-- ===== Concept-specific styles (terminal effects, hover, cursor pulse) ===== -->
+      <style>
+        /* Table row hover: lights up left border in phosphor green + surface step */
+        tbody tr.group:hover {
+          background: var(--surface-2) !important;
+          box-shadow: inset 2px 0 0 var(--brand-primary) !important;
+        }
+        /* Toolbar buttons hover: border + color step (no shadow) */
+        button:hover:not(:disabled) {
+          border-color: var(--brand-primary-border) !important;
+          color: var(--brand-primary) !important;
+        }
+        button:active:not(:disabled) {
+          transform: translateY(1px);
+        }
+        button:focus-visible {
+          outline: 2px solid var(--brand-primary);
+          outline-offset: 1px;
+        }
+        /* Primary button hover: lighter green step */
+        button[data-dom-id="btn-execute-full"]:hover {
+          background: var(--brand-primary-hover) !important;
+          border-color: var(--brand-primary-hover) !important;
+          color: #050708 !important;
+        }
+        /* Danger HALT hover: deeper red surface */
+        button[data-dom-id="btn-halt"]:hover {
+          background: rgba(255, 107, 107, 0.20) !important;
+          border-color: var(--state-error) !important;
+          color: var(--state-error) !important;
+        }
+        /* Blinking terminal cursor */
+        @keyframes terminalCursorBlink {
+          0%, 49% { opacity: 1; }
+          50%, 100% { opacity: 0; }
+        }
+        .terminal-cursor {
+          animation: terminalCursorBlink 1.1s steps(1) infinite;
+        }
+        /* Pulsing ONLINE dot in topbar */
+        @keyframes onlinePulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.40); }
+          50% { box-shadow: 0 0 0 3px rgba(74,222,128,0); }
+        }
+        /* Reduced motion: disable non-essential animation */
+        @media (prefers-reduced-motion: reduce) {
+          .terminal-cursor { animation: none; opacity: 1; }
+          * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+        }
+        /* Tabular nums for all numeric cells */
+        td, th { font-variant-numeric: tabular-nums; }
+      </style>
+
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

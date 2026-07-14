@@ -1,0 +1,82 @@
+{
+  "data": [
+    {
+      "id": "page-conceito-a-operacional",
+      "title": "Conceito A — Operacional Clássico",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783458200000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/conceito-a-operacional.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-conceito-b-diurno",
+      "title": "Conceito B — Clareza Diurna",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783458200000,
+      "canvasData": {
+        "x": 0,
+        "y": 414,
+        "group": 1
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/conceito-b-diurno.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-conceito-c-console",
+      "title": "Conceito C — Console Técnico",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783458200000,
+      "canvasData": {
+        "x": 0,
+        "y": 791,
+        "group": 2
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/conceito-c-console.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-conceito-a-completo",
+      "title": "Conceito A — Operacional Clássico (Completo)",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783461400000,
+      "canvasData": { "x": 0, "y": 0, "group": 3 },
+      "devMetadata": {
+        "htmlSrc": "pages/conceito-a-completo.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-conceito-b-completo",
+      "title": "Conceito B — Clareza Diurna (Completo)",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783461400000,
+      "canvasData": { "x": 0, "y": 0, "group": 4 },
+      "devMetadata": {
+        "htmlSrc": "pages/conceito-b-completo.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "desktop",
+    "projectName": "LojaSync — 3 Conceitos Visuais de Redesign",
+    "designLibrary": null
+  }
+}

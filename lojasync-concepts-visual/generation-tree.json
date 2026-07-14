@@ -1,0 +1,47 @@
+{
+  "root": {
+    "nodeId": "gen-project-shell",
+    "kind": "project-shell",
+    "pageIds": ["page-conceito-a-operacional", "page-conceito-b-diurno", "page-conceito-c-console"],
+    "output": "partials/project-shell.html",
+    "sharedRegions": [],
+    "privateRegions": [],
+    "mutableSlots": [],
+    "status": "planned",
+    "children": [
+      {
+        "nodeId": "gen-page-conceito-a",
+        "kind": "page-leaf",
+        "pageIds": ["page-conceito-a-operacional"],
+        "output": "pages/conceito-a-operacional.html",
+        "sharedRegions": [],
+        "privateRegions": ["tela completa do app LojaSync no estilo Operacional Clássico"],
+        "mutableSlots": [],
+        "status": "planned",
+        "children": []
+      },
+      {
+        "nodeId": "gen-page-conceito-b",
+        "kind": "page-leaf",
+        "pageIds": ["page-conceito-b-diurno"],
+        "output": "pages/conceito-b-diurno.html",
+        "sharedRegions": [],
+        "privateRegions": ["tela completa do app LojaSync no estilo Clareza Diurna"],
+        "mutableSlots": [],
+        "status": "planned",
+        "children": []
+      },
+      {
+        "nodeId": "gen-page-conceito-c",
+        "kind": "page-leaf",
+        "pageIds": ["page-conceito-c-console"],
+        "output": "pages/conceito-c-console.html",
+        "sharedRegions": [],
+        "privateRegions": ["tela completa do app LojaSync no estilo Console Técnico"],
+        "mutableSlots": [],
+        "status": "planned",
+        "children": []
+      }
+    ]
+  }
+}

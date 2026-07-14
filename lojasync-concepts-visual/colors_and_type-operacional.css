@@ -1,0 +1,57 @@
+/* LojaSync Conceito A — Operacional Clássico (Dark refinado) */
+:root {
+  color-scheme: dark;
+  /* Single brand hue: teal */
+  --brand-primary: #2dd4bf;
+  --brand-primary-hover: #5eead4;
+  --brand-primary-dim: rgba(45, 212, 191, 0.12);
+  --brand-primary-border: rgba(45, 212, 191, 0.28);
+
+  /* Neutral surfaces (layered dark, not flat black) */
+  --surface-base: #0f141b;
+  --surface-1: #161c26;
+  --surface-2: #1c2430;
+  --surface-3: #232d3d;
+  --surface-elevated: #2a3548;
+
+  /* Borders & text */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #64748b;
+
+  /* Status only (semantic) */
+  --state-success: #34d399;
+  --state-success-dim: rgba(52, 211, 153, 0.14);
+  --state-warning: #fbbf24;
+  --state-warning-dim: rgba(251, 191, 36, 0.14);
+  --state-error: #f87171;
+  --state-error-dim: rgba(248, 113, 113, 0.14);
+  --state-info: #60a5fa;
+  --state-info-dim: rgba(96, 165, 250, 0.14);
+
+  /* Radius scale (restrained) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-sans: "Inter", "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  /* Spacing rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shadows (restrained: floating only) */
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45);
+}

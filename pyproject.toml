@@ -1,7 +1,7 @@
 [project]
 name = "lojasync"
-version = "1.2.6"
-description = "LojaSync 1.2.6 - projeto principal"
+version = "1.2.7"
+description = "LojaSync 1.2.7 - projeto principal"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",

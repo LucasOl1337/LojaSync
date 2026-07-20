@@ -14,7 +14,7 @@ def main() -> int:
 
     app = create_app()
     schema = app.openapi()
-    out = ROOT / "DocsDev" / "agent" / "openapi.json"
+    out = ROOT / "tools" / "agent" / "openapi.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(schema, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {out} ({len(schema.get('paths', {}))} paths)")

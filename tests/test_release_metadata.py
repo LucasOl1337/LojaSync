@@ -28,7 +28,7 @@ class ReleaseMetadataTests(unittest.TestCase):
 
         package_json = _read_json(ROOT / "frontend-ts" / "package.json")
         package_lock = _read_json(ROOT / "frontend-ts" / "package-lock.json")
-        versioned_openapi = _read_json(ROOT / "DocsDev" / "agent" / "openapi.json")
+        versioned_openapi = _read_json(ROOT / "tools" / "agent" / "openapi.json")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertEqual(package_json["version"], version)

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-INDEX_PATH = ROOT / "DocsDev" / "agent" / "actions-index.json"
+INDEX_PATH = ROOT / "tools" / "agent" / "actions-index.json"
 DEFAULT_BASE = "http://127.0.0.1:8800"
 
 

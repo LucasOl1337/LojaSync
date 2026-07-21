@@ -71,6 +71,26 @@ class ImportBatchPreparation:
     metrics: dict[str, Any]
 
 
+VALIDATION_REASON_CODES = {
+    "no importable items were detected": "no_importable_items",
+    "the extracted product total does not match the invoice total": "product_total_mismatch",
+    "the extracted quantity does not match the remessa quantity": "remessa_quantity_mismatch",
+}
+
+VALIDATION_REASON_MESSAGES_PT_BR = {
+    "no_importable_items": "A IA não encontrou itens de produto que pudessem ser importados.",
+    "product_total_mismatch": "A soma dos produtos extraídos não confere com o total de produtos impresso na nota.",
+    "remessa_quantity_mismatch": "A quantidade extraída não confere com a quantidade da remessa.",
+}
+
+
+def build_validation_rejection_message(reason_codes: list[str]) -> str:
+    reasons = [VALIDATION_REASON_MESSAGES_PT_BR[code] for code in reason_codes if code in VALIDATION_REASON_MESSAGES_PT_BR]
+    if not reasons:
+        return "Importação bloqueada porque a validação da nota foi rejeitada."
+    return "Importação bloqueada. " + " ".join(reasons)
+
+
 def coerce_nonnegative_int(value: Any) -> int:
     try:
         return max(int(value or 0), 0)
@@ -398,6 +418,7 @@ def evaluate_final_import_validation(
     metrics = {
         "final_validation_status": validation_status,
         "final_validation_reasons": list(validation["reasons"]),
+        "final_validation_reason_codes": list(validation["reason_codes"]),
     }
     event_source = selected_source or "system"
 
@@ -518,4 +539,5 @@ def evaluate_import_validation(
         "has_total_anchor": has_total_anchor,
         "has_quantity_anchor": has_quantity_anchor,
         "reasons": reasons,
+        "reason_codes": [VALIDATION_REASON_CODES[reason] for reason in reasons],
     }

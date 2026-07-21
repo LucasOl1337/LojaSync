@@ -24,6 +24,7 @@ from app.application.imports.job_validation import (
     append_llm_chat_call_metrics as _append_llm_chat_call_metrics,
     append_process_event as _append_process_event,
     build_import_job_metrics as _build_import_job_metrics,
+    build_validation_rejection_message as _build_validation_rejection_message,
     evaluate_final_import_validation as _evaluate_final_import_validation,
     evaluate_local_parser_attempt as _evaluate_local_parser_attempt,
     prepare_import_batch_metadata as _prepare_import_batch_metadata,
@@ -875,6 +876,7 @@ def run_import_job(
     )
 
     if not content_to_save and not parsed_items:
+        metrics["failure_code"] = "no_usable_content"
         _append_process_event(
             metrics,
             source="system",
@@ -899,6 +901,8 @@ def run_import_job(
         return
 
     if final_validation["rejected"]:
+        metrics["failure_code"] = "validation_rejected"
+        reason_codes = [str(code) for code in final_validation.get("reason_codes") or []]
         log_event(
             logger,
             logging.WARNING,
@@ -912,7 +916,7 @@ def run_import_job(
         update_import_job(
             job_id,
             "error",
-            error="Importação bloqueada porque os dados extraídos não bateram com a validação da nota.",
+            error=_build_validation_rejection_message(reason_codes),
             metrics=metrics,
         )
         return
@@ -962,6 +966,7 @@ def run_import_job(
         )
         update_import_job(job_id, "completed", result=result, metrics=metrics)
     except Exception as exc:
+        metrics["failure_code"] = "persist_failed"
         log_event(
             logger,
             logging.ERROR,

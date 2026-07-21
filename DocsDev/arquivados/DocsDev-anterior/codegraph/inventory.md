@@ -44,24 +44,24 @@ Fonte principal: CodeGraph 0.9.4, indice final com 209 arquivos, 4.298 nos e 10.
 - Status: funcional.
 - Observacoes tecnicas: o historico e salvo em JSON separado, nao dentro do SQLite operacional.
 
-### Importacao de romaneio com parser local e fallback LLM
+### Importacao de romaneio por IA ou leitura local
 
 - Nome: Importacao assistida de romaneio.
-- Descricao: Recebe PDF/texto, tenta parser local, valida consistencia, pode acionar LLM por chunks/imagens e importa produtos.
+- Descricao: Recebe PDF/texto e importa produtos pelo modo escolhido pelo usuario: IA/LLM ou leitura local.
 - Arquivos relacionados: `frontend-ts/src/importStagePanel.tsx`, `frontend-ts/src/importDiagnostics.tsx`, `frontend-ts/src/api.ts`, `app/interfaces/api/http/route_imports.py`, `app/interfaces/api/http/jobs/runtime.py`, `app/application/imports/parsing.py`, `app/application/imports/job_validation.py`, `app/application/imports/local_experiment.py`.
-- Como e acessada/usada: usuario envia arquivo; `POST /actions/import-romaneio` cria job em background; UI consulta status/result.
+- Como e acessada/usada: `Importar com IA` chama `POST /actions/import-romaneio`, cria job em background e pula o parser local; `Importar com leitura local` chama `POST /actions/import-romaneio-local-experiment`.
 - Dependencias internas: `run_import_job`, `parse_local_romaneio_experiment`, `build_local_parser_products`, `select_llm_import_result`, `evaluate_import_validation`, `ProductService.create_many`.
 - Status: parcial.
-- Observacoes tecnicas: o fluxo base esta conectado, mas o fallback LLM depende do runtime LLM externo/legado e de configuracao de porta. Sem LLM, o parser local ainda pode aprovar importacoes consistentes.
+- Observacoes tecnicas: IA/LLM depende do runtime externo/legado e de configuracao de porta. A leitura local e uma opcao independente; nenhum modo deve ser apresentado como caminho principal ou fallback do outro.
 
-### Experimento de importacao local
+### Importacao por leitura local
 
-- Nome: Importacao local experimental.
-- Descricao: Forca caminho local sem job assinc, usando parser local e salvando texto extraido.
+- Nome: Importacao por leitura local.
+- Descricao: Executa o modo local escolhido pelo usuario sem job assincrono, usando parser local e salvando texto extraido.
 - Arquivos relacionados: `frontend-ts/src/api.ts`, `frontend-ts/src/App.tsx`, `app/interfaces/api/http/route_local_import_experiment.py`, `app/application/imports/local_experiment.py`, `app/application/imports/job_validation.py`.
 - Como e acessada/usada: UI chama `POST /actions/import-romaneio-local-experiment`.
 - Dependencias internas: `parse_local_romaneio_experiment`, `build_local_import_text`, `save_romaneio_text`, `ProductService.create_many`.
-- Status: funcional com escopo experimental.
+- Status: funcional.
 - Observacoes tecnicas: retorna `422` quando o parser local nao encontra itens importaveis; marca metricas com `selected_source=local_parsing_import`.
 
 ### Extracao e consolidacao de grades

@@ -167,7 +167,7 @@ function ProductSearchField({
 }
 
 type ListPrimaryActionsProps = Pick<ProductListControlsProps,
-  "loading" | "displayedCount" | "totalCount" | "globalEditMode" | "showFormatCodesPanel" | "showDescriptionPanel" | "orderingMode" | "createSetMode" | "createSetKeys" |
+  "loading" | "displayedCount" | "totalCount" | "globalEditMode" | "showFormatCodesPanel" | "showDescriptionPanel" | "orderingMode" | "createSetMode" |
   "runBusyAction" | "onToggleGlobalEdit" | "onToggleFormatCodesPanel" | "onToggleDescriptionPanel" |
   "onToggleOrdering" | "onToggleCreateSets" | "onJoinDuplicates" | "onExportVisibleProducts" | "onClearProducts"
 > & {
@@ -184,7 +184,6 @@ function ListPrimaryActions({
   showDescriptionPanel,
   orderingMode,
   createSetMode,
-  createSetKeys,
   runBusyAction,
   onToggleGlobalEdit,
   onToggleFormatCodesPanel,
@@ -200,77 +199,33 @@ function ListPrimaryActions({
   return (
     <div className="listHeadTs">
       <div className="listPrimaryActionsTs" aria-label="Ações principais">
-        <div className="toolActionGroupTs" role="group" aria-label="Edição">
-          <span className="toolActionGroupLabelTs">Edição</span>
-          <div className="toolActionGroupButtonsTs">
-            <button className={`toolButtonTs ${globalEditMode ? "activeToolButton" : ""}`} type="button" onClick={onToggleGlobalEdit} aria-pressed={globalEditMode}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>{globalEditMode ? "Finalizar edições" : "Permitir edições"}
-            </button>
-            <button ref={formatCodesButtonRef} className={`toolButtonTs ${showFormatCodesPanel ? "activeToolButton" : ""}`} type="button" onClick={onToggleFormatCodesPanel} aria-pressed={showFormatCodesPanel}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Formatar códigos
-            </button>
-          </div>
-        </div>
-
-        <div className="toolActionGroupTs" role="group" aria-label="Assistida">
-          <span className="toolActionGroupLabelTs">Assistida</span>
-          <div className="toolActionGroupButtonsTs">
-            <button ref={descriptionButtonRef} className={`toolButtonTs ${showDescriptionPanel ? "activeToolButton" : ""}`} type="button" onClick={onToggleDescriptionPanel} aria-pressed={showDescriptionPanel}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Melhorar descrição
-            </button>
-          </div>
-        </div>
-
-        <div className="toolActionGroupTs" role="group" aria-label="Organização">
-          <span className="toolActionGroupLabelTs">Organização</span>
-          <div className="toolActionGroupButtonsTs">
-            <button className={`toolButtonTs orderingToolButton ${orderingMode ? "activeOrderingToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", onToggleOrdering)} aria-pressed={orderingMode}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>{orderingMode ? "Salvar ordem" : "Ordenar lista"}
-            </button>
-            <button className={`toolButtonTs createSetToolButton ${createSetMode ? "activeCreateSetToolButton" : ""}`} type="button" onClick={onToggleCreateSets} aria-pressed={createSetMode}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><rect x="2" y="3" width="9" height="9"/><rect x="13" y="3" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><path d="M17.5 17.5 22 22M13 17.5h9M17.5 13v9"/></svg>{createSetMode ? "Cancelar conjuntos" : "Criar conjuntos"}
-            </button>
-            <button
-              className="toolButtonTs joinDuplicatesToolButton"
-              type="button"
-              onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}
-              disabled={loading || displayedCount === 0}
-              title={displayedCount === totalCount
-                ? "Juntar repetidos em todo o catalogo"
-                : `Juntar repetidos apenas nos ${displayedCount} produtos visiveis; itens ocultos serao preservados`}
-            ><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M8 17l4 4 4-4"/><path d="M12 12v9"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Juntar repetidos</button>
-          </div>
-        </div>
-
-        <div className="toolActionGroupTs" role="group" aria-label="Compartilhar">
-          <span className="toolActionGroupLabelTs">Compartilhar</span>
-          <div className="toolActionGroupButtonsTs">
-            <button
-              className="toolButtonTs exportToolButtonTs"
-              type="button"
-              onClick={onExportVisibleProducts}
-              disabled={loading || displayedCount === 0}
-              title={displayedCount === totalCount ? "Baixar o catálogo completo" : "Baixar apenas os produtos visíveis na busca"}
-              aria-label={`Baixar ${actionText(displayedCount, "produto visível", "produtos visíveis")} em CSV`}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 3v12" />
-                <path d="m7 10 5 5 5-5" />
-                <path d="M5 21h14" />
-              </svg>
-              Baixar CSV
-            </button>
-          </div>
-        </div>
-
-        <div className="toolActionGroupTs toolActionGroupDangerTs" role="group" aria-label="Risco">
-          <span className="toolActionGroupLabelTs">Risco</span>
-          <div className="toolActionGroupButtonsTs">
-            <button className="toolButtonTs danger" type="button" onClick={() => void runBusyAction("limpar-lista", onClearProducts)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Limpar lista
-            </button>
-          </div>
-        </div>
+        <button className={`toolButtonTs ${globalEditMode ? "activeToolButton" : ""}`} type="button" onClick={onToggleGlobalEdit} aria-pressed={globalEditMode}>{globalEditMode ? "Finalizar edições" : "Permitir edições"}</button>
+        <button ref={formatCodesButtonRef} className={`toolButtonTs ${showFormatCodesPanel ? "activeToolButton" : ""}`} type="button" onClick={onToggleFormatCodesPanel} aria-pressed={showFormatCodesPanel}>Formatar códigos</button>
+        <button ref={descriptionButtonRef} className={`toolButtonTs ${showDescriptionPanel ? "activeToolButton" : ""}`} type="button" onClick={onToggleDescriptionPanel} aria-pressed={showDescriptionPanel}>Melhorar descrição</button>
+        <button className={`toolButtonTs orderingToolButton ${orderingMode ? "activeOrderingToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", onToggleOrdering)} aria-pressed={orderingMode}>{orderingMode ? "Salvar ordem" : "Ordenar"}</button>
+        <button className={`toolButtonTs createSetToolButton ${createSetMode ? "activeCreateSetToolButton" : ""}`} type="button" onClick={onToggleCreateSets} aria-pressed={createSetMode}>{createSetMode ? "Cancelar conjuntos" : "Conjuntos"}</button>
+        <button
+          className="toolButtonTs joinDuplicatesToolButton"
+          type="button"
+          onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}
+          disabled={loading || displayedCount === 0}
+          title={displayedCount === totalCount
+            ? "Juntar repetidos em todo o catalogo"
+            : `Juntar repetidos apenas nos ${displayedCount} produtos visiveis; itens ocultos serao preservados`}
+        >Juntar repetidos</button>
+        <button
+          className="toolButtonTs exportToolButtonTs"
+          type="button"
+          onClick={onExportVisibleProducts}
+          disabled={loading || displayedCount === 0}
+          title={displayedCount === totalCount ? "Baixar o catálogo completo" : "Baixar apenas os produtos visíveis na busca"}
+          aria-label={`Baixar ${actionText(displayedCount, "produto visível", "produtos visíveis")} em CSV`}
+        >
+          Baixar CSV
+        </button>
+        <button className="toolButtonTs danger" type="button" onClick={() => void runBusyAction("limpar-lista", onClearProducts)}>
+          Limpar lista
+        </button>
       </div>
     </div>
   );
@@ -445,7 +400,6 @@ export function ProductListControls({
             showDescriptionPanel={showDescriptionPanel}
             orderingMode={orderingMode}
             createSetMode={createSetMode}
-            createSetKeys={createSetKeys}
             runBusyAction={runBusyAction}
             onToggleGlobalEdit={onToggleGlobalEdit}
             onToggleFormatCodesPanel={onToggleFormatCodesPanel}

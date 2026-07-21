@@ -7,7 +7,7 @@ LojaSync e uma plataforma desktop-web para cadastro assistido de produtos no Byt
 ## O que o sistema faz
 
 - Importa romaneios e notas fiscais a partir de PDF/texto.
-- Valida itens localmente antes de acionar fallback por LLM.
+- Permite ao usuario escolher importacao por IA/LLM ou por leitura local.
 - Detecta e consolida grades por lote de importacao.
 - Mantem produtos ativos, historico, marcas, margem, metricas e autenticacao em SQLite local.
 - Permite desfazer/refazer edicoes de produtos com historico persistente.
@@ -108,13 +108,11 @@ Arquivos locais importantes:
 
 ### Importacao de romaneio
 
-1. O arquivo enviado passa pelo parser local.
-2. A validacao compara quantidade extraida, totais de documento e sinais de consistencia.
-3. Se aprovado, o lote e importado sem LLM.
-4. Se reprovado ou se o usuario preferir LLM, o backend usa Minimax via LLM3/Ollama compativel.
-5. O pipeline LLM divide trechos estruturados, reprocessa chunks incompletos e usa recortes verticais de imagem como fallback.
-6. Quando o Minimax nao aprova automaticamente, uma leitura local validada assume como guarda de seguranca antes de persistir.
-7. Produtos recebem metadados de lote (`import_batch_id`, origem e flag de grade pendente).
+1. O usuario escolhe `Importar com IA` ou `Importar com leitura local`.
+2. No modo IA, o backend pula o parser local e processa o documento pelo runtime LLM.
+3. No modo local, o parser local extrai os itens e valida quantidade, totais do documento e sinais de consistencia.
+4. Os dois modos persistem os produtos aprovados usando os mesmos contratos de produto.
+5. Produtos recebem metadados de lote (`import_batch_id`, origem e flag de grade pendente).
 
 ### Grades
 

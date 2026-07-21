@@ -1,6 +1,6 @@
 # LojaSync
 
-Release atual: v1.2.7
+Release atual: v1.2.8
 
 LojaSync e um app local para preparar produtos e automatizar cadastros de estoque no Byte Empresa. A interface permite cadastro e edicao em lote, importacao de romaneios por IA ou leitura local, consolidacao de grades e desfazer/refazer.
 

@@ -1,0 +1,17 @@
+{
+  "tag": "v1.2.8",
+  "name": "LojaSync v1.2.8 - Catálogo Nex Dark e importação visual",
+  "date": "2026-07-21",
+  "base": "v1.2.7",
+  "target": "main",
+  "notes": "docs/releases/release-v1.2.8.md",
+  "asset": "release-assets/v1.2.8-card.png",
+  "validation": {
+    "backend_passed": 171,
+    "backend_deselected": 5,
+    "frontend_passed": 122,
+    "vite_modules": 61,
+    "openapi_paths": 49,
+    "diff_check": "passed"
+  }
+}

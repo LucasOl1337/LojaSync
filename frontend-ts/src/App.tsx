@@ -21,7 +21,6 @@ import {
   fetchCatalogSizes,
   fetchGradeConfig,
   fetchImportResult,
-  fetchImportStatus,
   fetchRuntimeHealth,
   importRomaneioLocalExperiment,
   fetchMargin,
@@ -47,6 +46,7 @@ import {
   stopAutomation,
   stopGradesExecution,
   undoHistorySnapshot,
+  waitForImportJob,
 } from "./api";
 import type {
   AuthSessionResponse,
@@ -61,12 +61,7 @@ import type {
   UiGradeFamily,
   UndoRedoHistoryResponse,
 } from "./types";
-import {
-  APP_STAGE_HEIGHT,
-  APP_STAGE_PADDING,
-  APP_STAGE_WIDTH,
-  initialState,
-} from "./appConfig";
+import { initialState } from "./appConfig";
 import type { AutomationTargetKey, EditingCellState, GradeCaptureKey, LoadState, Scope } from "./appConfig";
 import {
   buildInlineEditPayload,
@@ -117,6 +112,7 @@ import {
   buildImportDiagnosticsChips,
   buildImportGradesAvailableMessage,
   buildImportProgressMessage,
+  buildOperationalHealthChips,
   buildClearProductsConfirmation,
   buildProductOperationDiaryEntry,
   buildUndoRedoHistoryState,
@@ -155,8 +151,18 @@ import type {
 } from "./appLocalState";
 import { useNoticeCenter } from "./appNotifications";
 import { ImportStagePanel } from "./importStagePanel";
+import { ImportWorkspacePanel } from "./importWorkspacePanel";
+import {
+  buildAutomaticImportLayout,
+  createStagedImportDocuments,
+  extractImportFailureReasons,
+  type StagedImportDocument,
+} from "./importWorkspace";
 import { ProductEntryPanel } from "./productEntryPanel";
+import { CatalogQuickEntryPanel } from "./catalogQuickEntryPanel";
+import { CatalogActionDock } from "./catalogActionDock";
 import { OperationalSummaryPanel } from "./operationalSummaryPanel";
+import { OperationalHealthPanel } from "./operationalHealthPanel";
 import { CatalogOverviewPanel } from "./catalogOverviewPanel";
 import { ExecutionCenterPanel } from "./executionCenterPanel";
 import { GradeModal } from "./gradeModal";
@@ -168,6 +174,7 @@ import { MarginDialog } from "./marginDialog";
 import { TextInputDialog } from "./textInputDialog";
 import { NoticeDialog } from "./noticeDialog";
 import { NoticeToastStack } from "./noticeToastStack";
+import { HistoryPanel } from "./historyPanel";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
 import { buildProductCsv, buildProductCsvFilename } from "./productExport";
 import { buildProductTemplatePayload } from "./productTemplate";
@@ -187,12 +194,36 @@ type AppProps = {
   authSession?: AuthSessionResponse | null;
 };
 
+type WorkspaceId = "overview" | "catalog" | "import" | "execution" | "history";
+
+const WORKSPACES: Array<{ id: WorkspaceId; label: string; shortLabel: string; eyebrow: string }> = [
+  { id: "catalog", label: "Catálogo", shortLabel: "Catálogo", eyebrow: "Produtos locais" },
+  { id: "import", label: "Importação", shortLabel: "Importar", eyebrow: "Entrada de documentos" },
+  { id: "execution", label: "Execução", shortLabel: "Executar", eyebrow: "Automação Windows" },
+  { id: "overview", label: "Visão geral", shortLabel: "Visão", eyebrow: "Operação do catálogo" },
+  { id: "history", label: "Histórico", shortLabel: "Histórico", eyebrow: "Controle reversível" },
+];
+
+function readInitialWorkspace(): WorkspaceId {
+  if (typeof window === "undefined") return "catalog";
+  try {
+    const saved = window.localStorage.getItem("lojasync-workspace");
+    return WORKSPACES.some((workspace) => workspace.id === saved) ? saved as WorkspaceId : "catalog";
+  } catch {
+    return "catalog";
+  }
+}
+
+function WorkspaceIcon({ id }: { id: WorkspaceId }) {
+  if (id === "overview") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v10h-6zM4 14h6v6H4zM14 18h6v2h-6z" /></svg>;
+  if (id === "catalog") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M9 10v9" /></svg>;
+  if (id === "import") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg>;
+  if (id === "execution") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" /></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v5l3 2" /></svg>;
+}
+
 export default function App({ authSession = null }: AppProps) {
   const [state, setState] = useState<LoadState>(initialState);
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window !== "undefined" ? window.innerWidth : APP_STAGE_WIDTH,
-    height: typeof window !== "undefined" ? window.innerHeight : APP_STAGE_HEIGHT,
-  }));
   const [sidebarClock, setSidebarClock] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [runtimeHealth, setRuntimeHealth] = useState<RuntimeHealthState>({
@@ -204,6 +235,9 @@ export default function App({ authSession = null }: AppProps) {
   const [uiSocketStatus, setUiSocketStatus] = useState<UiSocketStatus>("connecting");
   const [recentImports, setRecentImports] = useState<ImportHistoryEntry[]>(readInitialImportHistory);
   const [operationDiary, setOperationDiary] = useState<OperationDiaryEntry[]>(readInitialOperationDiary);
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>(readInitialWorkspace);
+  const [catalogQuickEntryOpen, setCatalogQuickEntryOpen] = useState(false);
+  const catalogQuickEntryTriggerRef = useRef<HTMLElement | null>(null);
   const [form, setForm] = useState<ProductPayload>({
     nome: "",
     codigo: "",
@@ -242,7 +276,8 @@ export default function App({ authSession = null }: AppProps) {
     remover_termos: "",
   });
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importDocuments, setImportDocuments] = useState<StagedImportDocument[]>([]);
+  const [activeImportDocumentId, setActiveImportDocumentId] = useState<string | null>(null);
   const [importJob, setImportJob] = useState<ImportStatus | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -263,7 +298,6 @@ export default function App({ authSession = null }: AppProps) {
   const [importing, setImporting] = useState(false);
   const pendingScopes = useRef<Set<Scope>>(new Set());
   const flushTimer = useRef<number | null>(null);
-  const importPollTimer = useRef<number | null>(null);
   const undoStackRef = useRef<Product[][]>([]);
   const redoStackRef = useRef<Product[][]>([]);
   const isRestoringSnapshotRef = useRef(false);
@@ -273,6 +307,7 @@ export default function App({ authSession = null }: AppProps) {
   const bulkCategoryMenuRef = useRef<HTMLDivElement | null>(null);
   const bulkBrandMenuRef = useRef<HTMLDivElement | null>(null);
   const visitedProductFields = useRef<Set<ProductFormField>>(new Set());
+  const pendingProductFocusFrame = useRef<number | null>(null);
   const gradeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingGradeInputFocus = useRef(false);
   const gradeDraftBaselineRef = useRef<Record<string, string>>({});
@@ -576,7 +611,7 @@ export default function App({ authSession = null }: AppProps) {
   ) => {
     const entry = buildImportHistoryEntry(result, {
       job: options?.job,
-      selectedFileName: options?.selectedFileName ?? selectedFile?.name,
+      selectedFileName: options?.selectedFileName ?? importFileNameRef.current,
       mode: options?.mode,
     });
     setRecentImports((current) => {
@@ -663,19 +698,6 @@ export default function App({ authSession = null }: AppProps) {
       isRestoringSnapshotRef.current = false;
     }
   };
-
-  useEffect(() => {
-    const syncViewport = () => {
-      setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    syncViewport();
-    window.addEventListener("resize", syncViewport);
-    return () => window.removeEventListener("resize", syncViewport);
-  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setSidebarClock(new Date()), 30000);
@@ -903,87 +925,6 @@ export default function App({ authSession = null }: AppProps) {
   }, []);
 
   useEffect(() => {
-    if (!importJob?.job_id) {
-      if (importPollTimer.current !== null) {
-        window.clearInterval(importPollTimer.current);
-        importPollTimer.current = null;
-      }
-      return;
-    }
-
-    if (importPollTimer.current !== null) {
-      window.clearInterval(importPollTimer.current);
-    }
-
-    importPollTimer.current = window.setInterval(async () => {
-      try {
-        const job = await fetchImportStatus(importJob.job_id);
-        setImportJob(job);
-        if (job.stage === "completed") {
-          try {
-            const result = await fetchImportResult(job.job_id);
-            setImportResult(result);
-            const historyEntry = rememberImportHistory(result, { job, mode: "llm", selectedFileName: importFileNameRef.current });
-            rememberOperationDiary({
-              kind: "import",
-              title: "Importação concluída",
-              detail: historyEntry.sourceName,
-              tone: historyEntry.warningCount ? "warning" : "success",
-              occurredAt: historyEntry.completedAt,
-              meta: [
-                historyEntry.mode,
-                `${historyEntry.totalItems} itens`,
-                historyEntry.warningCount ? `${historyEntry.warningCount} avisos` : null,
-                historyEntry.gradesAvailable ? "grades detectadas" : null,
-                historyEntry.validationStatus,
-              ],
-            });
-            setImporting(false);
-            const gradesMessage = buildImportGradesAvailableMessage(result);
-            if (gradesMessage) {
-              showNoticeDialog({ title: "Grades detectadas", message: gradesMessage, tone: "info" });
-            }
-          } finally {
-            try {
-              await cleanupImportJob(job.job_id);
-            } catch {
-              // Keep the import UX working even if cleanup fails.
-            }
-          }
-          queueRefresh(["products", "totals", "brands"]);
-        }
-        if (job.stage === "completed" || job.stage === "error") {
-          if (importPollTimer.current !== null) {
-            window.clearInterval(importPollTimer.current);
-            importPollTimer.current = null;
-          }
-          if (job.error) {
-            setImportError(job.error);
-            rememberOperationDiary({
-              kind: "import",
-              title: "Falha na importação",
-              detail: job.error,
-              tone: "error",
-              occurredAt: Number(job.updated_at || 0) > 0 ? job.updated_at * 1000 : Date.now(),
-              meta: [importFileNameRef.current || selectedFile?.name || "arquivo selecionado"],
-            });
-            setImporting(false);
-          }
-        }
-      } catch (error) {
-        setImportError(formatCaughtErrorMessage(error, "Falha ao consultar status da importação."));
-      }
-    }, 1000);
-
-    return () => {
-      if (importPollTimer.current !== null) {
-        window.clearInterval(importPollTimer.current);
-        importPollTimer.current = null;
-      }
-    };
-  }, [importJob?.job_id]);
-
-  useEffect(() => {
     if (!gradeModalOpen) return;
     if (!selectedGradeProduct) {
       gradeDraftBaselineRef.current = {};
@@ -1015,18 +956,36 @@ export default function App({ authSession = null }: AppProps) {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  useEffect(() => () => {
+    if (pendingProductFocusFrame.current !== null) {
+      window.cancelAnimationFrame(pendingProductFocusFrame.current);
+    }
+  }, []);
+
   const focusProductField = (field: ProductFormField) => {
     visitedProductFields.current.add(field);
-    const target =
+    const quickEntryTarget = document.querySelector<HTMLInputElement>(`#catalog-quick-entry [name="${field}"]`);
+    const target = quickEntryTarget ?? (
       field === "nome"
         ? nameInputRef.current
         : field === "codigo"
           ? codeInputRef.current
           : field === "quantidade"
             ? quantityInputRef.current
-            : priceInputRef.current;
+            : priceInputRef.current
+    );
     target?.focus();
     target?.select?.();
+  };
+
+  const scheduleProductFieldFocus = (field: ProductFormField) => {
+    if (pendingProductFocusFrame.current !== null) {
+      window.cancelAnimationFrame(pendingProductFocusFrame.current);
+    }
+    pendingProductFocusFrame.current = window.requestAnimationFrame(() => {
+      pendingProductFocusFrame.current = null;
+      focusProductField(field);
+    });
   };
 
   const getFirstMissingProductField = (): ProductFormField | null => {
@@ -1123,6 +1082,7 @@ export default function App({ authSession = null }: AppProps) {
         descricao_completa: "",
       });
       visitedProductFields.current.clear();
+      scheduleProductFieldFocus("nome");
       queueRefresh(["products", "totals", "brands"]);
     } catch (error) {
       showErrorNotice("Falha ao criar produto", formatCaughtErrorMessage(error, "Falha ao criar produto."));
@@ -1131,70 +1091,101 @@ export default function App({ authSession = null }: AppProps) {
     }
   };
 
-  const submitImport = async (file: File) => {
-    setImporting(true);
-    setImportError(null);
-    setImportResult(null);
-    setImportJob(null);
-    setSelectedFile(file);
-    importFileNameRef.current = file.name;
-    try {
-      await pushUndoSnapshot();
-      const started = await importRomaneio(file);
-      const status = await fetchImportStatus(started.job_id);
-      setImportJob(status);
-    } catch (error) {
-      const message = formatCaughtErrorMessage(error, "Falha ao iniciar importação.");
-      setImporting(false);
-      setImportError(message);
-      rememberOperationDiary({
-        kind: "import",
-        title: "Falha ao iniciar importação",
-        detail: message,
-        tone: "error",
-        meta: [file.name],
-      });
-    }
+  const updateImportDocument = (documentId: string, update: Partial<StagedImportDocument>) => {
+    setImportDocuments((current) => current.map((document) => document.id === documentId ? { ...document, ...update } : document));
   };
 
-  const submitLocalExperiment = async (file: File) => {
-    setLocalExperimentLoading(true);
+  const runImportBatch = async (documents: StagedImportDocument[], mode: "llm" | "local") => {
+    if (!documents.length || importing || localExperimentLoading) return;
+    const targetIds = new Set(documents.map((document) => document.id));
+    let succeededCount = 0;
+    let failedCount = 0;
+    let totalItems = 0;
     setImportError(null);
     setImportResult(null);
     setImportJob(null);
-    setSelectedFile(file);
-    importFileNameRef.current = file.name;
+    setImportDocuments((current) => current.map((document) => targetIds.has(document.id)
+      ? { ...document, state: "queued", importMode: mode, status: null, result: null, error: null, errorReasons: [] }
+      : document));
+    if (mode === "llm") setImporting(true);
+    else setLocalExperimentLoading(true);
+
     try {
       await pushUndoSnapshot();
-      const result = await importRomaneioLocalExperiment(file);
-      setImportResult(result);
-      const historyEntry = rememberImportHistory(result, { mode: "local", selectedFileName: file.name });
+      for (const document of documents) {
+        setActiveImportDocumentId(document.id);
+        importFileNameRef.current = document.file.name;
+        updateImportDocument(document.id, { state: "processing", importMode: mode, error: null, errorReasons: [] });
+        try {
+          if (mode === "local") {
+            const result = await importRomaneioLocalExperiment(document.file);
+            setImportResult(result);
+            updateImportDocument(document.id, { state: "succeeded", importMode: mode, result });
+            succeededCount += 1;
+            totalItems += Number(result.total_itens || 0);
+            const historyEntry = rememberImportHistory(result, { mode: "local", selectedFileName: document.file.name });
+            rememberOperationDiary({ kind: "import", title: "Leitura local concluída", detail: historyEntry.sourceName, tone: historyEntry.warningCount ? "warning" : "success", occurredAt: historyEntry.completedAt, meta: [historyEntry.mode, `${historyEntry.totalItems} itens`, historyEntry.validationStatus] });
+            await refreshAfterLocalImport(result);
+          } else {
+            const started = await importRomaneio(document.file);
+            let terminalStatus: ImportStatus | null = null;
+            try {
+              terminalStatus = await waitForImportJob(started.job_id, {
+                onStatus: (status) => {
+                  setImportJob(status);
+                  updateImportDocument(document.id, { status });
+                },
+              });
+              if (terminalStatus.stage === "completed") {
+                const result = await fetchImportResult(started.job_id);
+                setImportResult(result);
+                updateImportDocument(document.id, { state: "succeeded", importMode: mode, status: terminalStatus, result });
+                succeededCount += 1;
+                totalItems += Number(result.total_itens || 0);
+                const historyEntry = rememberImportHistory(result, { job: terminalStatus, mode: "llm", selectedFileName: document.file.name });
+                rememberOperationDiary({ kind: "import", title: "Importação concluída", detail: historyEntry.sourceName, tone: historyEntry.warningCount ? "warning" : "success", occurredAt: historyEntry.completedAt, meta: [historyEntry.mode, `${historyEntry.totalItems} itens`, historyEntry.validationStatus] });
+                const gradesMessage = buildImportGradesAvailableMessage(result);
+                if (gradesMessage) showNoticeDialog({ title: "Grades detectadas", message: gradesMessage, tone: "info" });
+              } else {
+                const message = terminalStatus.error || "A importação foi bloqueada.";
+                const reasons = extractImportFailureReasons(terminalStatus.metrics, message);
+                updateImportDocument(document.id, { state: "failed", importMode: mode, status: terminalStatus, error: message, errorReasons: reasons });
+                failedCount += 1;
+                setImportError(message);
+                rememberOperationDiary({ kind: "import", title: "Falha na importação", detail: reasons.join(" ") || message, tone: "error", occurredAt: Number(terminalStatus.updated_at || 0) * 1000 || Date.now(), meta: [document.file.name] });
+              }
+            } finally {
+              if (terminalStatus?.stage === "completed" || terminalStatus?.stage === "error") {
+                try { await cleanupImportJob(started.job_id); } catch { /* terminal diagnostics stay visible */ }
+              }
+            }
+          }
+        } catch (error) {
+          const message = formatCaughtErrorMessage(error, mode === "local" ? "Falha ao importar com leitura local." : "Falha ao iniciar importação.");
+          updateImportDocument(document.id, { state: "failed", importMode: mode, error: message, errorReasons: [message] });
+          failedCount += 1;
+          setImportError(message);
+          rememberOperationDiary({ kind: "import", title: mode === "local" ? "Falha na leitura local" : "Falha na importação", detail: message, tone: "error", meta: [document.file.name] });
+        }
+      }
+      const batchTotal = succeededCount + failedCount;
+      const batchMessage = failedCount
+        ? succeededCount
+          ? `${succeededCount} de ${batchTotal} documentos importados. ${failedCount} documento${failedCount === 1 ? " foi bloqueado" : "s foram bloqueados"}.`
+          : "Nenhum documento foi importado. Revise os motivos no painel."
+        : `${succeededCount} de ${batchTotal} documentos importados — ${totalItems} itens.`;
       rememberOperationDiary({
         kind: "import",
-        title: "Leitura local concluída",
-        detail: historyEntry.sourceName,
-        tone: historyEntry.warningCount ? "warning" : "success",
-        occurredAt: historyEntry.completedAt,
-        meta: [
-          historyEntry.mode,
-          `${historyEntry.totalItems} itens`,
-          historyEntry.warningCount ? `${historyEntry.warningCount} avisos` : null,
-          historyEntry.gradesAvailable ? "grades detectadas" : null,
-          historyEntry.validationStatus,
-        ],
+        title: failedCount ? (succeededCount ? "Lote importado parcialmente" : "Lote de importação bloqueado") : "Lote de importação concluído",
+        detail: batchMessage,
+        tone: failedCount ? (succeededCount ? "warning" : "error") : "success",
+        meta: [mode === "local" ? "Leitura local" : "IA", `${totalItems} itens`],
       });
-      await refreshAfterLocalImport(result);
-    } catch (error) {
-      const message = formatCaughtErrorMessage(error, "Falha ao importar com leitura local.");
-      setImportError(message);
-      rememberOperationDiary({
-        kind: "import",
-        title: "Falha na leitura local",
-        detail: message,
-        tone: "error",
-        meta: [file.name],
-      });
+      setImportError(failedCount ? batchMessage : null);
+      queueRefresh(["products", "totals", "brands"]);
     } finally {
+      setActiveImportDocumentId(null);
+      setImporting(false);
       setLocalExperimentLoading(false);
     }
   };
@@ -1237,14 +1228,41 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files || []);
     event.target.value = "";
-    if (!file) return;
-    if (importModeRef.current === "local") {
-      void submitLocalExperiment(file);
-      return;
-    }
-    void submitImport(file);
+    if (!files.length) return;
+    const nextCollection = createStagedImportDocuments(files, importDocuments);
+    const existingIds = new Set(importDocuments.map((document) => document.id));
+    const addedDocuments = nextCollection.filter((document) => !existingIds.has(document.id));
+    if (!addedDocuments.length) return;
+    setImportDocuments(nextCollection);
+    void runImportBatch(addedDocuments, importModeRef.current);
+  };
+
+  const handleImportDocumentsChange = (documents: StagedImportDocument[]) => {
+    setImportDocuments(documents);
+  };
+
+  const handleRemoveImportDocument = (documentId: string) => {
+    if (importing || localExperimentLoading) return;
+    setImportDocuments((current) => {
+      const next = current.filter((document) => document.id !== documentId);
+      const layout = buildAutomaticImportLayout(next.length);
+      return next.map((document, index) => ({ ...document, rect: layout[index], zIndex: index + 1 }));
+    });
+  };
+
+  const handleRetryFailedImports = () => {
+    if (importing || localExperimentLoading) return;
+    const failed = importDocuments.filter((document) => document.state === "failed");
+    void (async () => {
+      for (const mode of ["llm", "local"] as const) {
+        const matchingMode = failed.filter((document) => (document.importMode || importModeRef.current) === mode);
+        if (!matchingMode.length) continue;
+        importModeRef.current = mode;
+        await runImportBatch(matchingMode, mode);
+      }
+    })();
   };
 
   const openConfirmationDialog = (dialog: ConfirmationDialogState) => {
@@ -2476,14 +2494,35 @@ export default function App({ authSession = null }: AppProps) {
     automationState: state.automation.estado,
     automationError,
   });
-  const stageWidth = Math.max(
-    320,
-    Math.min(APP_STAGE_WIDTH, viewport.width - APP_STAGE_PADDING * 2),
-  );
-  const stageHeight = Math.max(
-    640,
-    Math.min(APP_STAGE_HEIGHT, viewport.height - APP_STAGE_PADDING * 2),
-  );
+  const activeWorkspaceMeta = WORKSPACES.find((workspace) => workspace.id === activeWorkspace) ?? WORKSPACES[0];
+  const operationalHealthChips = buildOperationalHealthChips({
+    backendStatus: runtimeHealth.status,
+    authEnabled: authSession?.auth_enabled ?? false,
+    authenticated: authSession?.authenticated ?? true,
+    bootstrapRequired: authSession?.bootstrap_required ?? false,
+    websocketStatus: uiSocketStatus,
+    automationState: state.automation.estado,
+    automationError,
+    pendingGrades: pendingGradeImportProducts.length + incompleteGradeProducts.length,
+  }).filter((chip) => chip.label !== "Auth");
+  const navigateWorkspace = (workspace: WorkspaceId) => {
+    if (workspace !== "catalog") setCatalogQuickEntryOpen(false);
+    setActiveWorkspace(workspace);
+    try { window.localStorage.setItem("lojasync-workspace", workspace); } catch { /* storage is optional */ }
+    window.requestAnimationFrame(() => document.getElementById("workspace-panel")?.focus({ preventScroll: true }));
+  };
+  const startNewProduct = () => {
+    catalogQuickEntryTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    navigateWorkspace("catalog");
+    setCatalogQuickEntryOpen(true);
+  };
+  const toggleCatalogQuickEntry = () => {
+    if (catalogQuickEntryOpen) {
+      setCatalogQuickEntryOpen(false);
+      return;
+    }
+    startNewProduct();
+  };
 
   return (
     <div className="shellViewport">
@@ -2499,49 +2538,74 @@ export default function App({ authSession = null }: AppProps) {
       >
         Pular para área de trabalho
       </a>
-      <div className="shellStage" style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}>
-        <div
-          className="shell"
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
+      <div className="shellStage">
+        <main
+          className="appShellTs"
+          aria-labelledby={activeWorkspace === "catalog" ? undefined : "app-title"}
+          aria-label={activeWorkspace === "catalog" ? "Catálogo" : undefined}
         >
-      <main className="appShellTs" aria-labelledby="app-title">
-        <aside className="leftPanelTs" aria-label="Fluxo de importação e resumo operacional">
-          <div className="lojasyncBrandHeader">
-            <img src="/logo.png" alt="LojaSync" className="lojasyncLogoImg" />
-            <h1 className="lojasyncBrandName" id="app-title">Loja<b>Sync</b></h1>
-            <div className="sidebarClockTs" aria-label={`Horário atual ${sidebarClockText}. Data ${sidebarDateText}.`}>
-              <span className="sidebarClockTimeTs">{sidebarClockText}</span>
-              <span className="sidebarClockDateTs">{sidebarDateText}</span>
+          <aside className="nexSidebar" aria-label="Navegação principal">
+            <div className="lojasyncBrandHeader">
+              <img src="/logo.png" alt="" className="lojasyncLogoImg" />
+              <div className="nexBrandCopy"><strong>LojaSync</strong><span>Estação operacional</span></div>
             </div>
-          </div>
-          <div className="actionsFloatingTs">
-            <div className="panelActionCompact">
-              <button
-                className="iconShellButton"
-                type="button"
-                title="Configurações"
-                aria-label="Configurações"
-                onClick={() => void openSettingsModal()}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              </button>
-              <button
-                className={`ghostButton compactButton modeToggleButton ${simpleModeEnabled ? "activeToggle" : ""}`}
-                type="button"
-                onClick={handleToggleSimpleMode}
-                aria-pressed={simpleModeEnabled}
-              >
-                {simpleModeEnabled ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M4 6h16M4 12h16M4 18h7"/></svg>Modo completo</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M4 6h16M4 12h8"/></svg>Modo simplificado</>}
-              </button>
-            </div>
+            <nav className="nexNav">
+              <span className="nexNavGroup">Operação</span>
+              {WORKSPACES.slice(0, 4).map((workspace) => (
+                <button key={workspace.id} className={`nexNavButton ${activeWorkspace === workspace.id ? "active" : ""}`} type="button" onClick={() => navigateWorkspace(workspace.id)} aria-current={activeWorkspace === workspace.id ? "page" : undefined} aria-pressed={activeWorkspace === workspace.id}>
+                  <span className="nexNavIcon"><WorkspaceIcon id={workspace.id} /></span>{workspace.label}
+                </button>
+              ))}
+              <span className="nexNavGroup nexControlGroup">Controle</span>
+              {WORKSPACES.slice(4).map((workspace) => (
+                <button key={workspace.id} className={`nexNavButton ${activeWorkspace === workspace.id ? "active" : ""}`} type="button" onClick={() => navigateWorkspace(workspace.id)} aria-current={activeWorkspace === workspace.id ? "page" : undefined} aria-pressed={activeWorkspace === workspace.id}>
+                  <span className="nexNavIcon"><WorkspaceIcon id={workspace.id} /></span>{workspace.label}
+                </button>
+              ))}
+            </nav>
+            <div className="nexSidebarFoot"><span>{sidebarClockText}</span><span>{sidebarDateText}</span></div>
+          </aside>
 
+          <div className="nexMain">
+            {activeWorkspace !== "catalog" ? (
+              <header className="nexTopbar">
+                <div className="nexTitleCluster"><span>{activeWorkspaceMeta.eyebrow}</span><h1 id="app-title">{activeWorkspaceMeta.label}</h1></div>
+                <div className="nexTopbarActions">
+                  <button className="ghostButton nexUndoButton" type="button" disabled={!undoRedoHistoryState.canUndo || busyAction === "desfazer"} onClick={() => void undoLastAction()} aria-label={undoRedoHistoryState.undoLabel}>Desfazer</button>
+                  <button className="iconShellButton" type="button" title="Configurações" aria-label="Configurações" onClick={() => void openSettingsModal()}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33A1.65 1.65 0 0 0 14 20.83V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33M4.68 15A1.65 1.65 0 0 0 3.17 14H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9M9 4.68A1.65 1.65 0 0 0 10 3.17V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6"/></svg>
+                  </button>
+                  <button className="primaryButton nexNewProduct" type="button" onClick={startNewProduct} aria-label="Novo produto"><span aria-hidden="true">＋</span><span className="nexNewProductLabelTs">Novo produto</span></button>
+                </div>
+              </header>
+            ) : null}
+
+            <section className="rightPanelTs" id="workspace-panel" tabIndex={-1} aria-label="Área de trabalho operacional">
+              <div className={`nexWorkspaceView nexOverviewView ${activeWorkspace === "overview" ? "active" : ""}`} aria-hidden={activeWorkspace !== "overview"}>
+                <div className="nexOverviewGrid">
+                  <div className="nexOverviewPrimary">
+                    <CatalogOverviewPanel titleId="overview-catalog-title" overview={catalogOverview} activeFilter={productQuickFilter} onSelectFilter={(filter) => { handleCatalogFilterSelect(filter); navigateWorkspace("catalog"); }} />
+                    <OperationalSummaryPanel totalsText={state.totalsText} totalsRaw={state.totalsRaw} usageAnalytics={usageAnalytics} />
+                  </div>
+                  <aside className="nexOverviewAside">
+                    <OperationalHealthPanel chips={operationalHealthChips} checkedAt={runtimeHealth.checkedAt} />
+                    <section className="nexNextActions" aria-labelledby="next-actions-title"><span className="sectionTag">Próximas ações</span><h2 id="next-actions-title">Continue de onde os dados estão</h2><p>{state.products.length ? `${state.products.length} produto${state.products.length === 1 ? "" : "s"} no catálogo para revisar ou executar.` : "O catálogo está vazio. Importe um documento ou cadastre o primeiro produto."}</p><div><button className="primaryButton" type="button" onClick={() => navigateWorkspace(state.products.length ? "catalog" : "import")}>{state.products.length ? "Revisar catálogo" : "Abrir importação"}</button><button className="ghostButton" type="button" onClick={() => navigateWorkspace("execution")}>Ver execução</button></div></section>
+                  </aside>
+                </div>
+              </div>
+
+              <div className={`nexWorkspaceView nexImportView ${activeWorkspace === "import" ? "active" : ""}`} aria-hidden={activeWorkspace !== "import"}>
+                <div className="nexFlowColumn">
+                  <div className="nexImportIntro"><span className="sectionTag">Duas entradas reais</span><h2>Documento assistido ou cadastro manual</h2><p>Escolha a leitura por IA ou local para um lote, ou inclua uma exceção sem sair deste fluxo.</p></div>
+                  <div className="actionsFloatingTs">
+                    <div className="panelActionCompact nexModeControl">
+                      <button className={`ghostButton compactButton modeToggleButton ${simpleModeEnabled ? "activeToggle" : ""}`} type="button" onClick={handleToggleSimpleMode} aria-pressed={simpleModeEnabled}>{simpleModeEnabled ? "Modo completo" : "Modo simplificado"}</button>
+                    </div>
             <ImportStagePanel
               importing={importing}
               localExperimentLoading={localExperimentLoading}
-              selectedFile={selectedFile}
+              documentCount={importDocuments.length}
+              activeFileName={importDocuments.find((document) => document.id === activeImportDocumentId)?.file.name || null}
               importProgressMessage={importProgressMessage}
               importJobMessage={importJob?.message}
               importError={importError}
@@ -2574,25 +2638,46 @@ export default function App({ authSession = null }: AppProps) {
             onApplyMargin={handleMargin}
           />
 
-          <OperationalSummaryPanel
-            totalsText={state.totalsText}
-            totalsRaw={state.totalsRaw}
-            usageAnalytics={usageAnalytics}
-          />
-        </aside>
+                  </div>
+                <ImportWorkspacePanel
+                  documents={importDocuments}
+                  busy={importing || localExperimentLoading}
+                  activeDocumentId={activeImportDocumentId}
+                  onDocumentsChange={handleImportDocumentsChange}
+                  onOpenPicker={(mode) => {
+                    importModeRef.current = mode;
+                    importInputRef.current?.click();
+                  }}
+                  onRemove={handleRemoveImportDocument}
+                  onRetryFailed={handleRetryFailedImports}
+                />
+              </div>
 
-        <section
-          className="rightPanelTs"
-          id="workspace-panel"
-          tabIndex={-1}
-          aria-label="Area de trabalho operacional"
-        >
+              <div className={`nexWorkspaceView nexCatalogView nexCatalogOverviewMount ${activeWorkspace === "catalog" ? "active" : ""}`} aria-hidden={activeWorkspace !== "catalog"}>
           <CatalogOverviewPanel
+            titleId="catalog-workbench-title"
             overview={catalogOverview}
             activeFilter={productQuickFilter}
             onSelectFilter={handleCatalogFilterSelect}
+            onOpenSettings={() => void openSettingsModal()}
           />
+          <CatalogQuickEntryPanel
+            open={catalogQuickEntryOpen}
+            form={form}
+            simpleModeEnabled={simpleModeEnabled}
+            submitting={submitting}
+            runBusyAction={runBusyAction}
+            onFormKeyDown={handleProductFormKeyDown}
+            onInputChange={handleInputChange}
+            onSubmitProduct={submitProduct}
+            onToggleSimpleMode={handleToggleSimpleMode}
+            onClose={() => setCatalogQuickEntryOpen(false)}
+            returnFocusTarget={catalogQuickEntryTriggerRef.current}
+          />
+              </div>
 
+              <div className={`nexWorkspaceView nexExecutionView ${activeWorkspace === "execution" ? "active" : ""}`} aria-hidden={activeWorkspace !== "execution"}>
+                <div className="nexExecutionContext"><span className="sectionTag">Contexto do catálogo</span><strong>{state.products.length} produto{state.products.length === 1 ? "" : "s"}</strong><span>{executionReadiness.detail}</span></div>
           <ExecutionCenterPanel
             automationState={state.automation.estado}
             automationMessage={state.automation.message}
@@ -2608,7 +2693,9 @@ export default function App({ authSession = null }: AppProps) {
             onJoinGrades={handleJoinGrades}
             onOpenGradeModal={async () => openGradeModal()}
           />
+              </div>
 
+              <div className={`nexWorkspaceView nexCatalogView nexCatalogWorkbenchMount ${activeWorkspace === "catalog" ? "active" : ""}`} aria-hidden={activeWorkspace !== "catalog"}>
           <ProductListControls
             loading={loading}
             displayedCount={displayedProducts.length}
@@ -2703,8 +2790,11 @@ export default function App({ authSession = null }: AppProps) {
             onInlineEditChange={handleInlineEditChange}
             onCommitInlineEdit={commitInlineEdit}
             onInlineEditKeyDown={handleInlineEditKeyDown}
-            onStartImport={handleImportPrimaryClick}
-            onStartManualEntry={handleStartManualEntry}
+            onStartImport={() => {
+              navigateWorkspace("import");
+              window.setTimeout(handleImportPrimaryClick, 0);
+            }}
+            onStartManualEntry={startNewProduct}
             onToggleBulkBrandMenu={() => setShowBulkBrandMenu((current) => !current)}
             onToggleBulkCategoryMenu={() => setShowBulkCategoryMenu((current) => !current)}
             onCloseBulkBrandMenu={() => setShowBulkBrandMenu(false)}
@@ -2740,9 +2830,35 @@ export default function App({ authSession = null }: AppProps) {
               });
             }}
           />
+              </div>
+
+              <div className={`nexWorkspaceView nexHistoryView ${activeWorkspace === "history" ? "active" : ""}`} aria-hidden={activeWorkspace !== "history"}>
+                <HistoryPanel entries={operationDiary} undoSummary={undoRedoHistoryState.summary} undoLabel={undoRedoHistoryState.undoLabel} redoLabel={undoRedoHistoryState.redoLabel} canUndo={undoRedoHistoryState.canUndo} canRedo={undoRedoHistoryState.canRedo} busy={busyAction === "desfazer" || busyAction === "refazer"} onUndo={undoLastAction} onRedo={redoLastAction} />
+              </div>
         </section>
+            {activeWorkspace === "catalog" ? (
+              <CatalogActionDock
+                manualEntryOpen={catalogQuickEntryOpen}
+                onToggleManualEntry={toggleCatalogQuickEntry}
+                onImport={() => navigateWorkspace("import")}
+                onOpenGrades={() => void openGradeModal()}
+                onExecute={() => navigateWorkspace("execution")}
+                onHistory={() => navigateWorkspace("history")}
+              />
+            ) : null}
+            <nav className="nexBottomDock" aria-label="Atalhos principais">
+              {WORKSPACES.map((workspace) => <button key={workspace.id} className={activeWorkspace === workspace.id ? "active" : ""} type="button" onClick={() => navigateWorkspace(workspace.id)} aria-label={workspace.label} aria-current={activeWorkspace === workspace.id ? "page" : undefined} aria-pressed={activeWorkspace === workspace.id}><WorkspaceIcon id={workspace.id} /><span>{workspace.shortLabel}</span></button>)}
+            </nav>
+          </div>
+          {automationIsRunning ? (
+            <aside className="globalAutomationStopTs" role="status" aria-live="polite" aria-label="Automação em execução">
+              <span><strong>Automação em execução</strong><small>{state.automation.message || "Cadastro no Byte Empresa em andamento."}</small></span>
+              <button className="actionButtonTs danger stopActionButtonTs stopActionActiveTs" type="button" onClick={() => void runBusyAction("parar-global", async () => handleAutomationAction("stop"))}>
+                Parar agora
+              </button>
+            </aside>
+          ) : null}
       </main>
-        </div>
       </div>
       {confirmationDialog ? (
         <ConfirmationDialog

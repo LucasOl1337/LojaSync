@@ -485,4 +485,40 @@ export function cleanupImportJob(jobId: string) {
   });
 }
 
+export async function waitForImportJob(
+  jobId: string,
+  options: {
+    onStatus?: (status: ImportStatus) => void;
+    signal?: AbortSignal;
+    intervalMs?: number;
+    fetchStatus?: (jobId: string) => Promise<ImportStatus>;
+  } = {},
+) {
+  const intervalMs = Math.max(options.intervalMs ?? 1000, 100);
+  while (true) {
+    if (options.signal?.aborted) throw new DOMException("Importação interrompida.", "AbortError");
+    try {
+      const status = await (options.fetchStatus ?? fetchImportStatus)(jobId);
+      options.onStatus?.(status);
+      if (status.stage === "completed" || status.stage === "error") return status;
+    } catch (error) {
+      if (options.signal?.aborted) throw new DOMException("Importação interrompida.", "AbortError");
+      // A consulta pode falhar enquanto o backend reinicia ou a rede local oscila.
+      // O job continua existindo no backend, então preserve-o e tente novamente.
+      void error;
+    }
+    await new Promise<void>((resolve, reject) => {
+      const handleAbort = () => {
+        globalThis.clearTimeout(timer);
+        reject(new DOMException("Importação interrompida.", "AbortError"));
+      };
+      const timer = globalThis.setTimeout(() => {
+        options.signal?.removeEventListener("abort", handleAbort);
+        resolve();
+      }, intervalMs);
+      options.signal?.addEventListener("abort", handleAbort, { once: true });
+    });
+  }
+}
+
 export { API_BASE_URL };

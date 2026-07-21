@@ -49,6 +49,25 @@ def test_evaluate_import_validation_rejects_mismatched_invoice_total() -> None:
     assert not result["approved"]
     assert result["rejected"]
     assert result["reasons"] == ["the extracted product total does not match the invoice total"]
+    assert result["reason_codes"] == ["product_total_mismatch"]
+
+
+def test_evaluate_import_validation_returns_every_rejection_reason_code() -> None:
+    result = evaluate_import_validation(
+        total_items=0,
+        remessa_quantity=3,
+        quantity_matches_remessa=False,
+        document_total_products="100,00",
+        document_total_note=None,
+        products_value_matches_document=False,
+    )
+
+    assert result["rejected"]
+    assert result["reason_codes"] == [
+        "no_importable_items",
+        "product_total_mismatch",
+        "remessa_quantity_mismatch",
+    ]
 
 
 def test_evaluate_import_validation_marks_positive_unanchored_import_as_unverified() -> None:
@@ -481,6 +500,7 @@ def test_evaluate_final_import_validation_returns_success_event() -> None:
     assert decision.metrics == {
         "final_validation_status": "approved",
         "final_validation_reasons": [],
+        "final_validation_reason_codes": [],
     }
     assert decision.warnings == []
     assert decision.event == {
@@ -505,6 +525,7 @@ def test_evaluate_final_import_validation_warns_when_unverified() -> None:
     assert decision.validation["unverified"]
     assert decision.metrics["final_validation_status"] == "unverified"
     assert decision.metrics["final_validation_reasons"] == []
+    assert decision.metrics["final_validation_reason_codes"] == []
     assert decision.warnings == [warning]
     assert decision.event == {
         "source": "system",
@@ -530,6 +551,7 @@ def test_evaluate_final_import_validation_blocks_mismatched_totals() -> None:
     assert decision.metrics["final_validation_reasons"] == [
         "the extracted product total does not match the invoice total"
     ]
+    assert decision.metrics["final_validation_reason_codes"] == ["product_total_mismatch"]
     assert decision.warnings == [message]
     assert decision.event == {
         "source": "llm",

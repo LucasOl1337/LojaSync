@@ -31,3 +31,16 @@ test("resolves API base URL from runtime override and origin", () => {
   );
   assert.equal(api.resolveApiBaseUrl({ origin: "http://127.0.0.1:5197/" }), "http://127.0.0.1:5197");
 });
+
+test("keeps polling the same import job after a transient status failure", async () => {
+  let requestCount = 0;
+  const fetchStatus = async () => {
+    requestCount += 1;
+    if (requestCount === 1) throw new TypeError("temporary connection failure");
+    return { job_id: "job-1", stage: "completed" };
+  };
+
+  const status = await api.waitForImportJob("job-1", { intervalMs: 100, fetchStatus });
+  assert.equal(status.stage, "completed");
+  assert.equal(requestCount, 2);
+});

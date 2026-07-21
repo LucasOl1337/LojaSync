@@ -871,7 +871,9 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertIsNotNone(status)
                 assert status is not None
                 self.assertEqual(status.stage, "error")
-                self.assertIn("dados extraídos não bateram com a validação da nota", str(status.error))
+                self.assertIn("não confere com o total de produtos impresso na nota", str(status.error))
+                self.assertEqual(status.metrics["failure_code"], "validation_rejected")
+                self.assertEqual(status.metrics["final_validation_reason_codes"], ["product_total_mismatch"])
                 self.assertIsNone(result)
                 self.assertEqual(len(service.created), 0)
         finally:

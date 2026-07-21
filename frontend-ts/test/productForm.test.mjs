@@ -42,8 +42,12 @@ test("builds product form field order and next-field navigation", () => {
 
   assert.equal(form.getNextProductFormField(null, false), "nome");
   assert.equal(form.getNextProductFormField("nome", false), "codigo");
+  assert.equal(form.getNextProductFormField("codigo", false), "quantidade");
+  assert.equal(form.getNextProductFormField("quantidade", false), "preco");
   assert.equal(form.getNextProductFormField("nome", true), "quantidade");
+  assert.equal(form.getNextProductFormField("quantidade", true), "preco");
   assert.equal(form.getNextProductFormField("preco", false), null);
+  assert.equal(form.getNextProductFormField("preco", true), null);
   assert.equal(form.getNextProductFormField("unknown", false), "nome");
 });
 

@@ -132,6 +132,23 @@ export type ImportStartResponse = {
   job_id: string;
 };
 
+export type ImportValidationReasonCode =
+  | "no_importable_items"
+  | "product_total_mismatch"
+  | "remessa_quantity_mismatch";
+
+export type ImportFailureCode =
+  | "validation_rejected"
+  | "no_usable_content"
+  | "persist_failed";
+
+export type ImportMetrics = Record<string, unknown> & {
+  failure_code?: ImportFailureCode;
+  final_validation_reason_codes?: ImportValidationReasonCode[];
+  final_validation_reasons?: string[];
+  process_log?: Array<Record<string, unknown>>;
+};
+
 export type ImportStatus = {
   job_id: string;
   stage: string;
@@ -140,7 +157,7 @@ export type ImportStatus = {
   updated_at: number;
   completed_at: number | null;
   error: string | null;
-  metrics: Record<string, unknown>;
+  metrics: ImportMetrics;
 };
 
 export type ImportResult = {
@@ -153,7 +170,7 @@ export type ImportResult = {
   grades_disponiveis: boolean;
   total_grades_disponiveis: number;
   imported_keys: string[];
-  metrics: Record<string, unknown>;
+  metrics: ImportMetrics;
 };
 
 export type LocalImportExperimentGrade = {
@@ -183,7 +200,7 @@ export type LocalImportExperimentResult = {
   remessa_quantity: number | null;
   quantity_matches_remessa: boolean;
   items: LocalImportExperimentItem[];
-  metrics: Record<string, unknown>;
+  metrics: ImportMetrics;
 };
 
 export type AutomationStatus = {

@@ -7,7 +7,8 @@ import { ImportDiagnosticsPanel } from "./importDiagnostics";
 type ImportStagePanelProps = {
   importing: boolean;
   localExperimentLoading: boolean;
-  selectedFile: File | null;
+  documentCount: number;
+  activeFileName: string | null;
   importProgressMessage: string | null;
   importJobMessage?: string | null;
   importError: string | null;
@@ -26,7 +27,8 @@ type ImportStagePanelProps = {
 export function ImportStagePanel({
   importing,
   localExperimentLoading,
-  selectedFile,
+  documentCount,
+  activeFileName,
   importProgressMessage,
   importJobMessage,
   importError,
@@ -81,8 +83,7 @@ export function ImportStagePanel({
         type="button"
         disabled={disabled}
         onClick={onLocalExperimentClick}
-        title="Opcao tecnica sem IA para testar o parser local"
-        aria-label="Executar leitura local avancada sem IA"
+        aria-label="Importar com leitura local"
       >
         {localExperimentLoading ? (
           "Executando leitura local..."
@@ -92,26 +93,26 @@ export function ImportStagePanel({
               <polyline points="16 18 22 12 16 6" />
               <polyline points="8 6 2 12 8 18" />
             </svg>
-            Leitura local (avancado)
+            Importar com leitura local
           </>
         )}
       </button>
       <label
         className={`fileInput compactFileInput ${disabled ? "fileInputDisabled" : ""}`}
-        title={selectedFile ? selectedFile.name : "Selecionar arquivo do romaneio"}
+        title={activeFileName || (documentCount ? `${documentCount} documentos selecionados` : "Selecionar arquivos do romaneio")}
         onClick={disabled ? undefined : (event) => {
           // Programmatic clicks from the parser-local button must keep their selected mode.
           if (event.nativeEvent.isTrusted) onFilePickerClick();
         }}
       >
         <span>
-          {selectedFile ? (
+          {documentCount ? (
             <>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
-              {selectedFile.name}
+              {activeFileName || `${documentCount} documento${documentCount === 1 ? "" : "s"}`}
             </>
           ) : (
             <>
@@ -128,7 +129,8 @@ export function ImportStagePanel({
           ref={inputRef}
           type="file"
           accept=".pdf,.txt,.jpg,.jpeg,.png"
-          aria-label="Selecionar arquivo do romaneio"
+          multiple
+          aria-label="Selecionar arquivos do romaneio"
           disabled={disabled}
           onChange={onFileChange}
         />

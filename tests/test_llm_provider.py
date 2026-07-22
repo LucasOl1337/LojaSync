@@ -8,7 +8,13 @@ from unittest.mock import patch
 
 import httpx
 
-from app.interfaces.api.http.jobs.llm import _raise_zai_for_status, post_llm_chat, upload_llm_file
+from app.interfaces.api.http.jobs.llm import (
+    _raise_zai_for_status,
+    allow_local_validation_guard,
+    llm_base_url,
+    post_llm_chat,
+    upload_llm_file,
+)
 from app.interfaces.api.http.jobs.runtime import _build_no_usable_content_error
 
 
@@ -35,6 +41,82 @@ class _FakeClient:
 
 
 class LlmProviderTests(unittest.TestCase):
+    def test_kimi_upload_prepares_image_for_multimodal_chat(self) -> None:
+        client = _FakeClient({})
+
+        with patch.dict(
+            os.environ,
+            {
+                "LOJASYNC_LLM_PROVIDER": "kimi",
+                "LLM_PROVIDER": "kimi",
+                "KIMI_API_KEY": "test-key",
+                "KIMI_MODEL": "kimi-for-coding",
+            },
+            clear=False,
+        ):
+            result = upload_llm_file(
+                client,  # type: ignore[arg-type]
+                job_id="job123456",
+                contents=b"fake-image",
+                filename="nota.png",
+                content_type="image/png",
+            )
+
+        self.assertEqual(client.calls, [])
+        self.assertEqual(result["provider"], "kimi_code_vision")
+        self.assertEqual(result["model"], "kimi-for-coding")
+        self.assertEqual(result["documents"], [])
+        self.assertEqual(result["images"][0]["name"], "nota.png#p1")
+        self.assertTrue(result["images"][0]["data"])
+
+    def test_kimi_chat_uses_k27_code_without_incompatible_parameters(self) -> None:
+        client = _FakeClient({"choices": [{"message": {"content": '{"items":[]}'}}]})
+
+        with patch.dict(
+            os.environ,
+            {
+                "LOJASYNC_LLM_PROVIDER": "kimi-code",
+                "LLM_PROVIDER": "kimi-code",
+                "KIMI_API_KEY": "test-key",
+                "KIMI_BASE_URL": "https://api.kimi.com/coding/v1",
+                "KIMI_MODEL": "kimi-for-coding",
+            },
+            clear=False,
+        ):
+            content, saved_file = post_llm_chat(
+                client,  # type: ignore[arg-type]
+                job_id="job123456",
+                message="Extraia produtos em JSON.",
+                documents=[{"name": "nota.txt", "content": "Produto A 2 10,00"}],
+                images=[{"name": "nota.png#p1", "mime": "image/png", "data": "abc123"}],
+            )
+            configured_base_url = llm_base_url()
+            local_guard_enabled = allow_local_validation_guard()
+
+        self.assertEqual(saved_file, None)
+        self.assertEqual(content, '{"items":[]}')
+        self.assertEqual(configured_base_url, "https://api.kimi.com/coding/v1")
+        self.assertFalse(local_guard_enabled)
+        self.assertEqual(len(client.calls), 1)
+        call = client.calls[0]
+        self.assertEqual(call["url"], "https://api.kimi.com/coding/v1/chat/completions")
+        self.assertEqual(call["headers"]["Authorization"], "Bearer test-key")  # type: ignore[index]
+        self.assertEqual(call["json"]["model"], "kimi-for-coding")  # type: ignore[index]
+        self.assertNotIn("temperature", call["json"])  # type: ignore[operator]
+        self.assertNotIn("thinking", call["json"])  # type: ignore[operator]
+        content_blocks = call["json"]["messages"][0]["content"]  # type: ignore[index]
+        self.assertEqual(content_blocks[0]["type"], "image_url")
+        self.assertEqual(content_blocks[0]["image_url"]["url"], "data:image/png;base64,abc123")
+        self.assertIn("Produto A 2 10,00", content_blocks[1]["text"])
+
+    def test_kimi_can_enable_local_guard_only_with_explicit_opt_in(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"LOJASYNC_LLM_PROVIDER": "kimi", "KIMI_ALLOW_LOCAL_GUARD": "true"},
+            clear=False,
+        ):
+            self.assertTrue(allow_local_validation_guard())
+
     def test_legacy_upload_slices_rendered_pdf_images_for_ocr(self) -> None:
         try:
             from PIL import Image  # type: ignore

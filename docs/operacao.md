@@ -7,6 +7,24 @@
 - Trate `data/lojasync.db` como dado do usuario.
 - Escolha explicitamente importacao por IA ou leitura local; um modo nao e fallback automatico do outro.
 
+## Importacao com Kimi K2.7 Code
+
+O provider `kimi` usa a API OpenAI-compatible do Kimi Code. A chave deve ficar somente no ambiente do Windows, nunca em arquivo versionado:
+
+```powershell
+[Environment]::SetEnvironmentVariable("LOJASYNC_LLM_PROVIDER", "kimi", "User")
+[Environment]::SetEnvironmentVariable("LLM_PROVIDER", "kimi", "User")
+[Environment]::SetEnvironmentVariable("KIMI_BASE_URL", "https://api.kimi.com/coding/v1", "User")
+[Environment]::SetEnvironmentVariable("KIMI_MODEL", "kimi-for-coding", "User")
+[Environment]::SetEnvironmentVariable("KIMI_API_KEY", "<chave-local>", "User")
+```
+
+Feche e reabra o launcher depois de alterar o ambiente. PDFs sao rasterizados localmente e enviados como imagens; TXT e outros arquivos textuais sao enviados como texto. O K2.7 Code mantem thinking ativo, por isso o LojaSync nao envia `temperature` nem tenta desabilitar thinking.
+
+Por padrao, uma importacao Kimi reprovada nao troca silenciosamente para o parser local. `KIMI_ALLOW_LOCAL_GUARD=true` reabilita esse comportamento de forma explicita.
+
+Kimi Code usa a cota da assinatura voltada a ferramentas de programacao. Para integracao comercial/continuada em produto, a documentacao da Kimi recomenda uma chave da Kimi Platform.
+
 ## API para agentes
 
 Catalogo: `tools/agent/actions-index.json`

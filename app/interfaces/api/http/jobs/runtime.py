@@ -37,6 +37,7 @@ from app.application.imports.job_validation import (
 from app.domain.grades.parser import parse_grade_extraction
 from app.domain.products.entities import Product
 from app.interfaces.api.http.jobs.llm import (
+    allow_local_validation_guard,
     coerce_int_env,
     llm_base_url,
     llm_timeout_seconds,
@@ -743,6 +744,7 @@ def run_import_job(
 
     if (
         skip_local_parser
+        and allow_local_validation_guard()
         and (not selected_source or selected_source == "llm")
         and not final_validation.get("approved")
         and bool(metrics.get("llm_upload_used") or metrics.get("llm_chat_used"))

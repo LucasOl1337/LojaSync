@@ -21,6 +21,18 @@ def use_zai_provider() -> bool:
     return llm_provider() in {"zai", "z.ai", "glm", "glm-api"}
 
 
+def use_kimi_provider() -> bool:
+    return llm_provider() in {"kimi", "kimi-code", "kimi_code", "moonshot"}
+
+
+def kimi_base_url() -> str:
+    return str(os.getenv("KIMI_BASE_URL") or "https://api.kimi.com/coding/v1").rstrip("/")
+
+
+def kimi_chat_model() -> str:
+    return str(os.getenv("KIMI_MODEL") or "kimi-for-coding").strip()
+
+
 def zai_base_url() -> str:
     return str(os.getenv("ZAI_BASE_URL") or "https://api.z.ai/api/coding/paas/v4").rstrip("/")
 
@@ -41,6 +53,8 @@ def zai_chat_model(*, has_images: bool) -> str:
 
 
 def llm_base_url() -> str:
+    if use_kimi_provider():
+        return kimi_base_url()
     if use_zai_provider():
         return zai_base_url()
     host = os.getenv("LLM_HOST", "127.0.0.1")
@@ -70,6 +84,27 @@ def truthy_env(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def allow_local_validation_guard() -> bool:
+    if use_kimi_provider():
+        return truthy_env("KIMI_ALLOW_LOCAL_GUARD", False)
+    return truthy_env("LOJASYNC_LLM_ALLOW_LOCAL_GUARD", True)
+
+
+def _kimi_api_key() -> str:
+    return str(os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY") or "").strip()
+
+
+def _kimi_headers(job_id: str) -> dict[str, str]:
+    api_key = _kimi_api_key()
+    if not api_key:
+        raise RuntimeError("KIMI_API_KEY/MOONSHOT_API_KEY nao configurada para usar o provedor Kimi.")
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "X-Job-Id": job_id,
+    }
 
 
 def _zai_api_key() -> str:
@@ -113,6 +148,22 @@ def _raise_zai_for_status(response: httpx.Response) -> None:
             detail = str(getattr(response, "text", "") or "").strip()
         status_code = response.status_code
         message = f"ZAI API retornou HTTP {status_code}"
+        if detail:
+            message = f"{message}: {detail}"
+        raise RuntimeError(message) from exc
+
+
+def _raise_kimi_for_status(response: httpx.Response) -> None:
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        detail = ""
+        try:
+            detail = _extract_zai_error_message(response.json())
+        except Exception:
+            detail = str(getattr(response, "text", "") or "").strip()
+        status_code = response.status_code
+        message = f"Kimi API retornou HTTP {status_code}"
         if detail:
             message = f"{message}: {detail}"
         raise RuntimeError(message) from exc
@@ -186,22 +237,29 @@ def _image_payload_from_bytes(contents: bytes, filename: str, content_type: str 
     }
 
 
-def _render_pdf_pages_for_vision(contents: bytes, filename: str) -> tuple[list[dict[str, Any]], list[str]]:
+def _render_pdf_pages_for_vision(
+    contents: bytes,
+    filename: str,
+    *,
+    provider_label: str = "Z.AI",
+    max_pages_env: str = "ZAI_VISION_MAX_PAGES",
+    dpi_env: str = "ZAI_PDF_RENDER_DPI",
+) -> tuple[list[dict[str, Any]], list[str]]:
     warnings: list[str] = []
     if not contents:
         return [], warnings
     try:
         import fitz  # type: ignore
     except Exception as exc:
-        return [], [f"Falha ao preparar PDF para o modelo visual da Z.AI: PyMuPDF indisponivel ({exc})."]
+        return [], [f"Falha ao preparar PDF para o modelo visual da {provider_label}: PyMuPDF indisponivel ({exc})."]
 
     images: list[dict[str, Any]] = []
     document = None
     try:
         document = fitz.open(stream=contents, filetype="pdf")
         total_pages = int(getattr(document, "page_count", 0) or len(document))
-        max_pages = max(coerce_int_env("ZAI_VISION_MAX_PAGES", 12), 1)
-        dpi = max(coerce_int_env("ZAI_PDF_RENDER_DPI", 180), 72)
+        max_pages = max(coerce_int_env(max_pages_env, 12), 1)
+        dpi = max(coerce_int_env(dpi_env, 180), 72)
         matrix = fitz.Matrix(dpi / 72.0, dpi / 72.0)
         for index, page in enumerate(document):
             if index >= max_pages:
@@ -217,10 +275,10 @@ def _render_pdf_pages_for_vision(contents: bytes, filename: str) -> tuple[list[d
             )
         if total_pages > max_pages:
             warnings.append(
-                f"PDF tem {total_pages} paginas; enviando as primeiras {max_pages} paginas ao modelo visual da Z.AI."
+                f"PDF tem {total_pages} paginas; enviando as primeiras {max_pages} paginas ao modelo visual da {provider_label}."
             )
     except Exception as exc:
-        warnings.append(f"Falha ao renderizar PDF para o modelo visual da Z.AI: {exc}")
+        warnings.append(f"Falha ao renderizar PDF para o modelo visual da {provider_label}: {exc}")
     finally:
         if document is not None:
             try:
@@ -246,26 +304,36 @@ def _flatten_layout_content(layout_details: Any) -> str:
     return "\n\n".join(parts).strip()
 
 
-def _prepare_zai_vision_upload(
+def _prepare_openai_vision_upload(
     *,
     contents: bytes,
     filename: str,
     content_type: str | None,
+    provider_slug: str,
+    provider_label: str,
+    model: str,
+    env_prefix: str,
 ) -> dict[str, Any]:
     warnings: list[str] = []
     if _is_pdf_file(filename, content_type):
-        images, render_warnings = _render_pdf_pages_for_vision(contents, filename or "romaneio.pdf")
+        images, render_warnings = _render_pdf_pages_for_vision(
+            contents,
+            filename or "romaneio.pdf",
+            provider_label=provider_label,
+            max_pages_env=f"{env_prefix}_VISION_MAX_PAGES",
+            dpi_env=f"{env_prefix}_PDF_RENDER_DPI",
+        )
         warnings.extend(render_warnings)
         rendered_pages = len(images)
-        slice_count = max(coerce_int_env("ZAI_VISION_PAGE_SLICES", 2), 1)
+        slice_count = max(coerce_int_env(f"{env_prefix}_VISION_PAGE_SLICES", 2), 1)
         if slice_count > 1 and images:
             images = slice_image_payloads(images, vertical_slices=slice_count)
         return {
             "documents": [],
             "images": images,
             "errors": warnings,
-            "provider": "zai_vision",
-            "model": zai_chat_model(has_images=True),
+            "provider": f"{provider_slug}_vision",
+            "model": model,
             "usage": {},
             "data_info": {"mode": "vision", "rendered_pages": rendered_pages, "images": len(images), "page_slices": slice_count},
         }
@@ -275,8 +343,8 @@ def _prepare_zai_vision_upload(
             "documents": [],
             "images": [_image_payload_from_bytes(contents, filename or "romaneio.png", content_type)],
             "errors": [],
-            "provider": "zai_vision",
-            "model": zai_chat_model(has_images=True),
+            "provider": f"{provider_slug}_vision",
+            "model": model,
             "usage": {},
             "data_info": {"mode": "vision", "pages": 1},
         }
@@ -288,8 +356,8 @@ def _prepare_zai_vision_upload(
             "documents": [{"name": filename or "romaneio", "content": text.strip()}] if text.strip() else [],
             "images": [],
             "errors": warnings,
-            "provider": "zai_text",
-            "model": zai_chat_model(has_images=False),
+            "provider": f"{provider_slug}_text",
+            "model": model,
             "usage": {},
             "data_info": {"mode": "text"},
         }
@@ -297,12 +365,46 @@ def _prepare_zai_vision_upload(
     return {
         "documents": [],
         "images": [],
-        "errors": ["Tipo de arquivo nao suportado para entrada visual da Z.AI."],
-        "provider": "zai_vision",
-        "model": zai_chat_model(has_images=True),
+        "errors": [f"Tipo de arquivo nao suportado para entrada visual da {provider_label}."],
+        "provider": f"{provider_slug}_vision",
+        "model": model,
         "usage": {},
         "data_info": {"mode": "vision", "pages": 0},
     }
+
+
+def _prepare_zai_vision_upload(
+    *,
+    contents: bytes,
+    filename: str,
+    content_type: str | None,
+) -> dict[str, Any]:
+    return _prepare_openai_vision_upload(
+        contents=contents,
+        filename=filename,
+        content_type=content_type,
+        provider_slug="zai",
+        provider_label="Z.AI",
+        model=zai_chat_model(has_images=not _is_plain_text_file(filename, content_type)),
+        env_prefix="ZAI",
+    )
+
+
+def _prepare_kimi_vision_upload(
+    *,
+    contents: bytes,
+    filename: str,
+    content_type: str | None,
+) -> dict[str, Any]:
+    return _prepare_openai_vision_upload(
+        contents=contents,
+        filename=filename,
+        content_type=content_type,
+        provider_slug="kimi_code",
+        provider_label="Kimi",
+        model=kimi_chat_model(),
+        env_prefix="KIMI",
+    )
 
 
 def _extract_zai_chat_content(data: Any) -> str:
@@ -360,6 +462,9 @@ def upload_llm_file(
     filename: str,
     content_type: str | None,
 ) -> dict[str, Any]:
+    if use_kimi_provider():
+        return _prepare_kimi_vision_upload(contents=contents, filename=filename, content_type=content_type)
+
     if not use_zai_provider():
         response = client.post(
             f"{llm_base_url()}/api/upload",
@@ -471,6 +576,35 @@ def post_llm_chat(
     documents: list[dict[str, Any]],
     images: list[dict[str, Any]],
 ) -> tuple[str, str | None]:
+    if use_kimi_provider():
+        prompt = _build_zai_chat_prompt(mode=mode, message=message, documents=documents)
+        content_blocks: list[dict[str, Any]] = []
+        if images:
+            for image in images:
+                if not isinstance(image, dict):
+                    continue
+                data_url = _image_to_data_url(image)
+                if data_url:
+                    content_blocks.append({"type": "image_url", "image_url": {"url": data_url}})
+            if prompt:
+                content_blocks.append({"type": "text", "text": prompt})
+        has_image_blocks = bool(content_blocks)
+        response = client.post(
+            f"{kimi_base_url()}/chat/completions",
+            json={
+                "model": kimi_chat_model(),
+                "messages": [{"role": "user", "content": content_blocks if has_image_blocks else prompt}],
+                "max_tokens": coerce_int_env("KIMI_MAX_TOKENS", 16384),
+            },
+            headers=_kimi_headers(job_id),
+        )
+        _raise_kimi_for_status(response)
+        try:
+            data: Any = response.json()
+        except Exception:
+            data = {"content": response.text}
+        return _extract_zai_chat_content(data).strip(), None
+
     if use_zai_provider():
         prompt = _build_zai_chat_prompt(mode=mode, message=message, documents=documents)
         content_blocks: list[dict[str, Any]] = []

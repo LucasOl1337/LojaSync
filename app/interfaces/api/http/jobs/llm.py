@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 
+from app.application.imports.evidence_pipeline import use_evidence_pipeline
 from app.application.imports.parsing import decode_text_content, slice_image_payloads
 
 
@@ -496,7 +497,10 @@ def upload_llm_file(
         parsed: Any = response.json()
         if isinstance(parsed, dict):
             images = parsed.get("images")
-            slice_count = max(coerce_int_env("LLM_VISION_PAGE_SLICES", 2), 1)
+            slice_count = max(
+                coerce_int_env("LLM_VISION_PAGE_SLICES", 1 if use_evidence_pipeline() else 2),
+                1,
+            )
             if slice_count > 1 and isinstance(images, list) and images:
                 sliced_images = slice_image_payloads(images, vertical_slices=slice_count)
                 parsed = dict(parsed)

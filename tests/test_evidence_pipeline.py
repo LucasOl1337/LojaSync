@@ -14,6 +14,7 @@ from app.application.imports.evidence_pipeline import (
     extract_document_evidence,
     find_implausible_quantities,
     import_pipeline_mode,
+    merge_product_passes,
     product_fingerprint,
     products_total_quantity,
     use_evidence_pipeline,
@@ -169,13 +170,41 @@ def test_vertical_fallback_still_enabled_for_empty_candidates() -> None:
     assert fallback.enabled is True
 
 
-def test_deduplicate_products_collapses_exact_recovery_duplicates_only() -> None:
+def test_deduplicate_products_preserves_identical_rows_without_provenance() -> None:
     a = _product("100", "CAMISA", 1, "10,00")
     b = _product("100", "CAMISA", 1, "10,00")
-    c = _product("100", "CAMISA", 2, "10,00")  # intentional repeated SKU different qty
-    result = deduplicate_products([a, b, c])
+    result = deduplicate_products([a, b])
     assert len(result) == 2
+    assert products_total_quantity(result) == 2
+
+
+def test_merge_product_passes_deduplicates_overlap_by_occurrence() -> None:
+    primary = [_product("100", "CAMISA", 1), _product("100", "CAMISA", 1)]
+    recovery = [
+        _product("100", "CAMISA", 1),
+        _product("100", "CAMISA", 1),
+        _product("200", "CALCA", 1),
+    ]
+    result = merge_product_passes(primary, recovery)
+    assert len(result) == 3
     assert products_total_quantity(result) == 3
+
+
+def test_image_without_local_evidence_requires_recovery() -> None:
+    evidence = DocumentEvidence(
+        text="",
+        page_hint=0,
+        structured_row_count=0,
+        remessa_quantity=None,
+        document_total_products=None,
+        document_total_note=None,
+        source="empty",
+        warnings=[],
+    )
+    assessment = assess_completeness([_product("100", "CAMISA", 1)], evidence)
+    assert assessment.incomplete is True
+    assert assessment.needs_recovery is True
+    assert "image_without_local_evidence" in assessment.reasons
 
 
 def test_choose_better_candidate_set_prefers_full_qty() -> None:

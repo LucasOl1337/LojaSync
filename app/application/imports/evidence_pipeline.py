@@ -197,20 +197,24 @@ def product_fingerprint(item: Product) -> tuple[str, str, int, str]:
 
 
 def deduplicate_products(items: list[Product]) -> list[Product]:
-    """Drop exact multi-pass duplicates while preserving intentional repeated rows.
+    """Preserve rows when extraction provenance is unavailable."""
+    return list(items or [])
 
-    Two rows with the same code/name but different quantity/price/size are kept
-    (fiscal tables often print repeated SKUs). Only bitwise-identical extractions
-    from overlapping recovery passes are collapsed.
-    """
-    seen: set[tuple[str, str, int, str]] = set()
-    result: list[Product] = []
-    for item in items or []:
+
+def merge_product_passes(primary: list[Product], recovery: list[Product]) -> list[Product]:
+    """Merge extraction passes without collapsing repeated source rows."""
+    result = list(primary or [])
+    primary_counts: dict[tuple[str, str, int, str], int] = {}
+    recovery_seen: dict[tuple[str, str, int, str], int] = {}
+    for item in primary or []:
         key = product_fingerprint(item)
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(item)
+        primary_counts[key] = primary_counts.get(key, 0) + 1
+    for item in recovery or []:
+        key = product_fingerprint(item)
+        occurrence = recovery_seen.get(key, 0) + 1
+        recovery_seen[key] = occurrence
+        if occurrence > primary_counts.get(key, 0):
+            result.append(item)
     return result
 
 
@@ -279,6 +283,9 @@ def assess_completeness(
     if item_count <= 0:
         incomplete = True
         reasons.append("no_items")
+    if item_count > 0 and evidence is not None and evidence.source in {"empty", "pdf_empty"}:
+        incomplete = True
+        reasons.append("image_without_local_evidence")
     if quantity_matches is False:
         incomplete = True
         reasons.append(
@@ -311,6 +318,7 @@ def assess_completeness(
 
     needs_recovery = incomplete and (
         item_count == 0
+        or "image_without_local_evidence" in reasons
         or quantity_matches is False
         or products_value_matches is False
         or bool(implausible)
@@ -355,8 +363,8 @@ def choose_better_candidate_set(
     evidence: DocumentEvidence | None,
 ) -> tuple[list[Product], str, CompletenessAssessment]:
     """Pick the product set closer to document evidence after recovery."""
-    primary_items = deduplicate_products(primary)
-    recovery_items = deduplicate_products(recovery)
+    primary_items = list(primary or [])
+    recovery_items = list(recovery or [])
     primary_assessment = assess_completeness(primary_items, evidence)
     recovery_assessment = assess_completeness(recovery_items, evidence)
 
@@ -367,7 +375,7 @@ def choose_better_candidate_set(
 
     # Merge unique rows when recovery did not clearly win but added coverage.
     if recovery_items and primary_items:
-        merged = deduplicate_products([*primary_items, *recovery_items])
+        merged = merge_product_passes(primary_items, recovery_items)
         merged_assessment = assess_completeness(merged, evidence)
         if merged_assessment.score > primary_assessment.score:
             return merged, "merged", merged_assessment
@@ -527,6 +535,7 @@ __all__ = [
     "extract_document_evidence",
     "find_implausible_quantities",
     "import_pipeline_mode",
+    "merge_product_passes",
     "product_fingerprint",
     "products_total_quantity",
     "recovery_overlap_ratio",

@@ -165,6 +165,37 @@ class LlmProviderTests(unittest.TestCase):
         self.assertEqual(result["data_info"]["page_slices"], 2)
         self.assertEqual(result["data_info"]["original_images"], 1)
 
+    def test_evidence_upload_keeps_generic_provider_pages_whole_by_default(self) -> None:
+        client = _FakeClient(
+            {
+                "documents": [],
+                "images": [{"name": "romaneio.pdf#p1", "mime": "image/png", "data": "abc"}],
+                "errors": [],
+            }
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "LOJASYNC_LLM_PROVIDER": "legacy",
+                "LLM_PROVIDER": "legacy",
+                "LLM_BASE_URL": "http://127.0.0.1:8002",
+                "LOJASYNC_IMPORT_PIPELINE": "evidence",
+            },
+            clear=True,
+        ):
+            result = upload_llm_file(
+                client,  # type: ignore[arg-type]
+                job_id="job123456",
+                contents=b"%PDF-1.4",
+                filename="romaneio.pdf",
+                content_type="application/pdf",
+            )
+
+        self.assertEqual(len(result["images"]), 1)
+        self.assertEqual(result["images"][0]["name"], "romaneio.pdf#p1")
+        self.assertNotIn("data_info", result)
+
     def test_zai_upload_uses_glm_ocr_layout_parsing(self) -> None:
         client = _FakeClient(
             {

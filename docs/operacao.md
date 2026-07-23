@@ -14,7 +14,7 @@ A importacao por IA usa um pipeline **evidence-first** (`LOJASYNC_IMPORT_PIPELIN
 1. Extrai evidencia deterministica do arquivo (texto/PDF local, ancoras de remessa e totais, linhas estruturadas).
 2. Envia paginas inteiras ao modelo de visao (sem pre-fatiar por padrao).
 3. Reconcilia itens com as ancoras; se incompleto, tenta recortes verticais com sobreposicao.
-4. Publica resultado explicito: `approved` (status `ok`), `needs_review` (status `needs_review`, validacao `unverified`) ou `rejected` (job em erro).
+4. Publica resultado explicito: `approved` (status `ok`), `needs_review` (status `needs_review`; validacao `unverified` ou alerta de plausibilidade apos aprovacao) ou `rejected` (job em erro).
 
 Metricas uteis no resultado do job: `import_pipeline`, `import_outcome`, `import_needs_review`, `evidence_*`, `completeness_*`, `llm_stage_item_counts`, `observability`.
 

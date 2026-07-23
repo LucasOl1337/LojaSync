@@ -70,7 +70,8 @@ test("reads persisted import history and operation diary through coercion limits
     ]),
   });
 
-  assert.deepEqual(localState.readInitialImportHistory(storage).map((entry) => entry.id), ["d", "c", "b"]);
+  assert.equal(localState.RECENT_IMPORT_HISTORY_LIMIT, 8);
+  assert.deepEqual(localState.readInitialImportHistory(storage).map((entry) => entry.id), ["d", "c", "b", "a"]);
   assert.equal(localState.OPERATION_DIARY_LIMIT, 120);
   assert.deepEqual(localState.readInitialOperationDiary(storage).map((entry) => entry.id), ["g", "f", "e", "d", "c", "b", "a"]);
 });

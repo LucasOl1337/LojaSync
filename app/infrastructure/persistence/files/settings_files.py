@@ -54,6 +54,72 @@ class MarginSettingsStore:
         )
 
 
+DEFAULT_WALLPAPER = "/wallpapers/wallpaper-nexarq-cta.jpg"
+KNOWN_WALLPAPERS = (
+    "/wallpapers/wallpaper-nexarq-cta.jpg",
+    "/wallpapers/wallpaper-nexarq-aurora.jpg",
+    "/wallpapers/wallpaper-quiet-mist.jpg",
+    "/wallpapers/atelier.jpg",
+    "/wallpapers/vigia.jpg",
+    "/wallpapers/dunas-estelares.jpg",
+    "/wallpapers/aurora-verde.jpg",
+)
+
+
+class AppearanceSettingsStore:
+    """App-wide shell wallpaper default shared by all users of this install."""
+
+    def __init__(self, appearance_file: Path) -> None:
+        self._appearance_file = appearance_file
+        self._appearance_file.parent.mkdir(parents=True, exist_ok=True)
+
+    def load(self) -> dict[str, object]:
+        default = {
+            "defaultWallpaper": DEFAULT_WALLPAPER,
+            "defaultBrightness": None,
+            "wallpapers": list(KNOWN_WALLPAPERS),
+        }
+        if not self._appearance_file.exists():
+            return default
+        try:
+            payload = json.loads(self._appearance_file.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return default
+            wallpaper = str(payload.get("defaultWallpaper") or DEFAULT_WALLPAPER).strip()
+            if wallpaper not in KNOWN_WALLPAPERS:
+                wallpaper = DEFAULT_WALLPAPER
+            brightness_raw = payload.get("defaultBrightness")
+            brightness: float | None
+            if brightness_raw is None or brightness_raw == "":
+                brightness = None
+            else:
+                brightness = max(0.5, min(1.0, float(brightness_raw)))
+            return {
+                "defaultWallpaper": wallpaper,
+                "defaultBrightness": brightness,
+                "wallpapers": list(KNOWN_WALLPAPERS),
+            }
+        except Exception:
+            return default
+
+    def save(self, default_wallpaper: str, default_brightness: float | None = None) -> dict[str, object]:
+        wallpaper = str(default_wallpaper or DEFAULT_WALLPAPER).strip()
+        if wallpaper not in KNOWN_WALLPAPERS:
+            wallpaper = DEFAULT_WALLPAPER
+        brightness: float | None = None
+        if default_brightness is not None:
+            brightness = max(0.5, min(1.0, float(default_brightness)))
+        payload = {
+            "defaultWallpaper": wallpaper,
+            "defaultBrightness": brightness,
+        }
+        self._appearance_file.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return {**payload, "wallpapers": list(KNOWN_WALLPAPERS)}
+
+
 class MetricsStore:
     def __init__(self, metrics_file: Path) -> None:
         self._metrics_file = metrics_file

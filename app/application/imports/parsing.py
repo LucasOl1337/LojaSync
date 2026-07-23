@@ -10,53 +10,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.application.imports.llm_prompts import (
+    build_romaneio_image_message,
+)
 from app.application.imports.pdf_text import extract_pdf_text_candidates
 from app.domain.products.entities import Product
 from app.domain.products.money import normalize_decimal_price, normalize_raw_price, parse_price_decimal
-
-ROMANEIO_IMAGE_MESSAGE = (
-    "The attached image is a Brazilian invoice/romaneio product table. "
-    "Extract every visible fiscal product row and return JSON only in the format "
-    '{"items":[{"codigo":"","descricao_original":"","nome_curto":"","ncm_sh":"","quantidade":0,"preco":0,"tamanho":""}]}. '
-    "Read the printed table columns from left to right: CODIGO PRODUTO, DESCRICAO DOS PRODUTOS/SERVICOS, "
-    "NCM/SH, CST, CFOP, UNID, QUANT, VALOR UNITARIO, VALOR TOTAL. "
-    "preco must be VALOR UNITARIO, not VALOR TOTAL. ncm_sh must be NCM/SH. "
-    "Mandatory rules: one output item per visible fiscal row; never summarize, merge, deduplicate, or group repeated "
-    "codes, prices, colors, or sizes; preserve duplicated rows when they are printed separately. "
-    "Use the short SKU/product code as codigo, not NCM/SH, CFOP, barcode, or long reference numbers. "
-    "For DANFE/NF-e tables, codigo must come from the CODIGO PRODUTO column. If that cell has two printed lines, "
-    "the first numeric line is codigo and the second short token such as 0502, 0504, 0506, 0510, 0512, 0514, "
-    "0516, or 0518 is a size/reference; put it in tamanho when useful, never in codigo. "
-    "If a cropped/visible row has only this short token and no complete product code, skip that row. "
-    "Copy the full printed product description to descricao_original. For nome_curto, keep the printed wording in uppercase "
-    "after removing only size/reference tokens; do not translate, expand abbreviations, or rewrite INF, C/, TRAD, or ESSE. "
-    "Rows from the same printed product must use the exact same nome_curto. "
-    "Copy sizes exactly as printed in tamanho; never convert numeric sizes to letter sizes. "
-    "If a trailing token is only a size, put it in tamanho and do not append it to codigo. "
-    "If a row is unreadable, partially cut, or ambiguous, skip it instead of guessing."
-)
-
-ROMANEIO_CROPPED_IMAGE_MESSAGE = (
-    "The attached image is a cropped segment of a Brazilian invoice/romaneio product table. "
-    "Extract only the fully visible fiscal product rows from this crop and return JSON only in the format "
-    '{"items":[{"codigo":"","descricao_original":"","nome_curto":"","ncm_sh":"","quantidade":0,"preco":0,"tamanho":""}]}. '
-    "Read the printed table columns from left to right: CODIGO PRODUTO, DESCRICAO DOS PRODUTOS/SERVICOS, "
-    "NCM/SH, CST, CFOP, UNID, QUANT, VALOR UNITARIO, VALOR TOTAL. "
-    "preco must be VALOR UNITARIO, not VALOR TOTAL. ncm_sh must be NCM/SH. "
-    "Mandatory rules: one output item per fully visible fiscal row; never summarize, merge, deduplicate, or group "
-    "repeated codes, prices, colors, or sizes; preserve duplicated rows when they are printed separately. "
-    "Use the short SKU/product code as codigo, not NCM/SH, CFOP, barcode, or long reference numbers. "
-    "For DANFE/NF-e tables, codigo must come from the CODIGO PRODUTO column. If that cell has two printed lines, "
-    "the first numeric line is codigo and the second short token such as 0502, 0504, 0506, 0510, 0512, 0514, "
-    "0516, or 0518 is a size/reference; put it in tamanho when useful, never in codigo. "
-    "If a cropped/visible row has only this short token and no complete product code, skip that row. "
-    "Copy the full printed product description to descricao_original. For nome_curto, keep the printed wording in uppercase "
-    "after removing only size/reference tokens; do not translate, expand abbreviations, or rewrite INF, C/, TRAD, or ESSE. "
-    "Rows from the same printed product must use the exact same nome_curto. "
-    "Copy sizes exactly as printed in tamanho; never convert numeric sizes to letter sizes. "
-    "If a trailing token is only a size, put it in tamanho and do not append it to codigo. "
-    "Do not guess rows cut by the crop boundary; ignore partial rows."
-)
 
 _REMESSA_REGEX = re.compile(r"(?i)qtd\s+de\s+.*?remessa\s*:\s*(?P<qty>\d+)")
 _TOTAL_PRODUCTS_REGEX = re.compile(
@@ -169,20 +128,34 @@ def _normalize_product_grades(raw: Any) -> list[dict[str, Any]] | None:
 
 
 def _coerce_size_hint(raw: Any) -> str:
+    """Normalize size/reference tokens from DANFE rows and grade columns.
+
+    Accepts classic letter sizes (P/M/G), pure numeric sizes (36, 5240), and mixed
+    fashion tokens printed on Brazilian invoices (981P, 053G, 712M, 0240).
+    """
     value = str(raw or "").strip()
     if not value:
         return ""
     value = re.sub(r"(?i)\b(?:tam(?:anho)?\.?)\b", "", value).strip(" -_/()[]{}")
     candidate = re.sub(r"[^A-Za-z0-9]+", "", value).upper()
-    if not candidate:
+    if not candidate or len(candidate) > 10:
         return ""
-    if re.fullmatch(r"\d{1,3}", candidate):
+    # Pure numeric size/reference (1-4 digits: 36, 40, 5240, 0236)
+    if re.fullmatch(r"\d{1,4}", candidate):
         try:
             number = int(candidate)
         except Exception:
             return ""
         return str(number) if number > 0 else ""
     if candidate in {"U", "PP", "P", "M", "G", "GG", "XG", "XXG", "G1", "G2", "G3", "G4"}:
+        return candidate
+    # Mixed DANFE tokens: 981P, 053G, 712M, 5240 already covered, G2 already covered
+    if re.fullmatch(r"\d{1,4}[A-Z]{1,3}", candidate):
+        return candidate
+    if re.fullmatch(r"[A-Z]{1,3}\d{1,4}", candidate):
+        return candidate
+    # Short alphanumeric residual (e.g. EXG, EG, plus sizes)
+    if re.fullmatch(r"[A-Z0-9]{1,8}", candidate) and any(ch.isdigit() for ch in candidate):
         return candidate
     return ""
 
@@ -339,15 +312,6 @@ def _split_code_and_size(code: Any) -> tuple[str, str]:
     if not size:
         return value, ""
     return match.group(1).strip(), size
-
-
-def build_romaneio_image_message(images: list[dict[str, Any]]) -> str:
-    names = [str(image.get("name") or "").lower() for image in (images or []) if isinstance(image, dict)]
-    if any("#slice" in name for name in names):
-        return ROMANEIO_CROPPED_IMAGE_MESSAGE
-    if any("#p" in name for name in names):
-        return ROMANEIO_IMAGE_MESSAGE
-    return ""
 
 
 def _build_product(
@@ -1056,9 +1020,14 @@ def _is_plausible_product(record: Product) -> bool:
 
 
 def filter_suspect_records(records: list[Product]) -> list[Product]:
+    """Drop junk rows and merge same SKU+name+price rows, summing grade quantities.
+
+    Grade variants of the same product must share one key (codigo/nome/preco) so
+    sizes accumulate instead of becoming separate catalog lines that lose units.
+    """
     filtered: list[Product] = []
-    grouped: dict[tuple[str, str, str, tuple[tuple[str, int], ...]], Product] = {}
-    ordered_keys: list[tuple[str, str, str, tuple[tuple[str, int], ...]]] = []
+    grouped: dict[tuple[str, str, str], Product] = {}
+    ordered_keys: list[tuple[str, str, str]] = []
     for record in records or []:
         if not _is_plausible_product(record):
             continue
@@ -1076,33 +1045,49 @@ def filter_suspect_records(records: list[Product]) -> list[Product]:
             qty = int(item.get("quantidade") or 0)
             if size and qty > 0:
                 grades_map[size] = grades_map.get(size, 0) + qty
-        grades_key = tuple(sorted(grades_map.items()))
         key = (
             product.codigo.strip().lower(),
             product.nome.strip().lower(),
             (product.preco or "").strip(),
-            grades_key,
         )
         existing = grouped.get(key)
         if existing is None:
+            if grades_map:
+                product.grades = _normalize_product_grades(grades_map)
+                product.quantidade = sum(grades_map.values())
             grouped[key] = product
             ordered_keys.append(key)
             continue
         if product.descricao_completa and len(product.descricao_completa) >= len(existing.descricao_completa or ""):
             existing.descricao_completa = product.descricao_completa
-        if grades_map:
-            merged_grades: dict[str, int] = {}
-            for item in (_normalize_product_grades(existing.grades) or []):
-                size = str(item.get("tamanho") or "").strip()
-                qty = int(item.get("quantidade") or 0)
-                if size and qty > 0:
-                    merged_grades[size] = merged_grades.get(size, 0) + qty
+        existing_grades: dict[str, int] = {}
+        for item in (_normalize_product_grades(existing.grades) or []):
+            size = str(item.get("tamanho") or "").strip()
+            qty = int(item.get("quantidade") or 0)
+            if size and qty > 0:
+                existing_grades[size] = existing_grades.get(size, 0) + qty
+        if grades_map or existing_grades:
             for size, qty in grades_map.items():
-                merged_grades[size] = merged_grades.get(size, 0) + qty
-            existing.grades = _normalize_product_grades(merged_grades)
-            existing.quantidade = sum(int(item.get("quantidade") or 0) for item in (existing.grades or []))
+                existing_grades[size] = existing_grades.get(size, 0) + qty
+            # When one side lacked grades, keep free qty as an implicit unit bucket.
+            if not grades_map and int(product.quantidade or 0) > 0:
+                free_qty = int(product.quantidade or 0)
+                if existing_grades:
+                    # Prefer adding into a single existing size only when exactly one size exists.
+                    if len(existing_grades) == 1:
+                        only_size = next(iter(existing_grades))
+                        existing_grades[only_size] += free_qty
+                    else:
+                        existing.quantidade = int(existing.quantidade or 0) + free_qty
+                else:
+                    existing.quantidade = int(existing.quantidade or 0) + free_qty
+            if existing_grades:
+                existing.grades = _normalize_product_grades(existing_grades)
+                existing.quantidade = sum(existing_grades.values())
+            else:
+                existing.quantidade = int(existing.quantidade or 0) + int(product.quantidade or 0)
         else:
-            existing.quantidade += int(product.quantidade or 0)
+            existing.quantidade = int(existing.quantidade or 0) + int(product.quantidade or 0)
     for key in ordered_keys:
         filtered.append(grouped[key])
     return filtered

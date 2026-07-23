@@ -31,6 +31,8 @@ from app.interfaces.api.http.route_models import (
 )
 from app.interfaces.api.http.route_shared import CATALOG_SIZES, get_product_service, product_to_response
 from app.interfaces.api.schemas.products import (
+    AppearanceSettingsPayload,
+    AppearanceSettingsResponse,
     BrandPayload,
     BrandsResponse,
     MarginSettingsPayload,
@@ -170,6 +172,34 @@ async def set_margin(payload: MarginSettingsPayload, request: Request) -> Margin
     margin = get_product_service(request).set_default_margin(1 + payload.percentual / 100.0)
     publish_state_changed(["margin", "products", "totals"])
     return MarginSettingsResponse(margem=margin, percentual=payload.percentual)
+
+
+def _appearance_store(request: Request):
+    from app.infrastructure.persistence.files.settings_files import AppearanceSettingsStore
+
+    paths = request.app.state.container.paths
+    return AppearanceSettingsStore(paths.appearance_file)
+
+
+@router.get("/settings/appearance", response_model=AppearanceSettingsResponse)
+async def get_appearance(request: Request) -> AppearanceSettingsResponse:
+    data = _appearance_store(request).load()
+    return AppearanceSettingsResponse(
+        defaultWallpaper=str(data.get("defaultWallpaper") or ""),
+        defaultBrightness=data.get("defaultBrightness"),  # type: ignore[arg-type]
+        wallpapers=list(data.get("wallpapers") or []),  # type: ignore[arg-type]
+    )
+
+
+@router.post("/settings/appearance", response_model=AppearanceSettingsResponse)
+async def set_appearance(payload: AppearanceSettingsPayload, request: Request) -> AppearanceSettingsResponse:
+    data = _appearance_store(request).save(payload.defaultWallpaper, payload.defaultBrightness)
+    publish_state_changed(["appearance"])
+    return AppearanceSettingsResponse(
+        defaultWallpaper=str(data.get("defaultWallpaper") or ""),
+        defaultBrightness=data.get("defaultBrightness"),  # type: ignore[arg-type]
+        wallpapers=list(data.get("wallpapers") or []),  # type: ignore[arg-type]
+    )
 
 
 @router.get("/totals", response_model=TotalsResponse)

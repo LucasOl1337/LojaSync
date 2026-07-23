@@ -8,6 +8,7 @@ import {
   type NormalizedRect,
   type StagedImportDocument,
 } from "./importWorkspace";
+import { formatImportProgressCopy } from "./uiFormatting";
 
 const TEXT_PREVIEW_LIMIT = 500_000;
 
@@ -15,10 +16,13 @@ type ImportWorkspacePanelProps = {
   documents: StagedImportDocument[];
   busy: boolean;
   activeDocumentId: string | null;
+  liveStatusMessage?: string | null;
   onDocumentsChange: (documents: StagedImportDocument[]) => void;
   onOpenPicker: (mode: "llm" | "local") => void;
   onRemove: (documentId: string) => void;
   onRetryFailed: () => void;
+  onAbortImport?: () => void;
+  importAborting?: boolean;
 };
 
 type Interaction = {
@@ -85,10 +89,13 @@ export function ImportWorkspacePanel({
   documents,
   busy,
   activeDocumentId,
+  liveStatusMessage = null,
   onDocumentsChange,
   onOpenPicker,
   onRemove,
   onRetryFailed,
+  onAbortImport,
+  importAborting = false,
 }: ImportWorkspacePanelProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<Interaction | null>(null);
@@ -204,7 +211,14 @@ export function ImportWorkspacePanel({
         <div>
           <span className="sectionTag">Conferência visual</span>
           <h2 id="import-workspace-title">Notas da importação</h2>
-          <p role="status" aria-live="polite">{busy && activeDocumentId ? `Processando ${documents.findIndex((document) => document.id === activeDocumentId) + 1} de ${documents.length}.` : summary.message}</p>
+          <p role="status" aria-live="polite">
+            {busy && activeDocumentId
+              ? [
+                  `Processando ${documents.findIndex((document) => document.id === activeDocumentId) + 1} de ${documents.length}`,
+                  liveStatusMessage ? formatImportProgressCopy(liveStatusMessage) : null,
+                ].filter(Boolean).join(" · ")
+              : summary.message}
+          </p>
         </div>
         <div className="importWorkspaceActionsTs">
           <button className="ghostButton" type="button" disabled={!documents.length || busy} onClick={resetLayout}>Organizar automaticamente</button>
@@ -240,7 +254,10 @@ export function ImportWorkspacePanel({
                 className="importDocumentHeaderTs"
                 tabIndex={0}
                 aria-label={`Mover ${document.file.name}. Use as setas; Shift e setas movem mais rápido.`}
-                onPointerDown={(event) => handlePointerDown(event, document, "move")}
+                onPointerDown={(event) => {
+                  if ((event.target as HTMLElement).closest("button")) return;
+                  handlePointerDown(event, document, "move");
+                }}
                 onPointerMove={handlePointerMove}
                 onPointerUp={stopInteraction}
                 onPointerCancel={stopInteraction}
@@ -249,9 +266,75 @@ export function ImportWorkspacePanel({
               >
                 <div><strong title={document.file.name}>{document.file.name}</strong><span>{formatFileSize(document.file.size)}</span></div>
                 <span className="importDocumentStateTs">{document.state === "processing" ? "Importando" : document.state === "succeeded" ? "Importada" : document.state === "failed" ? "Bloqueada" : document.state === "queued" ? "Na fila" : "Pronta"}</span>
-                <button type="button" disabled={busy} onClick={(event) => { event.stopPropagation(); onRemove(document.id); }} aria-label={`Remover ${document.file.name}`}>×</button>
+                <button
+                  className="importDocumentCloseTs"
+                  type="button"
+                  disabled={importAborting && document.state === "processing"}
+                  title={
+                    document.state === "processing" || document.state === "queued"
+                      ? `Abortar importação de ${document.file.name}`
+                      : `Remover ${document.file.name} da conferência`
+                  }
+                  aria-label={
+                    document.state === "processing" || document.state === "queued"
+                      ? `Abortar importação de ${document.file.name}`
+                      : `Remover ${document.file.name} da conferência`
+                  }
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    if (document.state === "processing" || document.state === "queued") {
+                      onAbortImport?.();
+                      return;
+                    }
+                    onRemove(document.id);
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
               </header>
               <div className="importDocumentBodyTs"><DocumentPreview document={document} url={urls[document.id] || null} /></div>
+              {document.state === "processing" || document.state === "queued" ? (
+                <div className="importDocumentProgressOverlayTs" role="status" aria-live="polite">
+                  <div className="importDocumentProgressCardTs">
+                    <strong>
+                      {importAborting
+                        ? "Cancelando..."
+                        : document.state === "queued"
+                          ? "Na fila"
+                          : "Importando nota"}
+                    </strong>
+                    <span>
+                      {importAborting
+                        ? "Abortando a requisição de IA e liberando a interface."
+                        : document.state === "queued"
+                          ? "Aguardando a vez neste lote."
+                          : formatImportProgressCopy(document.status?.message || liveStatusMessage || "Lendo e validando o documento...")}
+                    </span>
+                    <div className="importDocumentProgressPulseTs" aria-hidden="true" />
+                    {onAbortImport && document.state === "processing" ? (
+                      <button
+                        className="ghostButton compactButton importDocumentAbortTs"
+                        type="button"
+                        disabled={importAborting}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onAbortImport();
+                        }}
+                      >
+                        {importAborting ? "Cancelando..." : "Abortar agora"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               {document.errorReasons.length ? (
                 <section className="importDocumentErrorTs" role="alert">
                   <strong>Importação bloqueada</strong>

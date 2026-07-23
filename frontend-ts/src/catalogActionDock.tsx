@@ -15,13 +15,20 @@ function DockIcon({ name }: { name: "add" | "import" | "grade" | "execute" | "hi
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v5l3 2" /></svg>;
 }
 
-export function CatalogActionDock({ manualEntryOpen, onToggleManualEntry, onImport, onOpenGrades, onExecute, onHistory }: CatalogActionDockProps) {
+export function CatalogActionDock({
+  manualEntryOpen,
+  onToggleManualEntry,
+  onImport,
+  onOpenGrades,
+  onExecute,
+  onHistory,
+}: CatalogActionDockProps) {
   const actions = [
-    { label: "Novo produto", icon: "add" as const, onClick: onToggleManualEntry, primary: true, pressed: manualEntryOpen },
-    { label: "Importar arquivo", icon: "import" as const, onClick: onImport },
-    { label: "Gerenciar grades", icon: "grade" as const, onClick: onOpenGrades },
-    { label: "Executar catálogo", icon: "execute" as const, onClick: onExecute },
-    { label: "Ver histórico", icon: "history" as const, onClick: onHistory },
+    { key: "add", label: "Novo produto", icon: "add" as const, onClick: onToggleManualEntry, primary: true, pressed: manualEntryOpen },
+    { key: "import", label: "Importar arquivo", icon: "import" as const, onClick: onImport, primary: false, pressed: false },
+    { key: "grade", label: "Gerenciar grades", icon: "grade" as const, onClick: onOpenGrades, primary: false, pressed: false },
+    { key: "execute", label: "Executar catálogo", icon: "execute" as const, onClick: onExecute, primary: false, pressed: false },
+    { key: "history", label: "Ver histórico", icon: "history" as const, onClick: onHistory, primary: false, pressed: false },
   ];
 
   return (
@@ -29,7 +36,7 @@ export function CatalogActionDock({ manualEntryOpen, onToggleManualEntry, onImpo
       <div className="catalogActionDockTs">
         {actions.map((action) => (
           <button
-            key={action.label}
+            key={action.key}
             className={`catalogActionDockButtonTs ${action.primary ? "primary" : ""} ${action.pressed ? "active" : ""}`}
             type="button"
             onClick={action.onClick}

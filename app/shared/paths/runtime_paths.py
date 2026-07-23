@@ -37,6 +37,10 @@ class RuntimePaths:
         return self.data_dir / "margem.json"
 
     @property
+    def appearance_file(self) -> Path:
+        return self.data_dir / "appearance.json"
+
+    @property
     def auth_file(self) -> Path:
         return self.data_dir / "auth.json"
 

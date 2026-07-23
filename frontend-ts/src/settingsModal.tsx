@@ -7,6 +7,9 @@ import {
   type GradeCaptureKey,
 } from "./appConfig";
 import { parseSizeOrderText } from "./gradeLogic";
+import { WALLPAPER_CATALOG } from "./shellAppearance";
+import type { ThemeColors, ThemeOpacities } from "./shellTheme";
+import { ThemeColorEditor } from "./themeColorEditor";
 import type { AutomationTargets, GradeConfig, TargetPoint } from "./types";
 import { formatTargetPoint, normalizeTargetPoint } from "./uiFormatting";
 
@@ -20,12 +23,24 @@ type SettingsModalProps = {
   contextText: string;
   captureLabel: string | null;
   captureCountdown: number | null;
-  onClose: () => void;
+  appearanceWallpaper: string;
+  appearanceBrightness: number;
+  themeColors: ThemeColors;
+  themeOpacities: ThemeOpacities;
+  layoutMode?: "modal" | "page";
+  onClose?: () => void;
   onContextRefresh: () => Promise<void>;
   onPrepare: () => Promise<void>;
   onReloadAll: () => Promise<void>;
   onSaveTargets: () => Promise<void>;
   onSaveGradeConfig: () => Promise<void>;
+  onSaveAppearance: () => Promise<void>;
+  onAppearanceWallpaperChange: (path: string) => void;
+  onAppearanceBrightnessChange: (value: number) => void;
+  onUseAppAppearanceDefault: () => void;
+  onThemeColorsChange: (colors: ThemeColors) => void;
+  onThemeOpacitiesChange: (opacities: ThemeOpacities) => void;
+  onThemeMessage?: (message: string) => void;
   onTargetChange: (key: keyof AutomationTargets, value: string | TargetPoint | null) => void;
   onGradeConfigChange: (updater: (current: GradeConfig) => GradeConfig) => void;
   onCaptureTarget: (key: AutomationTargetKey, label: string) => Promise<void>;
@@ -47,6 +62,97 @@ type SettingsDiagnosticsPanelProps = Pick<
   SettingsModalProps,
   "loading" | "saving" | "error" | "message" | "contextText" | "captureLabel" | "captureCountdown" | "onReloadAll"
 >;
+
+type SettingsAppearancePanelProps = Pick<
+  SettingsModalProps,
+  | "saving"
+  | "appearanceWallpaper"
+  | "appearanceBrightness"
+  | "onSaveAppearance"
+  | "onAppearanceWallpaperChange"
+  | "onAppearanceBrightnessChange"
+  | "onUseAppAppearanceDefault"
+>;
+
+function SettingsAppearancePanel({
+  saving,
+  appearanceWallpaper,
+  appearanceBrightness,
+  onSaveAppearance,
+  onAppearanceWallpaperChange,
+  onAppearanceBrightnessChange,
+  onUseAppAppearanceDefault,
+}: SettingsAppearancePanelProps) {
+  return (
+    <section className="settingsPanel settingsAppearancePanel">
+      <div className="settingsPanelHead">
+        <div>
+          <span className="sectionTag">Visual</span>
+          <strong>Plano de fundo do app</strong>
+        </div>
+        <div className="settingsAppearanceActions">
+          <button
+            className="ghostButton miniActionButton"
+            type="button"
+            onClick={onUseAppAppearanceDefault}
+            disabled={Boolean(saving)}
+          >
+            Usar padrão
+          </button>
+          <button
+            className="ghostButton miniActionButton"
+            type="button"
+            onClick={() => void onSaveAppearance()}
+            disabled={saving === "appearance"}
+          >
+            {saving === "appearance" ? "Salvando..." : "Salvar como padrão global"}
+          </button>
+        </div>
+      </div>
+      <p className="settingsAppearanceHint">
+        Admin define o default para todos os usuários desta instalação. Cada browser ainda pode
+        escolher um fundo pessoal; quem não escolheu usa o padrão global.
+      </p>
+      <label className="settingsField">
+        <span>Brilho do padrão</span>
+        <input
+          type="range"
+          min={0.55}
+          max={1}
+          step={0.01}
+          value={appearanceBrightness}
+          onChange={(event) => onAppearanceBrightnessChange(Number(event.target.value))}
+        />
+        <span>{Math.round(appearanceBrightness * 100)}%</span>
+      </label>
+      <div className="settingsWallpaperGrid" role="listbox" aria-label="Fundos disponíveis">
+        {WALLPAPER_CATALOG.map((wall) => {
+          const on = wall.path === appearanceWallpaper;
+          return (
+            <button
+              key={wall.path}
+              type="button"
+              className={on ? "settingsWallpaperCard is-on" : "settingsWallpaperCard"}
+              role="option"
+              aria-selected={on}
+              onClick={() => onAppearanceWallpaperChange(wall.path)}
+            >
+              <span
+                className="settingsWallpaperThumb"
+                style={{ backgroundImage: `url(${wall.path})` }}
+              />
+              <span className="settingsWallpaperMeta">
+                <strong>{wall.label}</strong>
+                <em>{wall.blurb}</em>
+              </span>
+              {on ? <span className="settingsWallpaperCheck">✓</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 function SettingsTargetsPanel({
   saving,
@@ -232,12 +338,24 @@ export function SettingsModal({
   contextText,
   captureLabel,
   captureCountdown,
+  appearanceWallpaper,
+  appearanceBrightness,
+  themeColors,
+  themeOpacities,
+  layoutMode = "modal",
   onClose,
   onContextRefresh,
   onPrepare,
   onReloadAll,
   onSaveTargets,
   onSaveGradeConfig,
+  onSaveAppearance,
+  onAppearanceWallpaperChange,
+  onAppearanceBrightnessChange,
+  onUseAppAppearanceDefault,
+  onThemeColorsChange,
+  onThemeOpacitiesChange,
+  onThemeMessage,
   onTargetChange,
   onGradeConfigChange,
   onCaptureTarget,
@@ -246,20 +364,23 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLElement>(null);
+  const isPage = layoutMode === "page";
 
   useEffect(() => {
+    if (isPage) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButtonRef.current?.focus({ preventScroll: true });
 
     return () => {
       previousFocus?.focus({ preventScroll: true });
     };
-  }, []);
+  }, [isPage]);
 
   const handleShellKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (isPage) return;
     if (event.key === "Escape") {
       event.stopPropagation();
-      onClose();
+      onClose?.();
       return;
     }
 
@@ -289,8 +410,147 @@ export function SettingsModal({
     }
   };
 
+  const body = (
+    <>
+      <header className="settingsModalHeader">
+        <div>
+          <span className="sectionTag">Configurações</span>
+          <h3 id="settings-modal-title">{isPage ? "Preferências do app" : "Targets, gradebot e diagnóstico"}</h3>
+          {isPage ? <p className="settingsPageLeadTs">Visual, cores, automação e diagnóstico em um só lugar.</p> : null}
+        </div>
+        <div className="settingsModalHeaderActions">
+          <button className="ghostButton miniActionButton" type="button" onClick={() => void onContextRefresh()} disabled={Boolean(saving)}>
+            Ver contexto
+          </button>
+          <button className="ghostButton miniActionButton" type="button" onClick={() => void onPrepare()} disabled={Boolean(saving)}>
+            Preparar ByteEmpresa
+          </button>
+          {!isPage ? (
+            <button
+              ref={closeButtonRef}
+              className="ghostButton miniActionButton settingsModalCloseButton"
+              type="button"
+              onClick={() => onClose?.()}
+              aria-label="Fechar configurações"
+            >
+              Fechar
+            </button>
+          ) : null}
+        </div>
+      </header>
+
+      <div className={isPage ? "settingsPageBodyTs" : "settingsModalBody"}>
+        {isPage ? (
+          <>
+            <div className="settingsPageColTs">
+              <SettingsAppearancePanel
+                saving={saving}
+                appearanceWallpaper={appearanceWallpaper}
+                appearanceBrightness={appearanceBrightness}
+                onSaveAppearance={onSaveAppearance}
+                onAppearanceWallpaperChange={onAppearanceWallpaperChange}
+                onAppearanceBrightnessChange={onAppearanceBrightnessChange}
+                onUseAppAppearanceDefault={onUseAppAppearanceDefault}
+              />
+              <ThemeColorEditor
+                colors={themeColors}
+                opacities={themeOpacities}
+                onChange={onThemeColorsChange}
+                onOpacitiesChange={onThemeOpacitiesChange}
+                onSaved={onThemeMessage}
+              />
+            </div>
+            <div className="settingsPageColTs">
+              <SettingsTargetsPanel
+                saving={saving}
+                targets={targets}
+                onSaveTargets={onSaveTargets}
+                onTargetChange={onTargetChange}
+                onCaptureTarget={onCaptureTarget}
+              />
+              <SettingsGradeConfigPanel
+                saving={saving}
+                gradeConfig={gradeConfig}
+                onSaveGradeConfig={onSaveGradeConfig}
+                onGradeConfigChange={onGradeConfigChange}
+                onCaptureGradeButton={onCaptureGradeButton}
+                onCaptureFirstQuantCell={onCaptureFirstQuantCell}
+              />
+              <SettingsDiagnosticsPanel
+                loading={loading}
+                saving={saving}
+                error={error}
+                message={message}
+                contextText={contextText}
+                captureLabel={captureLabel}
+                captureCountdown={captureCountdown}
+                onReloadAll={onReloadAll}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <SettingsAppearancePanel
+              saving={saving}
+              appearanceWallpaper={appearanceWallpaper}
+              appearanceBrightness={appearanceBrightness}
+              onSaveAppearance={onSaveAppearance}
+              onAppearanceWallpaperChange={onAppearanceWallpaperChange}
+              onAppearanceBrightnessChange={onAppearanceBrightnessChange}
+              onUseAppAppearanceDefault={onUseAppAppearanceDefault}
+            />
+            <ThemeColorEditor
+              colors={themeColors}
+              opacities={themeOpacities}
+              onChange={onThemeColorsChange}
+              onOpacitiesChange={onThemeOpacitiesChange}
+              onSaved={onThemeMessage}
+            />
+            <SettingsTargetsPanel
+              saving={saving}
+              targets={targets}
+              onSaveTargets={onSaveTargets}
+              onTargetChange={onTargetChange}
+              onCaptureTarget={onCaptureTarget}
+            />
+            <SettingsGradeConfigPanel
+              saving={saving}
+              gradeConfig={gradeConfig}
+              onSaveGradeConfig={onSaveGradeConfig}
+              onGradeConfigChange={onGradeConfigChange}
+              onCaptureGradeButton={onCaptureGradeButton}
+              onCaptureFirstQuantCell={onCaptureFirstQuantCell}
+            />
+            <SettingsDiagnosticsPanel
+              loading={loading}
+              saving={saving}
+              error={error}
+              message={message}
+              contextText={contextText}
+              captureLabel={captureLabel}
+              captureCountdown={captureCountdown}
+              onReloadAll={onReloadAll}
+            />
+          </>
+        )}
+      </div>
+    </>
+  );
+
+  if (isPage) {
+    return (
+      <section
+        ref={modalRef}
+        className="settingsPageShellTs"
+        aria-labelledby="settings-modal-title"
+      >
+        {body}
+      </section>
+    );
+  }
+
   return (
-    <div className="settingsModalBackdrop" onClick={onClose}>
+    <div className="settingsModalBackdrop" onClick={() => onClose?.()}>
       <section
         ref={modalRef}
         className="settingsModalShell"
@@ -300,57 +560,7 @@ export function SettingsModal({
         onClick={(event) => event.stopPropagation()}
         onKeyDown={handleShellKeyDown}
       >
-        <header className="settingsModalHeader">
-          <div>
-            <span className="sectionTag">Configurações</span>
-            <h3 id="settings-modal-title">Targets, gradebot e diagnóstico</h3>
-          </div>
-          <div className="settingsModalHeaderActions">
-            <button className="ghostButton miniActionButton" type="button" onClick={() => void onContextRefresh()} disabled={Boolean(saving)}>
-              Ver contexto
-            </button>
-            <button className="ghostButton miniActionButton" type="button" onClick={() => void onPrepare()} disabled={Boolean(saving)}>
-              Preparar ByteEmpresa
-            </button>
-            <button
-              ref={closeButtonRef}
-              className="ghostButton miniActionButton settingsModalCloseButton"
-              type="button"
-              onClick={onClose}
-              aria-label="Fechar configurações"
-            >
-              Fechar
-            </button>
-          </div>
-        </header>
-
-        <div className="settingsModalBody">
-          <SettingsTargetsPanel
-            saving={saving}
-            targets={targets}
-            onSaveTargets={onSaveTargets}
-            onTargetChange={onTargetChange}
-            onCaptureTarget={onCaptureTarget}
-          />
-          <SettingsGradeConfigPanel
-            saving={saving}
-            gradeConfig={gradeConfig}
-            onSaveGradeConfig={onSaveGradeConfig}
-            onGradeConfigChange={onGradeConfigChange}
-            onCaptureGradeButton={onCaptureGradeButton}
-            onCaptureFirstQuantCell={onCaptureFirstQuantCell}
-          />
-          <SettingsDiagnosticsPanel
-            loading={loading}
-            saving={saving}
-            error={error}
-            message={message}
-            contextText={contextText}
-            captureLabel={captureLabel}
-            captureCountdown={captureCountdown}
-            onReloadAll={onReloadAll}
-          />
-        </div>
+        {body}
       </section>
     </div>
   );

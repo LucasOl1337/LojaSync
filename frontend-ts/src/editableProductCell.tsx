@@ -67,9 +67,14 @@ export function EditableProductCell({
     const buttonTitle = emptyValue
       ? `${EMPTY_ACTION_LABELS[field]} para este item`
       : `Editar ${FIELD_LABELS[field]}`;
+    const isNumericField = field === "quantidade" || field === "preco" || field === "preco_final";
     return (
       <button
-        className={`cellActionButton ${field === "nome" ? "nameCellButton" : ""}`}
+        className={[
+          "cellActionButton",
+          field === "nome" ? "nameCellButton" : "",
+          isNumericField ? "numericCellActionButton" : "",
+        ].filter(Boolean).join(" ")}
         type="button"
         onClick={() => onStartEdit(product, field)}
         aria-label={accessibleLabel}

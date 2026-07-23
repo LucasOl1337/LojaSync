@@ -18,6 +18,7 @@ IMPORT_JOB_STAGES = {
     "parsing": "Interpretando itens detectados",
     "completed": "Concluido",
     "error": "Falha no processamento",
+    "cancelled": "Importacao cancelada",
 }
 
 GRADE_JOB_STAGES = {
@@ -85,7 +86,33 @@ def get_import_result(job_id: str) -> ImportRomaneioResultResponse | None:
 
 
 def remove_import_job(job_id: str) -> bool:
-    return _import_jobs.remove(job_id)
+    from app.interfaces.api.http.jobs.cancel import clear_import_cancel_state, request_import_cancel
+
+    # Ensure a running worker notices cancel even if the client only DELETEs the job.
+    request_import_cancel(job_id)
+    removed = _import_jobs.remove(job_id)
+    clear_import_cancel_state(job_id)
+    return removed
+
+
+def cancel_import_job(job_id: str) -> ImportRomaneioStatusResponse | None:
+    """Signal cancel + mark job stage without removing status (UI can show cancelled)."""
+    from app.interfaces.api.http.jobs.cancel import request_import_cancel
+
+    job = get_import_job(job_id)
+    if job is None:
+        return None
+    if str(getattr(job, "stage", "") or "") in {"completed", "error", "cancelled"}:
+        return job
+    request_import_cancel(job_id)
+    update_import_job(
+        job_id,
+        "cancelled",
+        message="Importacao cancelada pelo operador.",
+        error="Importação cancelada pelo operador.",
+        metrics={"cancelled_by_user": True, "failure_code": "cancelled"},
+    )
+    return get_import_job(job_id)
 
 
 def create_grade_job() -> GradeExtractionStatusResponse:

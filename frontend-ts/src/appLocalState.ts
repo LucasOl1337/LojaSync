@@ -39,7 +39,7 @@ export type TextInputDialogState = {
 };
 
 export const RECENT_IMPORT_HISTORY_KEY = "lojasync:recent-import-history";
-export const RECENT_IMPORT_HISTORY_LIMIT = 3;
+export const RECENT_IMPORT_HISTORY_LIMIT = 8;
 export const OPERATION_DIARY_KEY = "lojasync:operation-diary";
 export const OPERATION_DIARY_LIMIT = 120;
 export const PRODUCT_QUICK_FILTER_KEY = "lojasync:product-quick-filter";

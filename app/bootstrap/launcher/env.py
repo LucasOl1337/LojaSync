@@ -106,12 +106,23 @@ DEFAULT_LLM_BIND: str = os.getenv("LOJASYNC_LLM_BIND", "0.0.0.0")
 DEFAULT_BROWSER_HOST: str = os.getenv("LOJASYNC_BROWSER_HOST") or str(_param_value("BROWSER_OVERRIDE_HOST", "127.0.0.1"))
 
 PERFORMANCE_DEFAULTS: dict[str, str] = {
-    "LLM_DOC_CHUNK_CHARS": "16000",
+    # Prefer one-shot LLM on full document; only chunk above this size.
+    "LLM_ONESHOT_MAX_CHARS": "48000",
+    "LLM_DOC_CHUNK_CHARS": "48000",
     "LLM_INCLUDE_IMAGES_WITH_TEXT": "0",
     "PDF_RENDER_MAX_PAGES": "12",
     "PDF_RENDER_ZOOM": "1.5",
     "LLM_ROMANEIO_RETRY_VISION_MAX_PAGES": "4",
     "LLM_ROMANEIO_RETRY_VISION_ZOOM": "1.5",
+    # Kimi / import latency (highspeed path)
+    "KIMI_PDF_PREFER_TEXT": "1",
+    "KIMI_PDF_RENDER_DPI": "144",
+    "KIMI_VISION_MAX_PAGES": "8",
+    "KIMI_VISION_PAGE_SLICES": "1",
+    # Chunking only kicks in when document exceeds ONESHOT / DOC_CHUNK limits.
+    "LLM_STRUCTURED_ROWS_PER_CHUNK": "80",
+    "LLM_STRUCTURED_CHUNK_CHARS": "48000",
+    "LLM_IMAGE_BATCH_SIZE": "2",
 }
 
 TS_BUILD_INPUTS = (

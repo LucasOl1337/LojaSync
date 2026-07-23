@@ -84,3 +84,52 @@ export function moveOrderingKey(currentKeys: string[], orderingKey: string, dire
   next.splice(nextIndex, 0, item);
   return next;
 }
+
+export type OrderingDragPlacement = "before" | "after";
+
+/**
+ * Reorders a full key list by dragging `sourceKey` onto `targetKey`.
+ * Used by the optional drag addon while click-to-prioritize stays unchanged.
+ */
+export function reorderKeysByDrag(
+  currentKeys: string[],
+  sourceKey: string,
+  targetKey: string,
+  placement: OrderingDragPlacement = "before",
+) {
+  const source = String(sourceKey || "").trim();
+  const target = String(targetKey || "").trim();
+  if (!source || !target || source === target) {
+    return currentKeys;
+  }
+  if (!currentKeys.includes(source) || !currentKeys.includes(target)) {
+    return currentKeys;
+  }
+
+  const withoutSource = currentKeys.filter((key) => key !== source);
+  let targetIndex = withoutSource.indexOf(target);
+  if (targetIndex < 0) {
+    return currentKeys;
+  }
+  if (placement === "after") {
+    targetIndex += 1;
+  }
+  const next = [...withoutSource];
+  next.splice(targetIndex, 0, source);
+  return next;
+}
+
+/**
+ * Applies a drag onto the current draft using the same visual list the user sees
+ * (selected draft first, then remaining original keys).
+ */
+export function applyOrderingDrag(
+  originalKeys: string[],
+  draftKeys: string[],
+  sourceKey: string,
+  targetKey: string,
+  placement: OrderingDragPlacement = "before",
+) {
+  const fullKeys = buildFinalOrderingKeys(originalKeys, draftKeys);
+  return reorderKeysByDrag(fullKeys, sourceKey, targetKey, placement);
+}

@@ -1,9 +1,10 @@
-import type { CSSProperties, KeyboardEvent, RefObject } from "react";
+import type { CSSProperties, DragEvent, KeyboardEvent, RefObject } from "react";
 
 import type { EditingCellState } from "./appConfig";
 import { EditableProductCell } from "./editableProductCell";
 import type { EditableField } from "./productEditing";
 import { buildProductNameReviewBadges, buildProductReviewFieldStatus } from "./productFilters";
+import type { OrderingDragPlacement } from "./productOrdering";
 import type { Product } from "./types";
 
 type ProductTableRowProps = {
@@ -11,6 +12,10 @@ type ProductTableRowProps = {
   index: number;
   selectionPosition: number | undefined;
   orderingMode: boolean;
+  orderingDragEnabled: boolean;
+  orderingDragSourceKey: string | null;
+  orderingDragOverKey: string | null;
+  orderingDragPlacement: OrderingDragPlacement | null;
   isAutomationCurrentRow: boolean;
   automationTypedDescription: string | null;
   createSetMode: boolean;
@@ -28,15 +33,30 @@ type ProductTableRowProps = {
   onOrderingSelection: (orderingKey: string, options?: { allowRemove?: boolean }) => void;
   onCreateSetSelection: (orderingKey: string) => Promise<void>;
   onMoveOrderingItem: (orderingKey: string, direction: -1 | 1) => void;
+  onOrderingDragStart: (orderingKey: string) => void;
+  onOrderingDragOver: (orderingKey: string, placement: OrderingDragPlacement) => void;
+  onOrderingDragLeave: (orderingKey: string) => void;
+  onOrderingDrop: (sourceKey: string, targetKey: string, placement: OrderingDragPlacement) => void;
+  onOrderingDragEnd: () => void;
   onUseProductAsTemplate: (product: Product) => void;
   onDeleteProduct: (orderingKey: string) => Promise<void>;
 };
+
+function resolveDragPlacement(event: DragEvent<HTMLElement>): OrderingDragPlacement {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  const midpoint = bounds.top + bounds.height / 2;
+  return event.clientY < midpoint ? "before" : "after";
+}
 
 export function ProductTableRow({
   product,
   index,
   selectionPosition,
   orderingMode,
+  orderingDragEnabled,
+  orderingDragSourceKey,
+  orderingDragOverKey,
+  orderingDragPlacement,
   isAutomationCurrentRow,
   automationTypedDescription,
   createSetMode,
@@ -54,20 +74,28 @@ export function ProductTableRow({
   onOrderingSelection,
   onCreateSetSelection,
   onMoveOrderingItem,
+  onOrderingDragStart,
+  onOrderingDragOver,
+  onOrderingDragLeave,
+  onOrderingDrop,
+  onOrderingDragEnd,
   onUseProductAsTemplate,
   onDeleteProduct,
 }: ProductTableRowProps) {
   const reviewBadges = buildProductNameReviewBadges(product);
   const selectableRowActive = orderingMode || createSetMode;
   const selectedForMode = orderingMode ? Boolean(selectionPosition) : isCreateSetSelected;
+  const dragActive = orderingMode && orderingDragEnabled;
+  const isDragSource = dragActive && orderingDragSourceKey === product.ordering_key;
+  const isDragOver = dragActive && orderingDragOverKey === product.ordering_key && orderingDragSourceKey !== product.ordering_key;
   const rowTransitionName = `product-row-${product.ordering_key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
   const rowStyle = orderingMode
     ? ({ "--row-transition-name": rowTransitionName } as CSSProperties)
     : undefined;
   const rowModeLabel = orderingMode
       ? selectionPosition
-      ? `Linha ${index + 1}: ${product.nome}. Posição ${selectionPosition} na nova ordem. Pressione Shift Enter para remover.`
-      : `Linha ${index + 1}: ${product.nome}. Pressione Enter para adicionar à ordenação.`
+      ? `Linha ${index + 1}: ${product.nome}. Posição ${selectionPosition} na nova ordem. Pressione Shift Enter para remover.${dragActive ? " Arraste pela alça para reposicionar." : ""}`
+      : `Linha ${index + 1}: ${product.nome}. Pressione Enter para adicionar à ordenação.${dragActive ? " Arraste pela alça para definir a posição." : ""}`
     : createSetMode
       ? `Linha ${index + 1}: ${product.nome}. ${isCreateSetSelected ? "Selecionado para conjunto" : "Pressione Enter para selecionar para conjunto"}.`
       : undefined;
@@ -109,6 +137,10 @@ export function ProductTableRow({
         isCreateSetSelected ? "selectedRow" : "",
         orderingMode && selectionPosition ? "orderedRow" : "",
         isAutomationCurrentRow ? "automationCurrentRow" : "",
+        isDragSource ? "orderingDragSourceRow" : "",
+        isDragOver && orderingDragPlacement === "before" ? "orderingDragOverBefore" : "",
+        isDragOver && orderingDragPlacement === "after" ? "orderingDragOverAfter" : "",
+        dragActive ? "orderingDragEnabledRow" : "",
       ].filter(Boolean).join(" ")}
       tabIndex={selectableRowActive ? 0 : undefined}
       aria-label={rowModeLabel}
@@ -141,9 +173,72 @@ export function ProductTableRow({
 
         void onCreateSetSelection(product.ordering_key);
       }}
+      onDragOver={(event) => {
+        if (!dragActive || !orderingDragSourceKey || orderingDragSourceKey === product.ordering_key) {
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        onOrderingDragOver(product.ordering_key, resolveDragPlacement(event));
+      }}
+      onDragLeave={(event) => {
+        if (!dragActive) return;
+        const related = event.relatedTarget as Node | null;
+        if (related && event.currentTarget.contains(related)) {
+          return;
+        }
+        onOrderingDragLeave(product.ordering_key);
+      }}
+      onDrop={(event) => {
+        if (!dragActive) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const sourceKey = event.dataTransfer.getData("text/plain") || orderingDragSourceKey || "";
+        if (!sourceKey || sourceKey === product.ordering_key) {
+          onOrderingDragEnd();
+          return;
+        }
+        onOrderingDrop(sourceKey, product.ordering_key, resolveDragPlacement(event));
+      }}
     >
       <th className="rowIndexHeaderTs" scope="row" aria-label={`Linha ${index + 1}: ${product.nome}`}>
-        {orderingMode && selectionPosition ? selectionPosition : index + 1}
+        <div className="rowIndexCellStackTs">
+          {dragActive ? (
+            <button
+              className="orderingDragHandleTs"
+              type="button"
+              draggable
+              title="Arrastar para reordenar"
+              aria-label={`Arrastar ${product.nome} para reordenar`}
+              onClick={(event) => event.stopPropagation()}
+              onDragStart={(event) => {
+                event.stopPropagation();
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", product.ordering_key);
+                try {
+                  event.dataTransfer.setData("application/x-lojasync-ordering-key", product.ordering_key);
+                } catch {
+                  // Some browsers only allow a single payload type in tests/edge cases.
+                }
+                onOrderingDragStart(product.ordering_key);
+              }}
+              onDragEnd={(event) => {
+                event.stopPropagation();
+                onOrderingDragEnd();
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="9" cy="6" r="1.6" />
+                <circle cx="15" cy="6" r="1.6" />
+                <circle cx="9" cy="12" r="1.6" />
+                <circle cx="15" cy="12" r="1.6" />
+                <circle cx="9" cy="18" r="1.6" />
+                <circle cx="15" cy="18" r="1.6" />
+              </svg>
+            </button>
+          ) : null}
+          <span>{orderingMode && selectionPosition ? selectionPosition : index + 1}</span>
+        </div>
       </th>
       <td>
         <div className="nameCellStack">

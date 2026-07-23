@@ -9,6 +9,7 @@ import {
   buildWsUrl,
   captureAutomationTarget,
   clearProducts,
+  cancelImportJob,
   cleanupImportJob,
   createProduct,
   createSet,
@@ -23,16 +24,19 @@ import {
   fetchImportResult,
   fetchRuntimeHealth,
   importRomaneioLocalExperiment,
+  fetchAppearance,
   fetchMargin,
   fetchProducts,
   fetchTotals,
   fetchUndoRedoHistory,
+  saveAppearance,
   formatCodes,
   improveDescriptions,
   importRomaneio,
   joinDuplicates,
   joinGrades,
   patchProduct,
+  reapplyImportToCatalog,
   reorderProducts,
   redoHistorySnapshot,
   recordUndoSnapshot,
@@ -120,6 +124,8 @@ import {
   formatCaughtErrorMessage,
   formatCurrency,
   formatDuration,
+  formatImportMoneyLabel,
+  formatImportSourceDisplayName,
   formatJsonBlock,
   formatTargetPoint,
   formatTimestamp,
@@ -153,22 +159,49 @@ import { useNoticeCenter } from "./appNotifications";
 import { ImportStagePanel } from "./importStagePanel";
 import { ImportWorkspacePanel } from "./importWorkspacePanel";
 import {
+  clearActiveConference,
+  deleteImportSession,
+  getImportSession,
+  loadActiveConferenceDocuments,
+  persistStagedDocuments,
+  sessionToStagedDocument,
+  setActiveConferenceIds,
+} from "./importSessionStore";
+import {
   buildAutomaticImportLayout,
   createStagedImportDocuments,
   extractImportFailureReasons,
   type StagedImportDocument,
 } from "./importWorkspace";
-import { ProductEntryPanel } from "./productEntryPanel";
+
 import { CatalogQuickEntryPanel } from "./catalogQuickEntryPanel";
 import { CatalogActionDock } from "./catalogActionDock";
 import { OperationalSummaryPanel } from "./operationalSummaryPanel";
 import { OperationalHealthPanel } from "./operationalHealthPanel";
 import { CatalogOverviewPanel } from "./catalogOverviewPanel";
+import { SidebarSectionPanel } from "./sidebarSectionPanel";
 import { ExecutionCenterPanel } from "./executionCenterPanel";
 import { GradeModal } from "./gradeModal";
 import { ProductListControls } from "./productListControls";
+import { parseBrandBulkText } from "./productListToolPanels";
 import { ProductTable } from "./productTable";
 import { SettingsModal } from "./settingsModal";
+import {
+  applyShellWallpaper,
+  clearPersonalWallpaper,
+  DEFAULT_WALLPAPER,
+  resolveActiveBrightness,
+  resolveActiveWallpaper,
+  setAppDefaultCache,
+  setPersonalWallpaper,
+} from "./shellAppearance";
+import {
+  ensureProfessionalThemePreset,
+  readThemeColors,
+  readThemeOpacities,
+  type ThemeColors,
+  type ThemeOpacities,
+} from "./shellTheme";
 import { ConfirmationDialog } from "./confirmationDialog";
 import { MarginDialog } from "./marginDialog";
 import { TextInputDialog } from "./textInputDialog";
@@ -176,25 +209,27 @@ import { NoticeDialog } from "./noticeDialog";
 import { NoticeToastStack } from "./noticeToastStack";
 import { HistoryPanel } from "./historyPanel";
 import { getGlobalUndoRedoAction } from "./keyboardShortcuts";
-import { buildProductCsv, buildProductCsvFilename } from "./productExport";
+
 import { buildProductTemplatePayload } from "./productTemplate";
 import { buildCatalogOverview } from "./catalogOverview";
 import { buildUsageAnalytics } from "./usageAnalytics";
 import {
   buildDisplayedProducts,
+  applyOrderingDrag,
   buildFinalOrderingKeys,
   buildOrderingKeys,
   buildOrderingSelectionIndex,
   moveOrderingKey,
   sanitizeOrderingDraft,
   toggleOrderingKey,
+  type OrderingDragPlacement,
 } from "./productOrdering";
 
 type AppProps = {
   authSession?: AuthSessionResponse | null;
 };
 
-type WorkspaceId = "overview" | "catalog" | "import" | "execution" | "history";
+type WorkspaceId = "overview" | "catalog" | "import" | "execution" | "history" | "settings";
 
 const WORKSPACES: Array<{ id: WorkspaceId; label: string; shortLabel: string; eyebrow: string }> = [
   { id: "catalog", label: "Catálogo", shortLabel: "Catálogo", eyebrow: "Produtos locais" },
@@ -202,6 +237,7 @@ const WORKSPACES: Array<{ id: WorkspaceId; label: string; shortLabel: string; ey
   { id: "execution", label: "Execução", shortLabel: "Executar", eyebrow: "Automação Windows" },
   { id: "overview", label: "Visão geral", shortLabel: "Visão", eyebrow: "Operação do catálogo" },
   { id: "history", label: "Histórico", shortLabel: "Histórico", eyebrow: "Controle reversível" },
+  { id: "settings", label: "Configurações", shortLabel: "Config", eyebrow: "Preferências do app" },
 ];
 
 function readInitialWorkspace(): WorkspaceId {
@@ -219,6 +255,7 @@ function WorkspaceIcon({ id }: { id: WorkspaceId }) {
   if (id === "catalog") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M9 10v9" /></svg>;
   if (id === "import") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg>;
   if (id === "execution") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" /></svg>;
+  if (id === "settings") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.12.61.6 1.08 1.21 1.17H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v5l3 2" /></svg>;
 }
 
@@ -261,10 +298,16 @@ export default function App({ authSession = null }: AppProps) {
   const [globalEditMode, setGlobalEditMode] = useState(false);
   const [orderingMode, setOrderingMode] = useState(() => readInitialOrderingDraft().length > 0);
   const [orderingDraftKeys, setOrderingDraftKeys] = useState<string[]>(readInitialOrderingDraft);
+  const [orderingDragEnabled, setOrderingDragEnabled] = useState(false);
+  const [orderingDragSourceKey, setOrderingDragSourceKey] = useState<string | null>(null);
+  const [orderingDragOverKey, setOrderingDragOverKey] = useState<string | null>(null);
+  const [orderingDragPlacement, setOrderingDragPlacement] = useState<OrderingDragPlacement | null>(null);
   const [createSetMode, setCreateSetMode] = useState(false);
   const [createSetKeys, setCreateSetKeys] = useState<string[]>([]);
   const [showFormatCodesPanel, setShowFormatCodesPanel] = useState(false);
   const [showDescriptionPanel, setShowDescriptionPanel] = useState(false);
+  const [showBrandsPanel, setShowBrandsPanel] = useState(false);
+  const [bulkBrandText, setBulkBrandText] = useState("");
   const [editingCell, setEditingCell] = useState<EditingCellState | null>(null);
   const [formatCodesOptions, setFormatCodesOptions] = useState({
     remover_primeiros_numeros: "",
@@ -279,9 +322,16 @@ export default function App({ authSession = null }: AppProps) {
   const [importDocuments, setImportDocuments] = useState<StagedImportDocument[]>([]);
   const [activeImportDocumentId, setActiveImportDocumentId] = useState<string | null>(null);
   const [importJob, setImportJob] = useState<ImportStatus | null>(null);
+  const [importSessionStartedAt, setImportSessionStartedAt] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [localExperimentLoading, setLocalExperimentLoading] = useState(false);
+  const [reopeningImportId, setReopeningImportId] = useState<string | null>(null);
+  const [importAborting, setImportAborting] = useState(false);
+  const importConferenceRestoreDoneRef = useRef(false);
+  const importConferenceHydratingRef = useRef(false);
+  const importAbortControllerRef = useRef<AbortController | null>(null);
+  const activeImportJobIdRef = useRef<string | null>(null);
   const [automationError, setAutomationError] = useState<string | null>(null);
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [gradeModalError, setGradeModalError] = useState<string | null>(null);
@@ -330,6 +380,13 @@ export default function App({ authSession = null }: AppProps) {
   const [settingsContextText, setSettingsContextText] = useState("");
   const [settingsCaptureLabel, setSettingsCaptureLabel] = useState<string | null>(null);
   const [settingsCaptureCountdown, setSettingsCaptureCountdown] = useState<number | null>(null);
+  const [settingsAppearanceWallpaper, setSettingsAppearanceWallpaper] = useState(DEFAULT_WALLPAPER);
+  const [settingsAppearanceBrightness, setSettingsAppearanceBrightness] = useState(0.9);
+  const [themeColors, setThemeColors] = useState<ThemeColors>(() => {
+    ensureProfessionalThemePreset();
+    return readThemeColors();
+  });
+  const [themeOpacities, setThemeOpacities] = useState<ThemeOpacities>(() => readThemeOpacities());
   const [confirmationDialog, setConfirmationDialog] = useState<ConfirmationDialogState | null>(null);
   const [confirmationBusy, setConfirmationBusy] = useState(false);
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
@@ -409,6 +466,55 @@ export default function App({ authSession = null }: AppProps) {
     if (nextFilter === productQuickFilter) return;
     setProductQuickFilter(saveProductQuickFilter(nextFilter));
   }, [orderedProducts.length, productQuickFilter, productQuickFilterOptions]);
+
+  // Restore open import conference after hard refresh (explicit close clears active sessions).
+  useEffect(() => {
+    if (importConferenceRestoreDoneRef.current) return;
+    importConferenceRestoreDoneRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const restored = await loadActiveConferenceDocuments();
+        if (cancelled || !restored.length) return;
+        importConferenceHydratingRef.current = true;
+        setImportDocuments(restored);
+        const latestSucceeded = [...restored].reverse().find((document) => document.state === "succeeded" && document.result);
+        const latestFailed = [...restored].reverse().find((document) => document.state === "failed");
+        if (latestSucceeded?.result) {
+          setImportResult(latestSucceeded.result);
+          setImportJob(latestSucceeded.status);
+          setImportError(null);
+          importFileNameRef.current = latestSucceeded.file.name;
+          setActiveImportDocumentId(latestSucceeded.id);
+        } else if (latestFailed) {
+          setImportResult(null);
+          setImportJob(latestFailed.status);
+          setImportError(latestFailed.error || latestFailed.errorReasons[0] || "Importação bloqueada.");
+          importFileNameRef.current = latestFailed.file.name;
+          setActiveImportDocumentId(latestFailed.id);
+        }
+        window.setTimeout(() => {
+          importConferenceHydratingRef.current = false;
+        }, 0);
+      } catch {
+        importConferenceHydratingRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Keep conference snapshots durable while notes stay open.
+  useEffect(() => {
+    if (!importConferenceRestoreDoneRef.current || importConferenceHydratingRef.current) return;
+    const timer = window.setTimeout(() => {
+      void persistStagedDocuments(importDocuments, { markActive: true }).catch(() => {
+        /* optional cache */
+      });
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [importDocuments]);
 
   const handleCatalogFilterSelect = (filter: ProductQuickFilter) => {
     setProductQuickFilter(saveProductQuickFilter(filter));
@@ -614,6 +720,7 @@ export default function App({ authSession = null }: AppProps) {
       selectedFileName: options?.selectedFileName ?? importFileNameRef.current,
       mode: options?.mode,
     });
+    entry.canReopen = true;
     setRecentImports((current) => {
       const next = updateRecentImportHistory(current, entry, RECENT_IMPORT_HISTORY_LIMIT);
       saveRecentImportHistory(next);
@@ -721,6 +828,30 @@ export default function App({ authSession = null }: AppProps) {
     };
 
     void loadAutomationTargets();
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    const loadAppearance = async () => {
+      try {
+        const payload = await fetchAppearance();
+        if (disposed) return;
+        setAppDefaultCache({
+          defaultWallpaper: payload.defaultWallpaper,
+          defaultBrightness: payload.defaultBrightness,
+          wallpapers: payload.wallpapers,
+        });
+        applyShellWallpaper();
+        setSettingsAppearanceWallpaper(resolveActiveWallpaper());
+        setSettingsAppearanceBrightness(resolveActiveBrightness(resolveActiveWallpaper()));
+      } catch {
+        applyShellWallpaper();
+      }
+    };
+    void loadAppearance();
     return () => {
       disposed = true;
     };
@@ -1040,7 +1171,13 @@ export default function App({ authSession = null }: AppProps) {
 
   const resetListModes = (keep?: Partial<Record<"globalEdit" | "ordering" | "createSet", boolean>>) => {
     if (!keep?.globalEdit) setGlobalEditMode(false);
-    if (!keep?.ordering) setOrderingMode(false);
+    if (!keep?.ordering) {
+      setOrderingMode(false);
+      setOrderingDragEnabled(false);
+      setOrderingDragSourceKey(null);
+      setOrderingDragOverKey(null);
+      setOrderingDragPlacement(null);
+    }
     if (!keep?.createSet) setCreateSetMode(false);
   };
 
@@ -1100,49 +1237,111 @@ export default function App({ authSession = null }: AppProps) {
     const targetIds = new Set(documents.map((document) => document.id));
     let succeededCount = 0;
     let failedCount = 0;
+    let cancelledCount = 0;
     let totalItems = 0;
+    const abortController = new AbortController();
+    importAbortControllerRef.current = abortController;
+    activeImportJobIdRef.current = null;
+    setImportAborting(false);
     setImportError(null);
     setImportResult(null);
     setImportJob(null);
+    setImportSessionStartedAt(Math.floor(Date.now() / 1000));
     setImportDocuments((current) => current.map((document) => targetIds.has(document.id)
       ? { ...document, state: "queued", importMode: mode, status: null, result: null, error: null, errorReasons: [] }
       : document));
     if (mode === "llm") setImporting(true);
     else setLocalExperimentLoading(true);
 
+    const isAbortError = (error: unknown) =>
+      (error instanceof DOMException && error.name === "AbortError")
+      || (error instanceof Error && /interrompida|abort|cancel/i.test(error.message));
+
     try {
       await pushUndoSnapshot();
       for (const document of documents) {
+        if (abortController.signal.aborted) {
+          cancelledCount += 1;
+          updateImportDocument(document.id, {
+            state: "failed",
+            importMode: mode,
+            error: "Importação cancelada.",
+            errorReasons: ["Importação cancelada pelo operador."],
+          });
+          continue;
+        }
         setActiveImportDocumentId(document.id);
         importFileNameRef.current = document.file.name;
         updateImportDocument(document.id, { state: "processing", importMode: mode, error: null, errorReasons: [] });
         try {
           if (mode === "local") {
-            const result = await importRomaneioLocalExperiment(document.file);
+            const result = await importRomaneioLocalExperiment(document.file, { signal: abortController.signal });
             setImportResult(result);
-            updateImportDocument(document.id, { state: "succeeded", importMode: mode, result });
+            const historyEntry = rememberImportHistory(result, { mode: "local", selectedFileName: document.file.name });
+            const nextDocument: StagedImportDocument = {
+              ...document,
+              id: historyEntry.id,
+              state: "succeeded",
+              importMode: mode,
+              result,
+              status: null,
+              error: null,
+              errorReasons: [],
+            };
+            setImportDocuments((current) => current.map((item) => (item.id === document.id ? nextDocument : item)));
+            setActiveImportDocumentId(historyEntry.id);
             succeededCount += 1;
             totalItems += Number(result.total_itens || 0);
-            const historyEntry = rememberImportHistory(result, { mode: "local", selectedFileName: document.file.name });
             rememberOperationDiary({ kind: "import", title: "Leitura local concluída", detail: historyEntry.sourceName, tone: historyEntry.warningCount ? "warning" : "success", occurredAt: historyEntry.completedAt, meta: [historyEntry.mode, `${historyEntry.totalItems} itens`, historyEntry.validationStatus] });
             await refreshAfterLocalImport(result);
           } else {
             const started = await importRomaneio(document.file);
+            activeImportJobIdRef.current = started.job_id;
             let terminalStatus: ImportStatus | null = null;
             try {
               terminalStatus = await waitForImportJob(started.job_id, {
+                signal: abortController.signal,
                 onStatus: (status) => {
                   setImportJob(status);
                   updateImportDocument(document.id, { status });
                 },
               });
-              if (terminalStatus.stage === "completed") {
+              if (terminalStatus.stage === "cancelled") {
+                cancelledCount += 1;
+                const message = "Importação cancelada pelo operador.";
+                updateImportDocument(document.id, {
+                  state: "failed",
+                  importMode: mode,
+                  status: terminalStatus,
+                  error: message,
+                  errorReasons: [message],
+                });
+                setImportError(message);
+                rememberOperationDiary({
+                  kind: "import",
+                  title: "Importação cancelada",
+                  detail: document.file.name,
+                  tone: "warning",
+                  meta: [document.file.name, "IA"],
+                });
+              } else if (terminalStatus.stage === "completed") {
                 const result = await fetchImportResult(started.job_id);
                 setImportResult(result);
-                updateImportDocument(document.id, { state: "succeeded", importMode: mode, status: terminalStatus, result });
+                const historyEntry = rememberImportHistory(result, { job: terminalStatus, mode: "llm", selectedFileName: document.file.name });
+                const nextDocument: StagedImportDocument = {
+                  ...document,
+                  id: historyEntry.id,
+                  state: "succeeded",
+                  importMode: mode,
+                  status: terminalStatus,
+                  result,
+                  error: null,
+                  errorReasons: [],
+                };
+                setImportDocuments((current) => current.map((item) => (item.id === document.id ? nextDocument : item)));
+                setActiveImportDocumentId(historyEntry.id);
                 succeededCount += 1;
                 totalItems += Number(result.total_itens || 0);
-                const historyEntry = rememberImportHistory(result, { job: terminalStatus, mode: "llm", selectedFileName: document.file.name });
                 rememberOperationDiary({ kind: "import", title: "Importação concluída", detail: historyEntry.sourceName, tone: historyEntry.warningCount ? "warning" : "success", occurredAt: historyEntry.completedAt, meta: [historyEntry.mode, `${historyEntry.totalItems} itens`, historyEntry.validationStatus] });
                 const gradesMessage = buildImportGradesAvailableMessage(result);
                 if (gradesMessage) showNoticeDialog({ title: "Grades detectadas", message: gradesMessage, tone: "info" });
@@ -1155,12 +1354,34 @@ export default function App({ authSession = null }: AppProps) {
                 rememberOperationDiary({ kind: "import", title: "Falha na importação", detail: reasons.join(" ") || message, tone: "error", occurredAt: Number(terminalStatus.updated_at || 0) * 1000 || Date.now(), meta: [document.file.name] });
               }
             } finally {
-              if (terminalStatus?.stage === "completed" || terminalStatus?.stage === "error") {
+              if (terminalStatus?.stage === "completed" || terminalStatus?.stage === "error" || terminalStatus?.stage === "cancelled") {
                 try { await cleanupImportJob(started.job_id); } catch { /* terminal diagnostics stay visible */ }
+              }
+              if (activeImportJobIdRef.current === started.job_id) {
+                activeImportJobIdRef.current = null;
               }
             }
           }
         } catch (error) {
+          if (isAbortError(error) || abortController.signal.aborted) {
+            cancelledCount += 1;
+            const message = "Importação cancelada pelo operador.";
+            updateImportDocument(document.id, {
+              state: "failed",
+              importMode: mode,
+              error: message,
+              errorReasons: [message],
+            });
+            setImportError(message);
+            rememberOperationDiary({
+              kind: "import",
+              title: "Importação cancelada",
+              detail: document.file.name,
+              tone: "warning",
+              meta: [document.file.name, mode === "local" ? "Leitura local" : "IA"],
+            });
+            break;
+          }
           const message = formatCaughtErrorMessage(error, mode === "local" ? "Falha ao importar com leitura local." : "Falha ao iniciar importação.");
           updateImportDocument(document.id, { state: "failed", importMode: mode, error: message, errorReasons: [message] });
           failedCount += 1;
@@ -1168,26 +1389,65 @@ export default function App({ authSession = null }: AppProps) {
           rememberOperationDiary({ kind: "import", title: mode === "local" ? "Falha na leitura local" : "Falha na importação", detail: message, tone: "error", meta: [document.file.name] });
         }
       }
-      const batchTotal = succeededCount + failedCount;
-      const batchMessage = failedCount
-        ? succeededCount
-          ? `${succeededCount} de ${batchTotal} documentos importados. ${failedCount} documento${failedCount === 1 ? " foi bloqueado" : "s foram bloqueados"}.`
-          : "Nenhum documento foi importado. Revise os motivos no painel."
-        : `${succeededCount} de ${batchTotal} documentos importados — ${totalItems} itens.`;
-      rememberOperationDiary({
-        kind: "import",
-        title: failedCount ? (succeededCount ? "Lote importado parcialmente" : "Lote de importação bloqueado") : "Lote de importação concluído",
-        detail: batchMessage,
-        tone: failedCount ? (succeededCount ? "warning" : "error") : "success",
-        meta: [mode === "local" ? "Leitura local" : "IA", `${totalItems} itens`],
-      });
-      setImportError(failedCount ? batchMessage : null);
-      queueRefresh(["products", "totals", "brands"]);
+      const batchTotal = succeededCount + failedCount + cancelledCount;
+      if (cancelledCount && !succeededCount && !failedCount) {
+        rememberOperationDiary({
+          kind: "import",
+          title: "Importação cancelada",
+          detail: "O operador abortou a importação antes de concluir.",
+          tone: "warning",
+          meta: [mode === "local" ? "Leitura local" : "IA"],
+        });
+      } else {
+        const batchMessage = failedCount || cancelledCount
+          ? succeededCount
+            ? `${succeededCount} de ${batchTotal} documentos importados. ${failedCount + cancelledCount} não concluídos.`
+            : cancelledCount
+              ? "Importação cancelada pelo operador."
+              : "Nenhum documento foi importado. Revise os motivos no painel."
+          : `${succeededCount} de ${batchTotal} documentos importados — ${totalItems} itens.`;
+        rememberOperationDiary({
+          kind: "import",
+          title: cancelledCount && !failedCount
+            ? (succeededCount ? "Lote importado parcialmente" : "Importação cancelada")
+            : failedCount
+              ? (succeededCount ? "Lote importado parcialmente" : "Lote de importação bloqueado")
+              : "Lote de importação concluído",
+          detail: batchMessage,
+          tone: failedCount ? (succeededCount ? "warning" : "error") : cancelledCount ? "warning" : "success",
+          meta: [mode === "local" ? "Leitura local" : "IA", `${totalItems} itens`],
+        });
+        setImportError(failedCount || cancelledCount ? batchMessage : null);
+      }
+      if (succeededCount) queueRefresh(["products", "totals", "brands"]);
     } finally {
       setActiveImportDocumentId(null);
       setImporting(false);
       setLocalExperimentLoading(false);
+      setImportSessionStartedAt(null);
+      setImportAborting(false);
+      importAbortControllerRef.current = null;
+      activeImportJobIdRef.current = null;
     }
+  };
+
+  const handleAbortImport = async () => {
+    if (importAborting) return;
+    if (!importing && !localExperimentLoading) return;
+    setImportAborting(true);
+    const jobId = activeImportJobIdRef.current;
+    importAbortControllerRef.current?.abort();
+    if (jobId) {
+      try {
+        await cancelImportJob(jobId);
+      } catch {
+        try { await cleanupImportJob(jobId); } catch { /* best effort */ }
+      }
+    }
+    setImportJob((current) => current
+      ? { ...current, stage: "cancelled", message: "Importação cancelada pelo operador.", error: "Importação cancelada pelo operador." }
+      : current);
+    setImportError("Importação cancelada pelo operador.");
   };
 
   const handleImportPrimaryClick = () => {
@@ -1243,13 +1503,249 @@ export default function App({ authSession = null }: AppProps) {
     setImportDocuments(documents);
   };
 
+  const clearImportConferenceFeedback = () => {
+    setImportResult(null);
+    setImportJob(null);
+    setImportError(null);
+    setActiveImportDocumentId(null);
+    importFileNameRef.current = null;
+  };
+
+  const syncImportFeedbackFromDocuments = (documents: StagedImportDocument[]) => {
+    if (!documents.length) {
+      clearImportConferenceFeedback();
+      return;
+    }
+    const latestSucceeded = [...documents].reverse().find((document) => document.state === "succeeded" && document.result);
+    const latestFailed = [...documents].reverse().find((document) => document.state === "failed");
+    if (latestSucceeded?.result) {
+      setImportResult(latestSucceeded.result);
+      setImportJob(latestSucceeded.status);
+      setImportError(null);
+      importFileNameRef.current = latestSucceeded.file.name;
+      return;
+    }
+    if (latestFailed) {
+      setImportResult(null);
+      setImportJob(latestFailed.status);
+      setImportError(latestFailed.error || latestFailed.errorReasons[0] || "Importação bloqueada.");
+      importFileNameRef.current = latestFailed.file.name;
+      return;
+    }
+    clearImportConferenceFeedback();
+  };
+
   const handleRemoveImportDocument = (documentId: string) => {
     if (importing || localExperimentLoading) return;
-    setImportDocuments((current) => {
-      const next = current.filter((document) => document.id !== documentId);
-      const layout = buildAutomaticImportLayout(next.length);
-      return next.map((document, index) => ({ ...document, rect: layout[index], zIndex: index + 1 }));
+    const next = importDocuments.filter((document) => document.id !== documentId);
+    const layout = buildAutomaticImportLayout(next.length);
+    const relayout = next.map((document, index) => ({ ...document, rect: layout[index], zIndex: index + 1 }));
+    setImportDocuments(relayout);
+    // Closing a note frees the visual conference without F5. Catalog products stay saved.
+    syncImportFeedbackFromDocuments(relayout);
+  };
+
+  const handleClearImportConference = () => {
+    if (importing || localExperimentLoading) return;
+    setImportDocuments([]);
+    clearImportConferenceFeedback();
+    void clearActiveConference().catch(() => {
+      /* optional */
     });
+  };
+
+  const applyRestoredImportDocument = (document: StagedImportDocument) => {
+    setImportDocuments([document]);
+    setActiveImportDocumentId(document.id);
+    importFileNameRef.current = document.file.name;
+    if (document.result) {
+      setImportResult(document.result);
+      setImportJob(document.status);
+      setImportError(null);
+    } else if (document.error) {
+      setImportResult(null);
+      setImportJob(document.status);
+      setImportError(document.error);
+    } else {
+      setImportResult(null);
+      setImportJob(document.status);
+      setImportError(null);
+    }
+    void setActiveConferenceIds([document.id]).catch(() => {
+      /* optional */
+    });
+  };
+
+  const handleReopenRecentImport = async (entryId: string) => {
+    if (importing || localExperimentLoading || reopeningImportId) return;
+    setReopeningImportId(entryId);
+    try {
+      const session = await getImportSession(entryId);
+      if (!session?.fileBlob) {
+        showErrorNotice(
+          "Sessão indisponível",
+          "Não encontrei o arquivo desta importação neste navegador. Importe o romaneio de novo para reabrir a conferência.",
+        );
+        setRecentImports((current) => {
+          const next = current.map((entry) => (entry.id === entryId ? { ...entry, canReopen: false } : entry));
+          saveRecentImportHistory(next);
+          return next;
+        });
+        return;
+      }
+      const document = sessionToStagedDocument(session);
+      applyRestoredImportDocument(document);
+      navigateWorkspace("import");
+      showNoticeDialog({
+        title: "Importação reaberta",
+        message: `${document.file.name} voltou para a conferência com o resultado da extração.`,
+        tone: "success",
+      });
+    } catch (error) {
+      showErrorNotice("Falha ao reabrir", formatCaughtErrorMessage(error, "Não foi possível reabrir a importação."));
+    } finally {
+      setReopeningImportId(null);
+    }
+  };
+
+  const handleDeleteRecentImport = async (entryId: string) => {
+    if (reopeningImportId) return;
+    const entry = recentImports.find((item) => item.id === entryId);
+    const label = formatImportSourceDisplayName(entry?.sourceName || entryId);
+    const confirmed = window.confirm(
+      `Excluir permanentemente do histórico?\n\n${label}\n\nIsso apaga o registro e a sessão salva neste navegador (arquivo + extração). Não remove produtos já gravados no catálogo.`,
+    );
+    if (!confirmed) return;
+    setReopeningImportId(entryId);
+    try {
+      await deleteImportSession(entryId);
+      setRecentImports((current) => {
+        const next = current.filter((item) => item.id !== entryId);
+        saveRecentImportHistory(next);
+        return next;
+      });
+      // If the deleted session is open in conference, clear it (only when not mid-import of another file).
+      if (!importing && !localExperimentLoading) {
+        setImportDocuments((current) => {
+          const next = current.filter((document) => document.id !== entryId);
+          if (next.length !== current.length) {
+            setActiveImportDocumentId(next[0]?.id || null);
+            if (!next.length) {
+              setImportResult(null);
+              setImportJob(null);
+              importFileNameRef.current = null;
+              void clearActiveConference().catch(() => {
+                /* optional */
+              });
+            }
+          }
+          return next;
+        });
+      }
+      showNoticeDialog({
+        title: "Histórico atualizado",
+        message: `${label} foi removido do histórico deste navegador.`,
+        tone: "success",
+      });
+    } catch (error) {
+      showErrorNotice("Falha ao excluir", formatCaughtErrorMessage(error, "Não foi possível excluir do histórico."));
+    } finally {
+      setReopeningImportId(null);
+    }
+  };
+
+  const handleClearImportHistory = async () => {
+    if (reopeningImportId) return;
+    if (!recentImports.length) return;
+    const confirmed = window.confirm(
+      `Limpar todo o histórico de importações (${recentImports.length})?\n\nApaga registros e sessões salvas neste navegador. Não remove produtos do catálogo.`,
+    );
+    if (!confirmed) return;
+    setReopeningImportId("__clear_all__");
+    try {
+      for (const entry of recentImports) {
+        await deleteImportSession(entry.id);
+      }
+      setRecentImports([]);
+      saveRecentImportHistory([]);
+      if (!importing && !localExperimentLoading) {
+        setImportDocuments([]);
+        setActiveImportDocumentId(null);
+        setImportResult(null);
+        setImportJob(null);
+        importFileNameRef.current = null;
+        void clearActiveConference().catch(() => {
+          /* optional */
+        });
+      }
+      showNoticeDialog({
+        title: "Histórico limpo",
+        message: "Todas as importações recentes foram removidas deste navegador.",
+        tone: "success",
+      });
+    } catch (error) {
+      showErrorNotice("Falha ao limpar histórico", formatCaughtErrorMessage(error, "Não foi possível limpar o histórico."));
+    } finally {
+      setReopeningImportId(null);
+    }
+  };
+
+  const handleResendRecentImport = async (entryId: string) => {
+    if (importing || localExperimentLoading || reopeningImportId) return;
+    setReopeningImportId(entryId);
+    try {
+      const session = await getImportSession(entryId);
+      const processed = session?.result;
+      const hasProcessedContent = Boolean(
+        String(processed?.content || "").trim() || String(processed?.local_file || "").trim(),
+      );
+      if (!session || !processed || !hasProcessedContent) {
+        showErrorNotice(
+          "Resultado processado indisponível",
+          "Não encontrei o resultado já processado desta importação. Use Reabrir para conferir, ou importe o romaneio de novo se a sessão expirou.",
+        );
+        return;
+      }
+
+      await pushUndoSnapshot();
+      const reapplied = await reapplyImportToCatalog({
+        content: processed.content,
+        local_file: processed.local_file,
+        source_name: session.sourceName || session.fileName,
+        import_mode: session.importMode || (String(session.mode || "").toLowerCase().includes("local") ? "local" : "llm"),
+        grades_disponiveis: Boolean(processed.grades_disponiveis || session.gradesAvailable),
+      });
+
+      rememberImportHistory(reapplied, {
+        mode: session.importMode === "local" ? "local" : "llm",
+        selectedFileName: session.sourceName || session.fileName,
+      });
+
+      // Keep conference with the already-processed snapshot; never re-run LLM/local scan.
+      if (session.fileBlob) {
+        const document = sessionToStagedDocument(session);
+        applyRestoredImportDocument(document);
+      }
+
+      rememberOperationDiary({
+        kind: "import",
+        title: "Reenviado ao catálogo",
+        detail: `${session.sourceName || session.fileName} — ${reapplied.total_itens} itens do resultado processado (sem nova leitura IA).`,
+        tone: "success",
+        meta: ["reapply", `${reapplied.total_itens} itens`],
+      });
+      queueRefresh(["products", "totals", "brands"]);
+      navigateWorkspace("catalog");
+      showNoticeDialog({
+        title: "Enviado ao catálogo",
+        message: `${reapplied.total_itens} item(ns) reaplicados a partir do resultado já processado — sem nova leitura por IA.`,
+        tone: "success",
+      });
+    } catch (error) {
+      showErrorNotice("Falha ao reenviar", formatCaughtErrorMessage(error, "Não foi possível reenviar a importação ao catálogo."));
+    } finally {
+      setReopeningImportId(null);
+    }
   };
 
   const handleRetryFailedImports = () => {
@@ -1336,9 +1832,10 @@ export default function App({ authSession = null }: AppProps) {
     }
   };
 
-  const submitBrand = async () => {
+  const submitBrand = async (options?: { applyToProducts?: boolean }) => {
     if (!newBrand.trim()) return;
     const normalized = newBrand.trim();
+    const applyToProducts = options?.applyToProducts ?? !showBrandsPanel;
     try {
       const result = await addBrand(normalized);
       setNewBrand("");
@@ -1347,6 +1844,15 @@ export default function App({ authSession = null }: AppProps) {
       startTransition(() => {
         setState((current) => ({ ...current, brands: result.marcas }));
       });
+      if (!applyToProducts) {
+        queueRefresh(["brands"]);
+        showNoticeDialog({
+          title: "Marca cadastrada",
+          message: `“${normalized}” entrou na lista de marcas.`,
+          tone: "success",
+        });
+        return;
+      }
       await pushUndoSnapshot();
       const applied = await applyBrand(normalized, visibleBulkActionKeys);
       rememberProductOperation({
@@ -1359,6 +1865,49 @@ export default function App({ authSession = null }: AppProps) {
       queueRefresh(["products", "totals", "brands"]);
     } catch (error) {
       showErrorNotice("Falha ao adicionar marca", formatCaughtErrorMessage(error, "Falha ao adicionar marca."));
+    }
+  };
+
+  const handleAddBrandsBulk = async () => {
+    const names = parseBrandBulkText(bulkBrandText);
+    if (!names.length) {
+      showNoticeDialog({
+        title: "Nada para cadastrar",
+        message: "Informe pelo menos uma marca (uma por linha ou separadas por vírgula).",
+        tone: "warning",
+      });
+      return;
+    }
+    try {
+      const existing = new Set(state.brands.map((item) => item.toLocaleLowerCase("pt-BR")));
+      let latest = state.brands;
+      let added = 0;
+      for (const name of names) {
+        const key = name.toLocaleLowerCase("pt-BR");
+        if (existing.has(key)) continue;
+        const result = await addBrand(name);
+        latest = result.marcas;
+        existing.add(key);
+        added += 1;
+      }
+      setBulkBrandText("");
+      if (latest[latest.length - 1]) {
+        setBulkBrandValue(names[names.length - 1] || latest[latest.length - 1] || "");
+      }
+      startTransition(() => {
+        setState((current) => ({ ...current, brands: latest }));
+      });
+      queueRefresh(["brands"]);
+      const skipped = names.length - added;
+      showNoticeDialog({
+        title: added ? "Marcas cadastradas" : "Nenhuma marca nova",
+        message: added
+          ? `Cadastradas: ${added}${skipped ? `\nJá existiam: ${skipped}` : ""}\nTotal na lista: ${latest.length}`
+          : `As ${names.length} marca${names.length === 1 ? "" : "s"} já estavam cadastradas.`,
+        tone: added ? "success" : "info",
+      });
+    } catch (error) {
+      showErrorNotice("Falha ao cadastrar marcas", formatCaughtErrorMessage(error, "Falha ao cadastrar marcas em massa."));
     }
   };
 
@@ -1494,6 +2043,14 @@ export default function App({ authSession = null }: AppProps) {
       showNoticeDialog({ title: "Selecao obrigatoria", message: "Selecione uma marca antes de aplicar.", tone: "warning" });
       return;
     }
+    if (visibleBulkActionKeys?.length === 0) {
+      showNoticeDialog({
+        title: "Sem produtos visiveis",
+        message: "Ajuste ou limpe os filtros antes de aplicar marca.",
+        tone: "warning",
+      });
+      return;
+    }
     setBulkBrandValue(brand);
     await pushUndoSnapshot();
     const result = await applyBrand(brand, visibleBulkActionKeys);
@@ -1504,6 +2061,16 @@ export default function App({ authSession = null }: AppProps) {
     });
     setShowBulkBrandMenu(false);
     queueRefresh(["products", "totals", "brands"]);
+    if (showBrandsPanel) {
+      const scope = visibleBulkActionKeys === undefined
+        ? `catálogo completo (${result.total})`
+        : `${result.total} produto${result.total === 1 ? "" : "s"} visíve${result.total === 1 ? "l" : "is"}`;
+      showNoticeDialog({
+        title: "Marca aplicada",
+        message: `“${result.marca || brand}” aplicada em ${scope}.`,
+        tone: "success",
+      });
+    }
   };
 
   const handleJoinDuplicates = async () => {
@@ -1528,35 +2095,6 @@ export default function App({ authSession = null }: AppProps) {
     });
   };
 
-  const handleExportVisibleProducts = () => {
-    if (!displayedProducts.length) {
-      showNoticeDialog({
-        title: "Nada para exportar",
-        message: "A busca atual não contém produtos para baixar.",
-        tone: "warning",
-      });
-      return;
-    }
-
-    const csv = buildProductCsv(displayedProducts);
-    const downloadUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = buildProductCsvFilename();
-    link.hidden = true;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
-
-    const isFiltered = displayedProducts.length < state.products.length;
-    showNoticeDialog({
-      title: "CSV pronto",
-      message: `${displayedProducts.length === 1 ? "1 produto exportado" : `${displayedProducts.length} produtos exportados`}${isFiltered ? " da busca atual" : " do catálogo"}.`,
-      tone: "success",
-    });
-  };
-
   const handleJoinGrades = async () => {
     await pushUndoSnapshot();
     const result = await joinGrades();
@@ -1570,6 +2108,27 @@ export default function App({ authSession = null }: AppProps) {
       message: `Lotes processados: ${result.lotes_processados}\nProdutos finais: ${result.resultantes}\nGrades importadas: ${result.atualizados_grades}\nLinhas unificadas: ${result.removidos}`,
       tone: "success",
     });
+  };
+
+  const handleImportAutomaticGradesFromCatalog = async () => {
+    const pendingCount = pendingGradeImportProducts.length;
+    if (!pendingCount) {
+      showNoticeDialog({
+        title: "Sem grades automáticas",
+        message: "Nenhuma grade automática pendente foi detectada na lista atual.",
+        tone: "info",
+      });
+      return;
+    }
+
+    const confirmed = await confirmWithDialog({
+      title: "Grades automáticas detectadas",
+      message: `${pendingCount} item${pendingCount === 1 ? "" : "s"} com grade automática pronta para importar.`,
+      detail: "Deseja juntar tudo e importar as grades detectadas na nota?",
+      confirmLabel: "Juntar e importar",
+    });
+    if (!confirmed) return;
+    await handleJoinGrades();
   };
 
   const closeMarginDialog = () => {
@@ -2150,11 +2709,19 @@ export default function App({ authSession = null }: AppProps) {
     setGlobalEditMode(next);
   };
 
+  const clearOrderingDragState = () => {
+    setOrderingDragSourceKey(null);
+    setOrderingDragOverKey(null);
+    setOrderingDragPlacement(null);
+  };
+
   const handleToggleOrdering = async () => {
     if (!orderingMode) {
       resetListModes({ ordering: true });
       clearOrderingDraft();
       setOrderingDraftKeys([]);
+      setOrderingDragEnabled(false);
+      clearOrderingDragState();
       setOrderingMode(true);
       return;
     }
@@ -2171,12 +2738,16 @@ export default function App({ authSession = null }: AppProps) {
     }
     setOrderingMode(false);
     setOrderingDraftKeys([]);
+    setOrderingDragEnabled(false);
+    clearOrderingDragState();
     clearOrderingDraft();
   };
 
   const handleCancelOrdering = () => {
     setOrderingMode(false);
     setOrderingDraftKeys([]);
+    setOrderingDragEnabled(false);
+    clearOrderingDragState();
     clearOrderingDraft();
   };
 
@@ -2192,6 +2763,39 @@ export default function App({ authSession = null }: AppProps) {
     runOrderingDraftTransition(() => {
       setOrderingDraftKeys((current) => moveOrderingKey(current, orderingKey, direction));
     });
+  };
+
+  const handleOrderingDragStart = (orderingKey: string) => {
+    if (!orderingMode || !orderingDragEnabled) return;
+    setOrderingDragSourceKey(orderingKey);
+    setOrderingDragOverKey(null);
+    setOrderingDragPlacement(null);
+  };
+
+  const handleOrderingDragOver = (orderingKey: string, placement: OrderingDragPlacement) => {
+    if (!orderingMode || !orderingDragEnabled) return;
+    setOrderingDragOverKey(orderingKey);
+    setOrderingDragPlacement(placement);
+  };
+
+  const handleOrderingDragLeave = (orderingKey: string) => {
+    setOrderingDragOverKey((current) => {
+      if (current !== orderingKey) return current;
+      setOrderingDragPlacement(null);
+      return null;
+    });
+  };
+
+  const handleOrderingDrop = (sourceKey: string, targetKey: string, placement: OrderingDragPlacement) => {
+    if (!orderingMode || !orderingDragEnabled) return;
+    runOrderingDraftTransition(() => {
+      setOrderingDraftKeys((current) => applyOrderingDrag(originalOrderingKeys, current, sourceKey, targetKey, placement));
+    });
+    clearOrderingDragState();
+  };
+
+  const handleOrderingDragEnd = () => {
+    clearOrderingDragState();
   };
 
   const handleToggleCreateSets = () => {
@@ -2305,9 +2909,25 @@ export default function App({ authSession = null }: AppProps) {
     setSettingsError(null);
     setSettingsMessage(null);
     try {
-      const [targetsPayload, gradeConfigPayload] = await Promise.all([fetchAutomationTargets(), fetchGradeConfig()]);
+      const [targetsPayload, gradeConfigPayload, appearancePayload] = await Promise.all([
+        fetchAutomationTargets(),
+        fetchGradeConfig(),
+        fetchAppearance(),
+      ]);
       setSettingsTargets(targetsPayload || {});
       setSettingsGradeConfig(normalizeGradeConfigState(gradeConfigPayload));
+      setAppDefaultCache({
+        defaultWallpaper: appearancePayload.defaultWallpaper,
+        defaultBrightness: appearancePayload.defaultBrightness,
+        wallpapers: appearancePayload.wallpapers,
+      });
+      setSettingsAppearanceWallpaper(appearancePayload.defaultWallpaper || DEFAULT_WALLPAPER);
+      setSettingsAppearanceBrightness(
+        appearancePayload.defaultBrightness == null
+          ? 0.9
+          : Math.min(1, Math.max(0.55, appearancePayload.defaultBrightness)),
+      );
+      applyShellWallpaper();
       setSettingsContextText("");
     } catch (error) {
       setSettingsError(formatCaughtErrorMessage(error, "Falha ao carregar configurações."));
@@ -2317,7 +2937,7 @@ export default function App({ authSession = null }: AppProps) {
   };
 
   const openSettingsModal = async () => {
-    setSettingsOpen(true);
+    navigateWorkspace("settings");
     await loadSettingsModal();
   };
 
@@ -2379,6 +2999,46 @@ export default function App({ authSession = null }: AppProps) {
     } finally {
       setSettingsSaving(null);
     }
+  };
+
+  const handleAppearanceWallpaperChange = (path: string) => {
+    setSettingsAppearanceWallpaper(path);
+    setPersonalWallpaper(path, settingsAppearanceBrightness);
+  };
+
+  const handleAppearanceBrightnessChange = (value: number) => {
+    const n = Math.min(1, Math.max(0.55, value));
+    setSettingsAppearanceBrightness(n);
+    setPersonalWallpaper(settingsAppearanceWallpaper, n);
+  };
+
+  const handleSaveSettingsAppearance = async () => {
+    setSettingsSaving("appearance");
+    setSettingsError(null);
+    try {
+      const saved = await saveAppearance({
+        defaultWallpaper: settingsAppearanceWallpaper,
+        defaultBrightness: settingsAppearanceBrightness,
+      });
+      setAppDefaultCache({
+        defaultWallpaper: saved.defaultWallpaper,
+        defaultBrightness: saved.defaultBrightness,
+        wallpapers: saved.wallpapers,
+      });
+      applyShellWallpaper();
+      setSettingsMessage("Padrão global de fundo salvo para todos os usuários.");
+    } catch (error) {
+      setSettingsError(formatCaughtErrorMessage(error, "Falha ao salvar fundo padrão."));
+    } finally {
+      setSettingsSaving(null);
+    }
+  };
+
+  const handleUseAppAppearanceDefault = () => {
+    clearPersonalWallpaper();
+    setSettingsAppearanceWallpaper(resolveActiveWallpaper());
+    setSettingsAppearanceBrightness(resolveActiveBrightness(resolveActiveWallpaper()));
+    setSettingsMessage("Usando o padrão global do app.");
   };
 
   const handleCaptureSettingsTarget = async (key: AutomationTargetKey, label: string) => {
@@ -2485,8 +3145,26 @@ export default function App({ authSession = null }: AppProps) {
   const importWarnings = importResult?.warnings?.length ? importResult.warnings : [];
   const importValidationStatus = String(importMetrics["final_validation_status"] || importMetrics["local_validation_status"] || "").trim();
   const importProgressMessage = buildImportProgressMessage(importing, importJob?.message);
-  const importDiagnosticsChips = buildImportDiagnosticsChips(importMetrics, importWarnings);
-  const importSuccessMessage = importResult ? `${importResult.total_itens} itens importados as ${formatTimestamp(importJob?.updated_at)}.` : null;
+  const importDiagnosticsChips = buildImportDiagnosticsChips(importMetrics, importWarnings, {
+    totalItems: importResult?.total_itens,
+  });
+  const importDetectedTotalLabel = formatImportMoneyLabel(
+    importMetrics["extracted_total_products"]
+      ?? importMetrics["local_extracted_total_products"]
+      ?? importMetrics["document_total_products"]
+      ?? importMetrics["local_document_total_products"],
+  );
+  const importSuccessMessage = importResult
+    ? [
+        `${importResult.total_itens} itens importados`,
+        importDetectedTotalLabel ? `total ${importDetectedTotalLabel}` : null,
+        `às ${formatTimestamp(importJob?.updated_at)}`,
+      ].filter(Boolean).join(" · ") + "."
+    : null;
+  const catalogTotalsForImport = computeCurrentTotals(state.products, state.marginPercentual);
+  const catalogCapitalLabel = state.products.length
+    ? formatCurrency(catalogTotalsForImport.custo)
+    : null;
   const executionReadiness = buildExecutionReadiness({
     productCount: state.products.length,
     pendingGradeImportCount: pendingGradeImportProducts.length,
@@ -2506,6 +3184,9 @@ export default function App({ authSession = null }: AppProps) {
     pendingGrades: pendingGradeImportProducts.length + incompleteGradeProducts.length,
   }).filter((chip) => chip.label !== "Auth");
   const navigateWorkspace = (workspace: WorkspaceId) => {
+    if (workspace === "settings") {
+      void loadSettingsModal();
+    }
     if (workspace !== "catalog") setCatalogQuickEntryOpen(false);
     setActiveWorkspace(workspace);
     try { window.localStorage.setItem("lojasync-workspace", workspace); } catch { /* storage is optional */ }
@@ -2563,6 +3244,16 @@ export default function App({ authSession = null }: AppProps) {
                 </button>
               ))}
             </nav>
+            {activeWorkspace === "catalog" ? (
+              <SidebarSectionPanel
+                overview={catalogOverview}
+                activeFilter={productQuickFilter}
+                marginLabel={formatPercentDisplay(state.marginPercentual)}
+                onSelectFilter={handleCatalogFilterSelect}
+              />
+            ) : (
+              <div className="nexSidebarSectionSpacerTs" aria-hidden="true" />
+            )}
             <div className="nexSidebarFoot"><span>{sidebarClockText}</span><span>{sidebarDateText}</span></div>
           </aside>
 
@@ -2596,53 +3287,65 @@ export default function App({ authSession = null }: AppProps) {
 
               <div className={`nexWorkspaceView nexImportView ${activeWorkspace === "import" ? "active" : ""}`} aria-hidden={activeWorkspace !== "import"}>
                 <div className="nexFlowColumn">
-                  <div className="nexImportIntro"><span className="sectionTag">Duas entradas reais</span><h2>Documento assistido ou cadastro manual</h2><p>Escolha a leitura por IA ou local para um lote, ou inclua uma exceção sem sair deste fluxo.</p></div>
-                  <div className="actionsFloatingTs">
-                    <div className="panelActionCompact nexModeControl">
-                      <button className={`ghostButton compactButton modeToggleButton ${simpleModeEnabled ? "activeToggle" : ""}`} type="button" onClick={handleToggleSimpleMode} aria-pressed={simpleModeEnabled}>{simpleModeEnabled ? "Modo completo" : "Modo simplificado"}</button>
-                    </div>
-            <ImportStagePanel
-              importing={importing}
-              localExperimentLoading={localExperimentLoading}
-              documentCount={importDocuments.length}
-              activeFileName={importDocuments.find((document) => document.id === activeImportDocumentId)?.file.name || null}
-              importProgressMessage={importProgressMessage}
-              importJobMessage={importJob?.message}
-              importError={importError}
-              importSuccessMessage={importSuccessMessage}
-              validationStatus={importValidationStatus}
-              diagnosticsChips={importDiagnosticsChips}
-              warnings={importWarnings}
-              recentImports={recentImports}
-              inputRef={importInputRef}
-              onImportPrimaryClick={handleImportPrimaryClick}
-              onLocalExperimentClick={handleLocalExperimentClick}
-              onFilePickerClick={handleFilePickerClick}
-              onFileChange={handleImportFileChange}
-            />
-          </div>
-
-          <ProductEntryPanel
-            form={form}
-            simpleModeEnabled={simpleModeEnabled}
-            marginPercentual={state.marginPercentual}
-            submitting={submitting}
-            nameInputRef={nameInputRef}
-            codeInputRef={codeInputRef}
-            quantityInputRef={quantityInputRef}
-            priceInputRef={priceInputRef}
-            runBusyAction={runBusyAction}
-            onFormKeyDown={handleProductFormKeyDown}
-            onInputChange={handleInputChange}
-            onSubmitProduct={submitProduct}
-            onApplyMargin={handleMargin}
-          />
-
+                  <div className="nexImportIntro">
+                    <span className="sectionTag">Entrada de documentos</span>
+                    <h2>Importação assistida da nota</h2>
+                    <p>Leia a nota com IA ou com o parser local, confira o valor e os itens detectados, e envie o resultado para o catálogo. Cadastro manual e margem ficam no catálogo.</p>
                   </div>
+                  <div className="actionsFloatingTs">
+                    <ImportStagePanel
+                      importing={importing}
+                      localExperimentLoading={localExperimentLoading}
+                      documentCount={importDocuments.length}
+                      activeFileName={importDocuments.find((document) => document.id === activeImportDocumentId)?.file.name || importDocuments[0]?.file.name || null}
+                      importProgressMessage={importProgressMessage}
+                      importJobMessage={importJob?.message}
+                      importJobStage={importJob?.stage || (importing || localExperimentLoading ? "processing" : null)}
+                      importJobStartedAt={importJob?.started_at || importSessionStartedAt}
+                      importProcessLog={Array.isArray(importMetrics["process_log"]) ? importMetrics["process_log"] as Array<Record<string, unknown>> : null}
+                      importMode={
+                        importDocuments.find((document) => document.id === activeImportDocumentId)?.importMode
+                        || importDocuments.find((document) => document.state === "processing")?.importMode
+                        || (localExperimentLoading ? "local" : importing ? "llm" : null)
+                      }
+                      activeDocumentIndex={
+                        activeImportDocumentId
+                          ? importDocuments.findIndex((document) => document.id === activeImportDocumentId) + 1
+                          : null
+                      }
+                      importError={importError}
+                      importSuccessMessage={importSuccessMessage}
+                      validationStatus={importValidationStatus}
+                      diagnosticsChips={importDiagnosticsChips}
+                      warnings={importWarnings}
+                      recentImports={recentImports}
+                      inputRef={importInputRef}
+                      onImportPrimaryClick={handleImportPrimaryClick}
+                      onLocalExperimentClick={handleLocalExperimentClick}
+                      onFilePickerClick={handleFilePickerClick}
+                      onFileChange={handleImportFileChange}
+                      onOpenCatalog={() => navigateWorkspace("catalog")}
+                      onClearConference={handleClearImportConference}
+                      canClearConference={importDocuments.length > 0 || Boolean(importResult)}
+                      onReopenImport={(entryId) => void handleReopenRecentImport(entryId)}
+                      onResendImport={(entryId) => void handleResendRecentImport(entryId)}
+                      onDeleteImport={(entryId) => void handleDeleteRecentImport(entryId)}
+                      onClearImportHistory={() => void handleClearImportHistory()}
+                      reopeningImportId={reopeningImportId}
+                      onAbortImport={() => void handleAbortImport()}
+                      importAborting={importAborting}
+                      catalogProductCount={state.products.length}
+                      catalogCapitalLabel={catalogCapitalLabel}
+                      importNoteItemCount={importResult?.total_itens ?? null}
+                      importNoteTotalLabel={importDetectedTotalLabel}
+                    />
+                  </div>
+                </div>
                 <ImportWorkspacePanel
                   documents={importDocuments}
                   busy={importing || localExperimentLoading}
                   activeDocumentId={activeImportDocumentId}
+                  liveStatusMessage={importProgressMessage || importJob?.message || null}
                   onDocumentsChange={handleImportDocumentsChange}
                   onOpenPicker={(mode) => {
                     importModeRef.current = mode;
@@ -2650,17 +3353,12 @@ export default function App({ authSession = null }: AppProps) {
                   }}
                   onRemove={handleRemoveImportDocument}
                   onRetryFailed={handleRetryFailedImports}
+                  onAbortImport={() => void handleAbortImport()}
+                  importAborting={importAborting}
                 />
               </div>
 
               <div className={`nexWorkspaceView nexCatalogView nexCatalogOverviewMount ${activeWorkspace === "catalog" ? "active" : ""}`} aria-hidden={activeWorkspace !== "catalog"}>
-          <CatalogOverviewPanel
-            titleId="catalog-workbench-title"
-            overview={catalogOverview}
-            activeFilter={productQuickFilter}
-            onSelectFilter={handleCatalogFilterSelect}
-            onOpenSettings={() => void openSettingsModal()}
-          />
           <CatalogQuickEntryPanel
             open={catalogQuickEntryOpen}
             form={form}
@@ -2706,11 +3404,17 @@ export default function App({ authSession = null }: AppProps) {
             globalEditMode={globalEditMode}
             showFormatCodesPanel={showFormatCodesPanel}
             showDescriptionPanel={showDescriptionPanel}
+            showBrandsPanel={showBrandsPanel}
             formatCodesOptions={formatCodesOptions}
             descriptionOptions={descriptionOptions}
             descriptionSuggestions={descriptionCleanupSuggestions}
+            sortedBrands={sortedBrands}
+            bulkBrandValue={bulkBrandValue}
+            newBrand={newBrand}
+            bulkBrandText={bulkBrandText}
             orderingMode={orderingMode}
             orderingSelectedCount={orderingDraftKeys.length}
+            orderingDragEnabled={orderingDragEnabled}
             createSetMode={createSetMode}
             createSetKeys={createSetKeys}
             runBusyAction={runBusyAction}
@@ -2721,16 +3425,27 @@ export default function App({ authSession = null }: AppProps) {
             onToggleFormatCodesPanel={() => {
               setShowFormatCodesPanel((current) => !current);
               setShowDescriptionPanel(false);
+              setShowBrandsPanel(false);
             }}
             onToggleDescriptionPanel={() => {
               setShowDescriptionPanel((current) => !current);
               setShowFormatCodesPanel(false);
+              setShowBrandsPanel(false);
+            }}
+            onToggleBrandsPanel={() => {
+              setShowBrandsPanel((current) => !current);
+              setShowFormatCodesPanel(false);
+              setShowDescriptionPanel(false);
             }}
             onToggleOrdering={handleToggleOrdering}
             onCancelOrdering={handleCancelOrdering}
+            onToggleOrderingDrag={() => setOrderingDragEnabled((current) => !current)}
             onToggleCreateSets={handleToggleCreateSets}
             onJoinDuplicates={handleJoinDuplicates}
-            onExportVisibleProducts={handleExportVisibleProducts}
+            onApplyMargin={handleMargin}
+            marginLabel={formatPercentDisplay(state.marginPercentual)}
+            pendingAutomaticGradesCount={pendingGradeImportProducts.length}
+            onImportAutomaticGrades={handleImportAutomaticGradesFromCatalog}
             onClearProducts={handleClearProducts}
             onFormatCodeOptionChange={(field, value) => setFormatCodesOptions((current) => ({ ...current, [field]: value }))}
             onRestoreOriginalCodes={async () => {
@@ -2759,6 +3474,13 @@ export default function App({ authSession = null }: AppProps) {
             onDescriptionOptionChange={(field, value) => setDescriptionOptions((current) => ({ ...current, [field]: value }))}
             onCloseDescriptionPanel={() => setShowDescriptionPanel(false)}
             onImproveDescriptions={handleImproveDescriptions}
+            onSelectBrand={setBulkBrandValue}
+            onNewBrandChange={setNewBrand}
+            onBulkBrandTextChange={setBulkBrandText}
+            onAddBrand={async () => submitBrand({ applyToProducts: false })}
+            onAddBrandsBulk={handleAddBrandsBulk}
+            onApplyBrand={async () => handleApplyBrand()}
+            onCloseBrandsPanel={() => setShowBrandsPanel(false)}
           />
 
           <ProductTable
@@ -2767,6 +3489,10 @@ export default function App({ authSession = null }: AppProps) {
             totalProductCount={state.products.length}
             orderingMode={orderingMode}
             orderingSelectionIndex={orderingSelectionIndex}
+            orderingDragEnabled={orderingDragEnabled}
+            orderingDragSourceKey={orderingDragSourceKey}
+            orderingDragOverKey={orderingDragOverKey}
+            orderingDragPlacement={orderingDragPlacement}
             automationIsRunning={automationIsRunning}
             automationCurrentOrderingKey={automationCurrentOrderingKey}
             automationTypedDescription={automationTypedDescription}
@@ -2801,39 +3527,73 @@ export default function App({ authSession = null }: AppProps) {
             onCloseBulkCategoryMenu={() => setShowBulkCategoryMenu(false)}
             onToggleBrandComposer={() => setShowBrandComposer((current) => !current)}
             onNewBrandChange={setNewBrand}
-            onSubmitBrand={submitBrand}
+            onSubmitBrand={async () => submitBrand({ applyToProducts: true })}
             onApplyBrand={handleApplyBrand}
             onApplyCategory={handleApplyCategory}
             onToggleGlobalEdit={handleToggleGlobalEdit}
             onOrderingSelection={handleOrderingSelection}
             onCreateSetSelection={handleCreateSetSelection}
             onMoveOrderingItem={moveOrderingItem}
+            onOrderingDragStart={handleOrderingDragStart}
+            onOrderingDragOver={handleOrderingDragOver}
+            onOrderingDragLeave={handleOrderingDragLeave}
+            onOrderingDrop={handleOrderingDrop}
+            onOrderingDragEnd={handleOrderingDragEnd}
             onUseProductAsTemplate={handleUseProductAsTemplate}
             onProductSearchChange={setProductSearchQuery}
             onDeleteProduct={async (orderingKey) => {
               const product = productsByKey.get(orderingKey);
               const productName = product?.nome || orderingKey;
-              openConfirmationDialog({
-                title: "Excluir item da lista?",
-                message: `"${productName}" sera removido da lista ativa.`,
-                detail: "A remoção afeta apenas este item e pode ser desfeita pelo histórico da lista.",
-                confirmLabel: "Excluir item",
-                onConfirm: async () => {
-                  await pushUndoSnapshot();
-                  await deleteProduct(orderingKey);
-                  rememberProductOperation({
-                    action: "delete",
-                    productName,
-                  });
-                  queueRefresh(["products", "totals"]);
-                },
+              // Single-item delete is immediate; undo (Ctrl+Z / Desfazer) is the recovery path.
+              await pushUndoSnapshot();
+              await deleteProduct(orderingKey);
+              rememberProductOperation({
+                action: "delete",
+                productName,
               });
+              queueRefresh(["products", "totals"]);
             }}
           />
               </div>
 
               <div className={`nexWorkspaceView nexHistoryView ${activeWorkspace === "history" ? "active" : ""}`} aria-hidden={activeWorkspace !== "history"}>
                 <HistoryPanel entries={operationDiary} undoSummary={undoRedoHistoryState.summary} undoLabel={undoRedoHistoryState.undoLabel} redoLabel={undoRedoHistoryState.redoLabel} canUndo={undoRedoHistoryState.canUndo} canRedo={undoRedoHistoryState.canRedo} busy={busyAction === "desfazer" || busyAction === "refazer"} onUndo={undoLastAction} onRedo={redoLastAction} />
+              </div>
+
+              <div className={`nexWorkspaceView nexSettingsView ${activeWorkspace === "settings" ? "active" : ""}`} aria-hidden={activeWorkspace !== "settings"}>
+                <SettingsModal
+                  layoutMode="page"
+                  loading={settingsLoading}
+                  saving={settingsSaving}
+                  error={settingsError}
+                  message={settingsMessage}
+                  targets={settingsTargets}
+                  gradeConfig={settingsGradeConfig}
+                  contextText={settingsContextText}
+                  captureLabel={settingsCaptureLabel}
+                  captureCountdown={settingsCaptureCountdown}
+                  appearanceWallpaper={settingsAppearanceWallpaper}
+                  appearanceBrightness={settingsAppearanceBrightness}
+                  themeColors={themeColors}
+                  themeOpacities={themeOpacities}
+                  onContextRefresh={handleSettingsContextRefresh}
+                  onPrepare={handleSettingsPrepare}
+                  onReloadAll={loadSettingsModal}
+                  onSaveTargets={handleSaveSettingsTargets}
+                  onSaveGradeConfig={handleSaveSettingsGradeConfig}
+                  onSaveAppearance={handleSaveSettingsAppearance}
+                  onAppearanceWallpaperChange={handleAppearanceWallpaperChange}
+                  onAppearanceBrightnessChange={handleAppearanceBrightnessChange}
+                  onUseAppAppearanceDefault={handleUseAppAppearanceDefault}
+                  onThemeColorsChange={setThemeColors}
+                  onThemeOpacitiesChange={setThemeOpacities}
+                  onThemeMessage={(text) => setSettingsMessage(text)}
+                  onTargetChange={handleSettingsTargetChange}
+                  onGradeConfigChange={handleSettingsGradeConfigChange}
+                  onCaptureTarget={handleCaptureSettingsTarget}
+                  onCaptureGradeButton={handleCaptureSettingsGradeButton}
+                  onCaptureFirstQuantCell={handleCaptureFirstQuantCell}
+                />
               </div>
         </section>
             {activeWorkspace === "catalog" ? (
@@ -2918,30 +3678,7 @@ export default function App({ authSession = null }: AppProps) {
         toasts={noticeToasts}
         onDismiss={dismissNoticeToast}
       />
-      {settingsOpen ? (
-        <SettingsModal
-          loading={settingsLoading}
-          saving={settingsSaving}
-          error={settingsError}
-          message={settingsMessage}
-          targets={settingsTargets}
-          gradeConfig={settingsGradeConfig}
-          contextText={settingsContextText}
-          captureLabel={settingsCaptureLabel}
-          captureCountdown={settingsCaptureCountdown}
-          onClose={closeSettingsModal}
-          onContextRefresh={handleSettingsContextRefresh}
-          onPrepare={handleSettingsPrepare}
-          onReloadAll={loadSettingsModal}
-          onSaveTargets={handleSaveSettingsTargets}
-          onSaveGradeConfig={handleSaveSettingsGradeConfig}
-          onTargetChange={handleSettingsTargetChange}
-          onGradeConfigChange={handleSettingsGradeConfigChange}
-          onCaptureTarget={handleCaptureSettingsTarget}
-          onCaptureGradeButton={handleCaptureSettingsGradeButton}
-          onCaptureFirstQuantCell={handleCaptureFirstQuantCell}
-        />
-      ) : null}
+
       {gradeModalOpen ? (
         <GradeModal
           products={state.products}

@@ -7,6 +7,7 @@ import type { EditableField } from "./productEditing";
 import { ProductTableRow } from "./productTableRow";
 import { buildProductTableWindow, PRODUCT_TABLE_WINDOW_SIZE } from "./productTableWindow";
 import type { ProductQuickFilterEmptyState } from "./productFilters";
+import type { OrderingDragPlacement } from "./productOrdering";
 import type { Product } from "./types";
 import { actionText } from "./uiFormatting";
 
@@ -16,6 +17,10 @@ type ProductTableProps = {
   totalProductCount: number;
   orderingMode: boolean;
   orderingSelectionIndex: Map<string, number>;
+  orderingDragEnabled: boolean;
+  orderingDragSourceKey: string | null;
+  orderingDragOverKey: string | null;
+  orderingDragPlacement: OrderingDragPlacement | null;
   automationIsRunning: boolean;
   automationCurrentOrderingKey: string | null;
   automationTypedDescription: string | null;
@@ -54,6 +59,11 @@ type ProductTableProps = {
   onOrderingSelection: (orderingKey: string, options?: { allowRemove?: boolean }) => void;
   onCreateSetSelection: (orderingKey: string) => Promise<void>;
   onMoveOrderingItem: (orderingKey: string, direction: -1 | 1) => void;
+  onOrderingDragStart: (orderingKey: string) => void;
+  onOrderingDragOver: (orderingKey: string, placement: OrderingDragPlacement) => void;
+  onOrderingDragLeave: (orderingKey: string) => void;
+  onOrderingDrop: (sourceKey: string, targetKey: string, placement: OrderingDragPlacement) => void;
+  onOrderingDragEnd: () => void;
   onUseProductAsTemplate: (product: Product) => void;
   onDeleteProduct: (orderingKey: string) => Promise<void>;
   onProductSearchChange: (query: string) => void;
@@ -152,6 +162,10 @@ export function ProductTable({
   totalProductCount,
   orderingMode,
   orderingSelectionIndex,
+  orderingDragEnabled,
+  orderingDragSourceKey,
+  orderingDragOverKey,
+  orderingDragPlacement,
   automationIsRunning,
   automationCurrentOrderingKey,
   automationTypedDescription,
@@ -190,6 +204,11 @@ export function ProductTable({
   onOrderingSelection,
   onCreateSetSelection,
   onMoveOrderingItem,
+  onOrderingDragStart,
+  onOrderingDragOver,
+  onOrderingDragLeave,
+  onOrderingDrop,
+  onOrderingDragEnd,
   onUseProductAsTemplate,
   onDeleteProduct,
   onProductSearchChange,
@@ -270,7 +289,7 @@ export function ProductTable({
   };
 
   return (
-    <section className={["tableWrapperTs", orderingMode ? "orderingModeActive" : "", createSetMode ? "createSetModeActive" : ""].filter(Boolean).join(" ")} aria-labelledby="product-table-title">
+    <section className={["tableWrapperTs", orderingMode ? "orderingModeActive" : "", orderingMode && orderingDragEnabled ? "orderingDragAddonActive" : "", createSetMode ? "createSetModeActive" : ""].filter(Boolean).join(" ")} aria-labelledby="product-table-title">
       <div className="tableHeaderTs">
         <div className="tableHeaderCopyTs">
           <span className="tableHeaderKickerTs">Tabela de produtos</span>
@@ -433,6 +452,10 @@ export function ProductTable({
                     index={productWindow.startIndex + index}
                     selectionPosition={selectionPosition}
                     orderingMode={orderingMode}
+                    orderingDragEnabled={orderingDragEnabled}
+                    orderingDragSourceKey={orderingDragSourceKey}
+                    orderingDragOverKey={orderingDragOverKey}
+                    orderingDragPlacement={orderingDragPlacement}
                     isAutomationCurrentRow={isAutomationCurrentRow}
                     automationTypedDescription={automationTypedDescription}
                     createSetMode={createSetMode}
@@ -450,6 +473,11 @@ export function ProductTable({
                     onOrderingSelection={onOrderingSelection}
                     onCreateSetSelection={onCreateSetSelection}
                     onMoveOrderingItem={onMoveOrderingItem}
+                    onOrderingDragStart={onOrderingDragStart}
+                    onOrderingDragOver={onOrderingDragOver}
+                    onOrderingDragLeave={onOrderingDragLeave}
+                    onOrderingDrop={onOrderingDrop}
+                    onOrderingDragEnd={onOrderingDragEnd}
                     onUseProductAsTemplate={onUseProductAsTemplate}
                     onDeleteProduct={onDeleteProduct}
                   />

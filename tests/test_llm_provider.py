@@ -11,19 +11,26 @@ import httpx
 from app.interfaces.api.http.jobs.llm import (
     _raise_zai_for_status,
     allow_local_validation_guard,
+    kimi_chat_model,
     llm_base_url,
+    openai_compat_base_url,
+    openai_compat_chat_model,
     post_llm_chat,
     upload_llm_file,
+    use_openai_compat_provider,
 )
 from app.interfaces.api.http.jobs.runtime import _build_no_usable_content_error
 
 
 class _FakeResponse:
-    def __init__(self, payload: object) -> None:
+    def __init__(self, payload: object, status_code: int = 200) -> None:
         self._payload = payload
+        self.status_code = status_code
         self.text = str(payload)
 
     def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise httpx.HTTPStatusError("error", request=None, response=None)  # type: ignore[arg-type]
         return None
 
     def json(self) -> object:
@@ -41,6 +48,58 @@ class _FakeClient:
 
 
 class LlmProviderTests(unittest.TestCase):
+    def test_kimi_default_model_is_highspeed(self) -> None:
+        with patch.dict(os.environ, {"KIMI_MODEL": ""}, clear=False):
+            # Empty string falls through to default in kimi_chat_model via `or`
+            os.environ.pop("KIMI_MODEL", None)
+            self.assertEqual(kimi_chat_model(), "kimi-for-coding-highspeed")
+
+    def test_openai_compat_provider_resolves_9router_defaults(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "LOJASYNC_LLM_PROVIDER": "9router",
+                "LLM_PROVIDER": "9router",
+                "NINE_ROUTER_BASE_URL": "http://127.0.0.1:20128/v1",
+                "LOJASYNC_LLM_MODEL": "kimi/kimi-for-coding",
+                "LOJASYNC_LLM_VISION_MODEL": "xai/grok-4.5",
+            },
+            clear=False,
+        ):
+            self.assertTrue(use_openai_compat_provider())
+            self.assertEqual(openai_compat_base_url(), "http://127.0.0.1:20128/v1")
+            self.assertEqual(openai_compat_chat_model(has_images=False), "kimi/kimi-for-coding")
+            self.assertEqual(openai_compat_chat_model(has_images=True), "xai/grok-4.5")
+            self.assertEqual(llm_base_url(), "http://127.0.0.1:20128/v1")
+
+    def test_openai_compat_chat_posts_to_gateway(self) -> None:
+        client = _FakeClient({"choices": [{"message": {"content": '{"items":[{"codigo":"1","quantidade":1,"preco":10}]}'}}]})
+        with patch.dict(
+            os.environ,
+            {
+                "LOJASYNC_LLM_PROVIDER": "9router",
+                "NINE_ROUTER_BASE_URL": "http://127.0.0.1:20128/v1",
+                "NINE_ROUTER_API_KEY": "test-key",
+                "LOJASYNC_LLM_MODEL": "cx/gpt-5.4-mini",
+                "LOJASYNC_LLM_DISABLE_THINKING": "0",
+            },
+            clear=False,
+        ):
+            content, saved = post_llm_chat(
+                client,  # type: ignore[arg-type]
+                job_id="job-9r",
+                message="Extraia",
+                documents=[{"name": "n.txt", "content": "x"}],
+                images=[],
+            )
+        self.assertIn("items", content)
+        self.assertIsNone(saved)
+        self.assertEqual(len(client.calls), 1)
+        self.assertTrue(str(client.calls[0]["url"]).endswith("/chat/completions"))
+        body = client.calls[0]["json"]
+        assert isinstance(body, dict)
+        self.assertEqual(body["model"], "cx/gpt-5.4-mini")
+
     def test_kimi_upload_prepares_image_for_multimodal_chat(self) -> None:
         client = _FakeClient({})
 
@@ -104,7 +163,11 @@ class LlmProviderTests(unittest.TestCase):
         self.assertEqual(call["json"]["model"], "kimi-for-coding")  # type: ignore[index]
         self.assertNotIn("temperature", call["json"])  # type: ignore[operator]
         self.assertNotIn("thinking", call["json"])  # type: ignore[operator]
-        content_blocks = call["json"]["messages"][0]["content"]  # type: ignore[index]
+        messages = call["json"]["messages"]  # type: ignore[index]
+        self.assertEqual(messages[0]["role"], "system")
+        self.assertIn("LojaSync", messages[0]["content"])
+        self.assertEqual(messages[1]["role"], "user")
+        content_blocks = messages[1]["content"]
         self.assertEqual(content_blocks[0]["type"], "image_url")
         self.assertEqual(content_blocks[0]["image_url"]["url"], "data:image/png;base64,abc123")
         self.assertIn("Produto A 2 10,00", content_blocks[1]["text"])

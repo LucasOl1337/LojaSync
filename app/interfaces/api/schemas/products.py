@@ -137,3 +137,14 @@ class MarginSettingsPayload(BaseModel):
 class MarginSettingsResponse(BaseModel):
     margem: float
     percentual: float
+
+
+class AppearanceSettingsPayload(BaseModel):
+    defaultWallpaper: str = Field(..., min_length=1, max_length=512)
+    defaultBrightness: float | None = Field(default=None, ge=0.5, le=1.0)
+
+
+class AppearanceSettingsResponse(BaseModel):
+    defaultWallpaper: str
+    defaultBrightness: float | None = None
+    wallpapers: list[str] = Field(default_factory=list)

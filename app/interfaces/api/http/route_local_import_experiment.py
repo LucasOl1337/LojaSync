@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from app.application.imports.job_validation import build_local_import_text, build_local_parser_products
 from app.application.imports.local_experiment import parse_local_romaneio_experiment
-from app.application.imports.parsing import save_romaneio_text
+from app.application.imports.parsing import products_to_text, save_romaneio_text
 from app.interfaces.api.http.route_models import ImportRomaneioResultResponse
 from app.shared.ui_events import publish_state_changed
 
@@ -43,12 +43,25 @@ async def import_romaneio_local_experiment(
     metrics = dict(payload.get("metrics") or {})
     metrics["selected_source"] = "local_parsing_import"
     metrics["imported_items"] = len(created)
+    for key in (
+        "document_total_products",
+        "document_total_note",
+        "extracted_total_products",
+        "products_value_matches_document",
+        "quantity_matches_remessa",
+        "total_quantity",
+        "remessa_quantity",
+    ):
+        if key in payload and payload.get(key) is not None:
+            metrics[key] = payload.get(key)
 
+    # Persist a re-parseable products dump so "Enviar ao catálogo" can reapply without re-scanning.
+    reapply_content = products_to_text(created) if created else build_local_import_text(payload)
     return ImportRomaneioResultResponse(
         status="ok",
         saved_file=None,
         local_file=str(local_file),
-        content=None,
+        content=reapply_content,
         warnings=list(payload.get("warnings") or []),
         total_itens=len(created),
         grades_disponiveis=False,

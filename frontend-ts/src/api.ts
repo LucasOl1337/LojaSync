@@ -9,6 +9,7 @@ import type {
   ImportResult,
   ImportStartResponse,
   ImportStatus,
+  AppearanceSettingsResponse,
   MarginSettingsResponse,
   Product,
   ProductListResponse,
@@ -159,6 +160,20 @@ export function fetchBrands() {
 
 export function fetchMargin() {
   return requestJson<MarginSettingsResponse>("/settings/margin");
+}
+
+export function fetchAppearance() {
+  return requestJson<AppearanceSettingsResponse>("/settings/appearance");
+}
+
+export function saveAppearance(payload: {
+  defaultWallpaper: string;
+  defaultBrightness?: number | null;
+}) {
+  return requestJson<AppearanceSettingsResponse>("/settings/appearance", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchAutomationStatus() {
@@ -464,7 +479,7 @@ export function fetchImportResult(jobId: string) {
   return requestJson<ImportResult>(`/actions/import-romaneio/result/${jobId}`);
 }
 
-export async function importRomaneioLocalExperiment(file: File) {
+export async function importRomaneioLocalExperiment(file: File, options: { signal?: AbortSignal } = {}) {
   const formData = new FormData();
   formData.append("file", file);
   const response = await fetch(`${API_BASE_URL}/actions/import-romaneio-local-experiment`, {
@@ -472,6 +487,7 @@ export async function importRomaneioLocalExperiment(file: File) {
     body: formData,
     credentials: "include",
     cache: "no-store",
+    signal: options.signal,
   });
   if (!response.ok) {
     throw new Error(await parseError(response));
@@ -485,6 +501,31 @@ export function cleanupImportJob(jobId: string) {
   });
 }
 
+export function cancelImportJob(jobId: string) {
+  return requestJson<{ status: string; job_id: string; stage?: string }>(`/actions/import-romaneio/cancel/${jobId}`, {
+    method: "POST",
+  });
+}
+
+export function reapplyImportToCatalog(payload: {
+  content?: string | null;
+  local_file?: string | null;
+  source_name?: string | null;
+  import_mode?: "llm" | "local" | string | null;
+  grades_disponiveis?: boolean;
+}) {
+  return requestJson<ImportResult>("/actions/import-romaneio/reapply", {
+    method: "POST",
+    body: JSON.stringify({
+      content: payload.content ?? null,
+      local_file: payload.local_file ?? null,
+      source_name: payload.source_name ?? null,
+      import_mode: payload.import_mode ?? null,
+      grades_disponiveis: Boolean(payload.grades_disponiveis),
+    }),
+  });
+}
+
 export async function waitForImportJob(
   jobId: string,
   options: {
@@ -494,13 +535,13 @@ export async function waitForImportJob(
     fetchStatus?: (jobId: string) => Promise<ImportStatus>;
   } = {},
 ) {
-  const intervalMs = Math.max(options.intervalMs ?? 1000, 100);
+  const intervalMs = Math.max(options.intervalMs ?? 400, 100);
   while (true) {
     if (options.signal?.aborted) throw new DOMException("Importação interrompida.", "AbortError");
     try {
       const status = await (options.fetchStatus ?? fetchImportStatus)(jobId);
       options.onStatus?.(status);
-      if (status.stage === "completed" || status.stage === "error") return status;
+      if (status.stage === "completed" || status.stage === "error" || status.stage === "cancelled") return status;
     } catch (error) {
       if (options.signal?.aborted) throw new DOMException("Importação interrompida.", "AbortError");
       // A consulta pode falhar enquanto o backend reinicia ou a rede local oscila.

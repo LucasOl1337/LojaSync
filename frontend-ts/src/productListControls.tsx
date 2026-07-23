@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import type { KeyboardEvent, RefObject } from "react";
+import type { KeyboardEvent, ReactNode, RefObject } from "react";
 
 import type { DescriptionCleanupSuggestion } from "./descriptionCleanup";
 import {
+  BrandsPanel,
   DescriptionPanel,
   FormatCodesPanel,
   type DescriptionOptions,
@@ -20,11 +21,17 @@ type ProductListControlsProps = {
   globalEditMode: boolean;
   showFormatCodesPanel: boolean;
   showDescriptionPanel: boolean;
+  showBrandsPanel: boolean;
   formatCodesOptions: FormatCodesOptions;
   descriptionOptions: DescriptionOptions;
   descriptionSuggestions: DescriptionCleanupSuggestion[];
+  sortedBrands: string[];
+  bulkBrandValue: string;
+  newBrand: string;
+  bulkBrandText: string;
   orderingMode: boolean;
   orderingSelectedCount: number;
+  orderingDragEnabled: boolean;
   createSetMode: boolean;
   createSetKeys: string[];
   runBusyAction: (name: string, action: () => Promise<void>) => Promise<void>;
@@ -34,11 +41,16 @@ type ProductListControlsProps = {
   onToggleGlobalEdit: () => void;
   onToggleFormatCodesPanel: () => void;
   onToggleDescriptionPanel: () => void;
+  onToggleBrandsPanel: () => void;
   onToggleOrdering: () => Promise<void>;
   onCancelOrdering: () => void;
+  onToggleOrderingDrag: () => void;
   onToggleCreateSets: () => void;
   onJoinDuplicates: () => Promise<void>;
-  onExportVisibleProducts: () => void;
+  onApplyMargin: () => Promise<void>;
+  marginLabel?: string | null;
+  pendingAutomaticGradesCount: number;
+  onImportAutomaticGrades: () => Promise<void>;
   onClearProducts: () => Promise<void>;
   onFormatCodeOptionChange: (field: keyof FormatCodesOptions, value: string) => void;
   onRestoreOriginalCodes: () => Promise<void>;
@@ -47,6 +59,13 @@ type ProductListControlsProps = {
   onDescriptionOptionChange: (field: keyof DescriptionOptions, value: boolean | string) => void;
   onCloseDescriptionPanel: () => void;
   onImproveDescriptions: () => Promise<void>;
+  onSelectBrand: (brand: string) => void;
+  onNewBrandChange: (value: string) => void;
+  onBulkBrandTextChange: (value: string) => void;
+  onAddBrand: () => Promise<void>;
+  onAddBrandsBulk: () => Promise<void>;
+  onApplyBrand: () => Promise<void>;
+  onCloseBrandsPanel: () => void;
 };
 
 type ListToolbarIntroProps = Pick<ProductListControlsProps,
@@ -167,13 +186,32 @@ function ProductSearchField({
 }
 
 type ListPrimaryActionsProps = Pick<ProductListControlsProps,
-  "loading" | "displayedCount" | "totalCount" | "globalEditMode" | "showFormatCodesPanel" | "showDescriptionPanel" | "orderingMode" | "createSetMode" |
-  "runBusyAction" | "onToggleGlobalEdit" | "onToggleFormatCodesPanel" | "onToggleDescriptionPanel" |
-  "onToggleOrdering" | "onToggleCreateSets" | "onJoinDuplicates" | "onExportVisibleProducts" | "onClearProducts"
+  "loading" | "displayedCount" | "totalCount" | "globalEditMode" | "showFormatCodesPanel" | "showDescriptionPanel" | "showBrandsPanel" | "orderingMode" | "createSetMode" |
+  "runBusyAction" | "onToggleGlobalEdit" | "onToggleFormatCodesPanel" | "onToggleDescriptionPanel" | "onToggleBrandsPanel" |
+  "onToggleOrdering" | "onToggleCreateSets" | "onJoinDuplicates" | "onApplyMargin" | "marginLabel" |
+  "pendingAutomaticGradesCount" | "onImportAutomaticGrades" | "onClearProducts"
 > & {
   formatCodesButtonRef: RefObject<HTMLButtonElement>;
   descriptionButtonRef: RefObject<HTMLButtonElement>;
+  brandsButtonRef: RefObject<HTMLButtonElement>;
 };
+
+function ToolActionGroup({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`toolActionGroupTs ${className}`.trim()} role="group" aria-label={label}>
+      <span className="toolActionGroupLabelTs">{label}</span>
+      <div className="toolActionGroupButtonsTs">{children}</div>
+    </div>
+  );
+}
 
 function ListPrimaryActions({
   loading,
@@ -182,50 +220,144 @@ function ListPrimaryActions({
   globalEditMode,
   showFormatCodesPanel,
   showDescriptionPanel,
+  showBrandsPanel,
   orderingMode,
   createSetMode,
   runBusyAction,
   onToggleGlobalEdit,
   onToggleFormatCodesPanel,
   onToggleDescriptionPanel,
+  onToggleBrandsPanel,
   onToggleOrdering,
   onToggleCreateSets,
   onJoinDuplicates,
-  onExportVisibleProducts,
+  onApplyMargin,
+  marginLabel,
+  pendingAutomaticGradesCount,
+  onImportAutomaticGrades,
   onClearProducts,
   formatCodesButtonRef,
   descriptionButtonRef,
+  brandsButtonRef,
 }: ListPrimaryActionsProps) {
+  const marginAccessible = (marginLabel || "").replace("%", " por cento");
+  const hasAutomaticGrades = pendingAutomaticGradesCount > 0;
+  const automaticGradesLabel = hasAutomaticGrades
+    ? `Importar grades (${pendingAutomaticGradesCount})`
+    : "Sem grades automáticas";
+  const automaticGradesTitle = hasAutomaticGrades
+    ? `Grades automáticas detectadas em ${pendingAutomaticGradesCount} item${pendingAutomaticGradesCount === 1 ? "" : "s"}. Clique para juntar e importar.`
+    : "Nenhuma grade automática pendente de importação na lista atual.";
   return (
     <div className="listHeadTs">
       <div className="listPrimaryActionsTs" aria-label="Ações principais">
-        <button className={`toolButtonTs ${globalEditMode ? "activeToolButton" : ""}`} type="button" onClick={onToggleGlobalEdit} aria-pressed={globalEditMode}>{globalEditMode ? "Finalizar edições" : "Permitir edições"}</button>
-        <button ref={formatCodesButtonRef} className={`toolButtonTs ${showFormatCodesPanel ? "activeToolButton" : ""}`} type="button" onClick={onToggleFormatCodesPanel} aria-pressed={showFormatCodesPanel}>Formatar códigos</button>
-        <button ref={descriptionButtonRef} className={`toolButtonTs ${showDescriptionPanel ? "activeToolButton" : ""}`} type="button" onClick={onToggleDescriptionPanel} aria-pressed={showDescriptionPanel}>Melhorar descrição</button>
-        <button className={`toolButtonTs orderingToolButton ${orderingMode ? "activeOrderingToolButton" : ""}`} type="button" onClick={() => void runBusyAction("ordenar-lista", onToggleOrdering)} aria-pressed={orderingMode}>{orderingMode ? "Salvar ordem" : "Ordenar"}</button>
-        <button className={`toolButtonTs createSetToolButton ${createSetMode ? "activeCreateSetToolButton" : ""}`} type="button" onClick={onToggleCreateSets} aria-pressed={createSetMode}>{createSetMode ? "Cancelar conjuntos" : "Conjuntos"}</button>
-        <button
-          className="toolButtonTs joinDuplicatesToolButton"
-          type="button"
-          onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}
-          disabled={loading || displayedCount === 0}
-          title={displayedCount === totalCount
-            ? "Juntar repetidos em todo o catalogo"
-            : `Juntar repetidos apenas nos ${displayedCount} produtos visiveis; itens ocultos serao preservados`}
-        >Juntar repetidos</button>
-        <button
-          className="toolButtonTs exportToolButtonTs"
-          type="button"
-          onClick={onExportVisibleProducts}
-          disabled={loading || displayedCount === 0}
-          title={displayedCount === totalCount ? "Baixar o catálogo completo" : "Baixar apenas os produtos visíveis na busca"}
-          aria-label={`Baixar ${actionText(displayedCount, "produto visível", "produtos visíveis")} em CSV`}
-        >
-          Baixar CSV
-        </button>
-        <button className="toolButtonTs danger" type="button" onClick={() => void runBusyAction("limpar-lista", onClearProducts)}>
-          Limpar lista
-        </button>
+        <ToolActionGroup label="Editar">
+          <button
+            className={`toolButtonTs ${globalEditMode ? "activeToolButton" : ""}`}
+            type="button"
+            onClick={onToggleGlobalEdit}
+            aria-pressed={globalEditMode}
+            title={globalEditMode ? "Travar células e exclusões da tabela" : "Liberar edição direta nas células"}
+          >
+            {globalEditMode ? "Finalizar edição" : "Editar células"}
+          </button>
+          <button
+            ref={formatCodesButtonRef}
+            className={`toolButtonTs ${showFormatCodesPanel ? "activeToolButton" : ""}`}
+            type="button"
+            onClick={onToggleFormatCodesPanel}
+            aria-pressed={showFormatCodesPanel}
+            title="Cortar dígitos do começo ou fim dos códigos"
+          >
+            Códigos
+          </button>
+          <button
+            ref={descriptionButtonRef}
+            className={`toolButtonTs ${showDescriptionPanel ? "activeToolButton" : ""}`}
+            type="button"
+            onClick={onToggleDescriptionPanel}
+            aria-pressed={showDescriptionPanel}
+            title="Limpar nomes e descrições da lista"
+          >
+            Descrição
+          </button>
+          <button
+            ref={brandsButtonRef}
+            className={`toolButtonTs brandsToolButtonTs ${showBrandsPanel ? "activeToolButton" : ""}`}
+            type="button"
+            onClick={onToggleBrandsPanel}
+            aria-pressed={showBrandsPanel}
+            title="Cadastrar marcas e aplicar em lote"
+          >
+            Marcas
+          </button>
+          <button
+            className="toolButtonTs marginToolButtonTs"
+            type="button"
+            onClick={() => void runBusyAction("margem", onApplyMargin)}
+            disabled={loading || totalCount === 0}
+            title="Alterar margem padrão e recalcular preços de venda"
+            aria-label={marginLabel ? `Alterar margem. Valor atual ${marginAccessible}` : "Alterar margem"}
+          >
+            <span>Margem</span>
+            {marginLabel ? <span className="marginBadgeTs">{marginLabel}</span> : null}
+          </button>
+        </ToolActionGroup>
+
+        <ToolActionGroup label="Organizar">
+          <button
+            className={`toolButtonTs orderingToolButton ${orderingMode ? "activeOrderingToolButton" : ""}`}
+            type="button"
+            onClick={() => void runBusyAction("ordenar-lista", onToggleOrdering)}
+            aria-pressed={orderingMode}
+            title={orderingMode ? "Salvar a nova ordem do catálogo" : "Definir a ordem dos produtos"}
+          >
+            {orderingMode ? "Salvar ordem" : "Ordenar"}
+          </button>
+          <button
+            className={`toolButtonTs createSetToolButton ${createSetMode ? "activeCreateSetToolButton" : ""}`}
+            type="button"
+            onClick={onToggleCreateSets}
+            aria-pressed={createSetMode}
+            title={createSetMode ? "Sair do modo conjuntos" : "Criar conjunto com dois produtos"}
+          >
+            {createSetMode ? "Cancelar conjuntos" : "Conjuntos"}
+          </button>
+          <button
+            className="toolButtonTs joinDuplicatesToolButton"
+            type="button"
+            onClick={() => void runBusyAction("juntar-repetidos", onJoinDuplicates)}
+            disabled={loading || displayedCount === 0}
+            title={displayedCount === totalCount
+              ? "Juntar itens iguais em todo o catálogo"
+              : `Juntar iguais só nos ${displayedCount} produtos visíveis`}
+          >
+            Juntar iguais
+          </button>
+          <button
+            className={`toolButtonTs automaticGradesToolButton ${hasAutomaticGrades ? "activeAutomaticGradesToolButton" : ""}`}
+            type="button"
+            onClick={() => void runBusyAction("importar-grades-catalogo", onImportAutomaticGrades)}
+            disabled={loading || !hasAutomaticGrades}
+            title={automaticGradesTitle}
+            aria-label={automaticGradesTitle}
+            aria-pressed={hasAutomaticGrades}
+          >
+            <span>{hasAutomaticGrades ? "Importar grades" : "Sem grades"}</span>
+            {hasAutomaticGrades ? <span className="automaticGradesBadgeTs">{pendingAutomaticGradesCount}</span> : null}
+          </button>
+        </ToolActionGroup>
+
+        <ToolActionGroup label="Lista" className="toolActionGroupDangerTs">
+          <button
+            className="toolButtonTs danger"
+            type="button"
+            onClick={() => void runBusyAction("limpar-lista", onClearProducts)}
+            title="Remove todos os produtos do catálogo ativo"
+          >
+            Limpar lista
+          </button>
+        </ToolActionGroup>
       </div>
     </div>
   );
@@ -245,22 +377,37 @@ function EditModeContextPanel() {
 function ListModeContextPanel({
   orderingMode,
   orderingSelectedCount,
+  orderingDragEnabled,
   createSetMode,
   createSetKeys,
   onCancelOrdering,
+  onToggleOrderingDrag,
 }: Pick<
   ProductListControlsProps,
-  "orderingMode" | "orderingSelectedCount" | "createSetMode" | "createSetKeys" | "onCancelOrdering"
+  "orderingMode" | "orderingSelectedCount" | "orderingDragEnabled" | "createSetMode" | "createSetKeys" | "onCancelOrdering" | "onToggleOrderingDrag"
 >) {
   if (orderingMode) {
     return (
       <div className="listModeContextTs contextTone-ordering" role="status" aria-live="polite">
         <div className="listModeContextMainTs">
           <strong>Ordenação ativa</strong>
-          <span>Selecione linhas para montar a prioridade. Enter seleciona; Shift+Enter remove; setas movem.</span>
+          <span>
+            {orderingDragEnabled
+              ? "Clique para priorizar como sempre. Com o addon ligado, use a alça ⋮⋮ para arrastar e soltar."
+              : "Selecione linhas para montar a prioridade. Enter seleciona; Shift+Enter remove; setas movem."}
+          </span>
         </div>
         <div className="listModeContextActionsTs">
           <span className="listModeContextMetaTs">{actionText(orderingSelectedCount, "item", "itens")} priorizado{orderingSelectedCount === 1 ? "" : "s"}</span>
+          <button
+            className={`listModeContextButtonTs ${orderingDragEnabled ? "activeListModeContextButtonTs" : "secondaryListModeContextButtonTs"}`}
+            type="button"
+            onClick={onToggleOrderingDrag}
+            aria-pressed={orderingDragEnabled}
+            title={orderingDragEnabled ? "Desligar arrastar itens" : "Ligar addon de arrastar itens"}
+          >
+            {orderingDragEnabled ? "Arrastar: ligado" : "Addon: arrastar"}
+          </button>
           <button className="listModeContextButtonTs secondaryListModeContextButtonTs" type="button" onClick={onCancelOrdering}>
             Cancelar
           </button>
@@ -296,11 +443,17 @@ export function ProductListControls({
   globalEditMode,
   showFormatCodesPanel,
   showDescriptionPanel,
+  showBrandsPanel,
   formatCodesOptions,
   descriptionOptions,
   descriptionSuggestions,
+  sortedBrands,
+  bulkBrandValue,
+  newBrand,
+  bulkBrandText,
   orderingMode,
   orderingSelectedCount,
+  orderingDragEnabled,
   createSetMode,
   createSetKeys,
   runBusyAction,
@@ -310,11 +463,16 @@ export function ProductListControls({
   onToggleGlobalEdit,
   onToggleFormatCodesPanel,
   onToggleDescriptionPanel,
+  onToggleBrandsPanel,
   onToggleOrdering,
   onCancelOrdering,
+  onToggleOrderingDrag,
   onToggleCreateSets,
   onJoinDuplicates,
-  onExportVisibleProducts,
+  onApplyMargin,
+  marginLabel,
+  pendingAutomaticGradesCount,
+  onImportAutomaticGrades,
   onClearProducts,
   onFormatCodeOptionChange,
   onRestoreOriginalCodes,
@@ -323,11 +481,20 @@ export function ProductListControls({
   onDescriptionOptionChange,
   onCloseDescriptionPanel,
   onImproveDescriptions,
+  onSelectBrand,
+  onNewBrandChange,
+  onBulkBrandTextChange,
+  onAddBrand,
+  onAddBrandsBulk,
+  onApplyBrand,
+  onCloseBrandsPanel,
 }: ProductListControlsProps) {
   const formatCodesButtonRef = useRef<HTMLButtonElement>(null!);
   const descriptionButtonRef = useRef<HTMLButtonElement>(null!);
+  const brandsButtonRef = useRef<HTMLButtonElement>(null!);
   const formatCodesPanelRef = useRef<HTMLDivElement>(null!);
   const descriptionPanelRef = useRef<HTMLDivElement>(null!);
+  const brandsPanelRef = useRef<HTMLDivElement>(null!);
   const focusFirstPanelControl = (panel: HTMLDivElement | null) => {
     const firstControl = panel?.querySelector<HTMLElement>("input, button, select, textarea");
     firstControl?.focus();
@@ -339,6 +506,10 @@ export function ProductListControls({
   const closeDescriptionPanelAndRestoreFocus = () => {
     onCloseDescriptionPanel();
     window.setTimeout(() => descriptionButtonRef.current?.focus(), 0);
+  };
+  const closeBrandsPanelAndRestoreFocus = () => {
+    onCloseBrandsPanel();
+    window.setTimeout(() => brandsButtonRef.current?.focus(), 0);
   };
   const handlePanelEscape = (
     event: KeyboardEvent<HTMLDivElement>,
@@ -371,6 +542,15 @@ export function ProductListControls({
     return () => window.clearTimeout(timerId);
   }, [showDescriptionPanel]);
 
+  useEffect(() => {
+    if (!showBrandsPanel) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => focusFirstPanelControl(brandsPanelRef.current), 0);
+    return () => window.clearTimeout(timerId);
+  }, [showBrandsPanel]);
+
   return (
     <section className="listControlsTs" aria-labelledby="list-tools-title">
       <div className="listToolbarTs">
@@ -398,19 +578,25 @@ export function ProductListControls({
             globalEditMode={globalEditMode}
             showFormatCodesPanel={showFormatCodesPanel}
             showDescriptionPanel={showDescriptionPanel}
+            showBrandsPanel={showBrandsPanel}
             orderingMode={orderingMode}
             createSetMode={createSetMode}
             runBusyAction={runBusyAction}
             onToggleGlobalEdit={onToggleGlobalEdit}
             onToggleFormatCodesPanel={onToggleFormatCodesPanel}
             onToggleDescriptionPanel={onToggleDescriptionPanel}
+            onToggleBrandsPanel={onToggleBrandsPanel}
             onToggleOrdering={onToggleOrdering}
             onToggleCreateSets={onToggleCreateSets}
             onJoinDuplicates={onJoinDuplicates}
-            onExportVisibleProducts={onExportVisibleProducts}
+            onApplyMargin={onApplyMargin}
+            marginLabel={marginLabel}
+            pendingAutomaticGradesCount={pendingAutomaticGradesCount}
+            onImportAutomaticGrades={onImportAutomaticGrades}
             onClearProducts={onClearProducts}
             formatCodesButtonRef={formatCodesButtonRef}
             descriptionButtonRef={descriptionButtonRef}
+            brandsButtonRef={brandsButtonRef}
           />
 
           {globalEditMode ? <EditModeContextPanel /> : null}
@@ -418,14 +604,18 @@ export function ProductListControls({
           <ListModeContextPanel
             orderingMode={orderingMode}
             orderingSelectedCount={orderingSelectedCount}
+            orderingDragEnabled={orderingDragEnabled}
             createSetMode={createSetMode}
             createSetKeys={createSetKeys}
             onCancelOrdering={onCancelOrdering}
+            onToggleOrderingDrag={onToggleOrderingDrag}
           />
 
           {showFormatCodesPanel ? (
             <FormatCodesPanel
               formatCodesOptions={formatCodesOptions}
+              displayedCount={displayedCount}
+              totalCount={totalCount}
               panelRef={formatCodesPanelRef}
               runBusyAction={runBusyAction}
               onFormatCodeOptionChange={onFormatCodeOptionChange}
@@ -440,12 +630,35 @@ export function ProductListControls({
             <DescriptionPanel
               descriptionOptions={descriptionOptions}
               descriptionSuggestions={descriptionSuggestions}
+              displayedCount={displayedCount}
+              totalCount={totalCount}
               panelRef={descriptionPanelRef}
               runBusyAction={runBusyAction}
               onDescriptionOptionChange={onDescriptionOptionChange}
               onCloseDescriptionPanel={closeDescriptionPanelAndRestoreFocus}
               onImproveDescriptions={onImproveDescriptions}
               onPanelKeyDown={(event) => handlePanelEscape(event, closeDescriptionPanelAndRestoreFocus)}
+            />
+          ) : null}
+
+          {showBrandsPanel ? (
+            <BrandsPanel
+              brands={sortedBrands}
+              selectedBrand={bulkBrandValue}
+              newBrand={newBrand}
+              bulkBrandText={bulkBrandText}
+              displayedCount={displayedCount}
+              totalCount={totalCount}
+              panelRef={brandsPanelRef}
+              runBusyAction={runBusyAction}
+              onSelectBrand={onSelectBrand}
+              onNewBrandChange={onNewBrandChange}
+              onBulkBrandTextChange={onBulkBrandTextChange}
+              onAddBrand={onAddBrand}
+              onAddBrandsBulk={onAddBrandsBulk}
+              onApplyBrand={onApplyBrand}
+              onCloseBrandsPanel={closeBrandsPanelAndRestoreFocus}
+              onPanelKeyDown={(event) => handlePanelEscape(event, closeBrandsPanelAndRestoreFocus)}
             />
           ) : null}
 

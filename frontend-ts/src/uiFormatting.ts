@@ -37,10 +37,13 @@ export type ImportHistoryEntry = {
   sourceName: string;
   mode: string;
   totalItems: number;
+  totalValueLabel: string | null;
   warningCount: number;
   validationStatus: string;
   gradesAvailable: boolean;
   status: string;
+  /** True when a local session snapshot exists (file + extraction) for reopen. */
+  canReopen?: boolean;
 };
 
 export type OperationDiaryEntry = {
@@ -304,13 +307,33 @@ export function coerceStringList(value: unknown) {
   return value.map((item) => String(item || "").trim()).filter(Boolean);
 }
 
-function formatImportProgressCopy(message: string) {
-  return message
+export function formatImportProgressCopy(message: string) {
+  const raw = String(message || "").trim();
+  if (!raw) return "";
+  return raw
     .replace(/\bservi[cç]o LLM\b/gi, "IA")
+    .replace(/\bservico de IA\b/gi, "IA")
+    .replace(/\bservi[cç]o de IA\b/gi, "IA")
     .replace(/\bLLM\b/g, "IA")
+    .replace(/\bMinimax\b/gi, "IA")
     .replace(/\bConcluido\b/g, "Concluído")
-    .replace(/\bvalidacao\b/g, "validação")
-    .replace(/\bimportacao\b/g, "importação");
+    .replace(/\bvalidacao\b/gi, "validação")
+    .replace(/\bimportacao\b/gi, "importação")
+    .replace(/\bFalling back to the LLM import pipeline\.?/gi, "Indo para a leitura com IA.")
+    .replace(/\bImport started\.?/gi, "Importação iniciada.")
+    .replace(/\bImport persisted successfully with (\d+) item\(s\)\.?/gi, "Salvos $1 itens no catálogo.")
+    .replace(/\bLocal parser approved by invoice validation\. Skipping the LLM fallback\.?/gi, "Parser local aprovado; IA não foi necessária.")
+    .replace(/\bLocal parser skipped because IA import was requested\.?/gi, "Parser local ignorado; importação pedida via IA.")
+    .replace(/\bFull-page OCR fallback returned no valid items; trying vertical slices\.?/gi, "OCR da página inteira sem itens; tentando recortes verticais.")
+    .replace(/\bProcessando com servico de IA\b/gi, "Processando com IA")
+    .replace(/\bProcessando com servico LLM\b/gi, "Processando com IA")
+    .replace(/\bEnviando arquivo para servico de IA\b/gi, "Enviando arquivo para a IA")
+    .replace(/\bEnviando arquivo para servico LLM\b/gi, "Enviando arquivo para a IA")
+    .replace(/\bValidando itens retornados pelo LLM\b/gi, "Validando itens retornados pela IA")
+    .replace(/\bTentando parser local e validacao da nota\b/gi, "Tentando parser local e validação da nota")
+    .replace(/\bParser local aprovado; preparando importacao\b/gi, "Parser local aprovado; preparando importação")
+    .replace(/\bValidacao local aprovada; enviando arquivo para servico LLM\b/gi, "Validação local aprovada; enviando para a IA")
+    .replace(/\bParser local reprovado; enviando arquivo para servico LLM\b/gi, "Parser local reprovado; enviando para a IA");
 }
 
 export function buildImportProgressMessage(importing: boolean, jobMessage?: string | null) {
@@ -319,17 +342,153 @@ export function buildImportProgressMessage(importing: boolean, jobMessage?: stri
   return message ? formatImportProgressCopy(message) : "Importação em andamento...";
 }
 
+export type ImportProgressStep = {
+  id: string;
+  label: string;
+  state: "pending" | "active" | "done";
+};
+
+export function formatImportElapsed(elapsedMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}min ${String(seconds).padStart(2, "0")}s`;
+}
+
+export function buildImportProgressSteps(input: {
+  stage?: string | null;
+  message?: string | null;
+  mode?: "llm" | "local" | null;
+  active?: boolean;
+}): ImportProgressStep[] {
+  const stage = String(input.stage || "").trim().toLowerCase();
+  const message = String(input.message || "").toLowerCase();
+  const mode = input.mode || null;
+  const active = Boolean(input.active);
+
+  const steps: Array<{ id: string; label: string }> = [
+    { id: "receive", label: "Arquivo" },
+    { id: "read", label: "Leitura" },
+    { id: "ai", label: mode === "local" ? "Parser local" : "IA" },
+    { id: "validate", label: "Validação" },
+    { id: "save", label: "Salvar" },
+  ];
+
+  let activeIndex = 0;
+  if (!active && (stage === "completed" || stage === "error")) {
+    activeIndex = steps.length;
+  } else if (stage === "completed") {
+    activeIndex = steps.length;
+  } else if (stage === "error") {
+    activeIndex = Math.max(0, steps.findIndex((step) => step.id === "validate"));
+  } else if (stage === "parsing" || /valid|guard|itens retornados|aprovad|reprovad/.test(message)) {
+    activeIndex = 3;
+  } else if (stage === "processing" || /processando|ocr|recorte|chat|llm|ia\b|texto \d/.test(message)) {
+    activeIndex = 2;
+  } else if (stage === "uploading" || /enviando|upload/.test(message)) {
+    activeIndex = 1;
+  } else if (stage === "queued" || stage === "pending" || !stage) {
+    activeIndex = 0;
+  } else {
+    activeIndex = 1;
+  }
+
+  if (mode === "local" && active && activeIndex < 2) {
+    activeIndex = 2;
+  }
+
+  return steps.map((step, index) => {
+    if (!active && stage === "completed") {
+      return { ...step, state: "done" as const };
+    }
+    if (index < activeIndex) {
+      return { ...step, state: "done" as const };
+    }
+    if (index === activeIndex && (active || stage === "error")) {
+      return { ...step, state: "active" as const };
+    }
+    return { ...step, state: "pending" as const };
+  });
+}
+
+function parseImportMoneyValue(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const text = String(raw).trim();
+  if (!text) return null;
+  // Accept "4613.76", "4.613,76" or "4613,76"
+  const normalized = text.includes(",")
+    ? text.replace(/\./g, "").replace(",", ".")
+    : text.replace(/[^\d.-]/g, "");
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
+function pickImportMetricValue(metrics: Record<string, unknown> | null | undefined, keys: string[]): unknown {
+  if (!metrics) return null;
+  for (const key of keys) {
+    if (metrics[key] != null && metrics[key] !== "") return metrics[key];
+  }
+  return null;
+}
+
+export function formatImportMoneyLabel(raw: unknown): string | null {
+  const value = parseImportMoneyValue(raw);
+  if (value == null) return null;
+  return formatCurrency(value);
+}
+
 export function buildImportDiagnosticsChips(
   metrics: Record<string, unknown> | null | undefined,
   _warnings: string[] = [],
+  options: {
+    totalItems?: number | null;
+  } = {},
 ): ImportDiagnosticsChip[] {
-  const source = String(metrics?.["selected_source"] || "").trim();
+  const source = String(metrics?.["selected_source"] || "").trim().toLowerCase();
   const chips: ImportDiagnosticsChip[] = [];
 
-  if (source === "local") {
+  if (source === "local" || source.includes("local")) {
     chips.push({ label: "Origem", value: "Leitura local", tone: "success" });
-  } else if (source === "llm") {
+  } else if (source === "llm" || source.includes("llm") || source === "ia") {
     chips.push({ label: "Origem", value: "IA", tone: "neutral" });
+  }
+
+  const totalItems = Math.max(0, Math.floor(Number(options.totalItems ?? metrics?.["imported_items"] ?? metrics?.["grouped_items"] ?? 0)));
+  if (totalItems > 0) {
+    chips.push({
+      label: "Itens",
+      value: String(totalItems),
+      tone: "success",
+    });
+  }
+
+  const extractedLabel = formatImportMoneyLabel(
+    pickImportMetricValue(metrics, ["extracted_total_products", "local_extracted_total_products"]),
+  );
+  if (extractedLabel) {
+    chips.push({ label: "Total detectado", value: extractedLabel, tone: "neutral" });
+  }
+
+  const noteTotalLabel = formatImportMoneyLabel(
+    pickImportMetricValue(metrics, ["document_total_note", "local_document_total_note"]),
+  );
+  const productsTotalLabel = formatImportMoneyLabel(
+    pickImportMetricValue(metrics, ["document_total_products", "local_document_total_products"]),
+  );
+  if (noteTotalLabel) {
+    chips.push({ label: "Total da nota", value: noteTotalLabel, tone: "neutral" });
+  }
+  if (productsTotalLabel && productsTotalLabel !== noteTotalLabel) {
+    chips.push({ label: "Total produtos", value: productsTotalLabel, tone: "neutral" });
+  }
+
+  const matchRaw = pickImportMetricValue(metrics, ["products_value_matches_document", "local_products_value_matches_document"]);
+  if (matchRaw === true) {
+    chips.push({ label: "Conferência", value: "Valores batem", tone: "success" });
+  } else if (matchRaw === false) {
+    chips.push({ label: "Conferência", value: "Divergência de valor", tone: "warning" });
   }
 
   return chips;
@@ -500,8 +659,9 @@ export function buildImportGradesAvailableMessage(result: Pick<ImportResult, "gr
 }
 
 function normalizeImportMode(source: string, fallback?: "llm" | "local" | null) {
-  if (source === "local" || fallback === "local") return "Leitura local";
-  if (source === "llm" || fallback === "llm") return "IA";
+  const normalized = source.toLowerCase();
+  if (normalized === "local" || normalized.includes("local") || fallback === "local") return "Leitura local";
+  if (normalized === "llm" || normalized.includes("llm") || fallback === "llm") return "IA";
   return "Importação";
 }
 
@@ -527,6 +687,25 @@ export function formatImportValidationStatus(status: unknown) {
   return value;
 }
 
+export function importValidationStatusTone(status: unknown): StatusTone {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "approved") return "success";
+  if (normalized === "rejected" || normalized === "error" || normalized === "failed") return "error";
+  if (normalized === "unverified") return "warning";
+  return "neutral";
+}
+
+export function formatImportHistoryWhen(completedAt: number): { dateLabel: string; timeLabel: string; fullLabel: string; iso: string } {
+  const date = new Date(Number(completedAt) || 0);
+  if (!Number.isFinite(date.getTime()) || date.getTime() <= 0) {
+    return { dateLabel: "—", timeLabel: "—", fullLabel: "Data desconhecida", iso: "" };
+  }
+  const dateLabel = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const timeLabel = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const fullLabel = date.toLocaleString("pt-BR");
+  return { dateLabel, timeLabel, fullLabel, iso: date.toISOString() };
+}
+
 export function buildImportHistoryEntry(
   result: Pick<ImportResult, "status" | "local_file" | "warnings" | "total_itens" | "grades_disponiveis" | "metrics">,
   options: {
@@ -543,16 +722,29 @@ export function buildImportHistoryEntry(
   const completedAt = completedSeconds > 0 ? completedSeconds * 1000 : options.now || Date.now();
   const sourceName = String(result.local_file || options.selectedFileName || "Romaneio importado").trim() || "Romaneio importado";
 
+  const totalValueLabel = formatImportMoneyLabel(
+    pickImportMetricValue(metrics as Record<string, unknown>, [
+      "extracted_total_products",
+      "local_extracted_total_products",
+      "document_total_products",
+      "local_document_total_products",
+      "document_total_note",
+      "local_document_total_note",
+    ]),
+  );
+
   return {
     id: String(options.job?.job_id || `${sourceName}-${completedAt}`).trim(),
     completedAt,
     sourceName,
     mode: normalizeImportMode(source, options.mode),
     totalItems: Math.max(0, Math.floor(Number(result.total_itens || 0))),
+    totalValueLabel,
     warningCount: Array.isArray(result.warnings) ? result.warnings.length : 0,
     validationStatus: validationStatus || "sem validacao",
     gradesAvailable: Boolean(result.grades_disponiveis),
     status: String(result.status || "").trim() || "ok",
+    canReopen: true,
   };
 }
 
@@ -570,28 +762,29 @@ export function updateRecentImportHistory(
 export function coerceImportHistoryEntries(value: unknown, limit = 3): ImportHistoryEntry[] {
   if (!Array.isArray(value)) return [];
   const safeLimit = Math.max(1, Math.floor(Number(limit) || 3));
-  return value
-    .filter((item) => item && typeof item === "object")
-    .map((item) => {
-      const record = item as Record<string, unknown>;
-      const id = String(record.id || "").trim();
-      const completedAt = Number(record.completedAt || 0);
-      if (!id || !Number.isFinite(completedAt) || completedAt <= 0) return null;
-      return {
-        id,
-        completedAt,
-        sourceName: String(record.sourceName || "Romaneio importado").trim() || "Romaneio importado",
-        mode: String(record.mode || "Importação").trim() || "Importação",
-        totalItems: Math.max(0, Math.floor(Number(record.totalItems || 0))),
-        warningCount: Math.max(0, Math.floor(Number(record.warningCount || 0))),
-        validationStatus: String(record.validationStatus || "sem validacao").trim() || "sem validacao",
-        gradesAvailable: Boolean(record.gradesAvailable),
-        status: String(record.status || "ok").trim() || "ok",
-      };
-    })
-    .filter((item): item is ImportHistoryEntry => Boolean(item))
-    .sort((left, right) => right.completedAt - left.completedAt)
-    .slice(0, safeLimit);
+  const entries: ImportHistoryEntry[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    const id = String(record.id || "").trim();
+    const completedAt = Number(record.completedAt || 0);
+    if (!id || !Number.isFinite(completedAt) || completedAt <= 0) continue;
+    const totalValueLabelRaw = record.totalValueLabel == null ? null : String(record.totalValueLabel).trim();
+    entries.push({
+      id,
+      completedAt,
+      sourceName: String(record.sourceName || "Romaneio importado").trim() || "Romaneio importado",
+      mode: String(record.mode || "Importação").trim() || "Importação",
+      totalItems: Math.max(0, Math.floor(Number(record.totalItems || 0))),
+      totalValueLabel: totalValueLabelRaw || null,
+      warningCount: Math.max(0, Math.floor(Number(record.warningCount || 0))),
+      validationStatus: String(record.validationStatus || "sem validacao").trim() || "sem validacao",
+      gradesAvailable: Boolean(record.gradesAvailable),
+      status: String(record.status || "ok").trim() || "ok",
+      canReopen: record.canReopen == null ? true : Boolean(record.canReopen),
+    });
+  }
+  return entries.sort((left, right) => right.completedAt - left.completedAt).slice(0, safeLimit);
 }
 
 export function buildOperationDiaryEntry(input: OperationDiaryEntryInput): OperationDiaryEntry {

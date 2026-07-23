@@ -7,8 +7,11 @@ from typing import Any, Callable
 
 import httpx
 
-from app.application.imports.parsing import (
+from app.application.imports.llm_prompts import (
+    build_import_text_chunk_message,
     build_romaneio_image_message,
+)
+from app.application.imports.parsing import (
     extract_llm_json_items,
     extract_structured_invoice_row_lines,
     parse_candidate_content,
@@ -36,6 +39,15 @@ from app.application.imports.job_validation import (
 )
 from app.domain.grades.parser import parse_grade_extraction
 from app.domain.products.entities import Product
+from app.interfaces.api.http.jobs.cancel import (
+    ImportJobCancelled,
+    begin_import_job,
+    clear_import_cancel_state,
+    is_import_cancelled,
+    raise_if_import_cancelled,
+    register_import_http_client,
+    unregister_import_http_client,
+)
 from app.interfaces.api.http.jobs.llm import (
     allow_local_validation_guard,
     coerce_int_env,
@@ -54,34 +66,6 @@ from app.interfaces.api.http.route_shared import CATALOG_SIZES
 from app.shared.logging.setup import log_event
 
 logger = logging.getLogger(__name__)
-
-
-def build_import_text_chunk_message(
-    *,
-    expected_rows: int,
-    chunk_index: int,
-    total_chunks: int,
-    first_code: str | None,
-    last_code: str | None,
-    retry: bool = False,
-) -> str:
-    range_hint = ""
-    if first_code or last_code:
-        range_hint = f" O primeiro codigo esperado deste trecho e {first_code or '-'} e o ultimo e {last_code or '-'}."
-    retry_hint = (
-        " A tentativa anterior deste trecho ficou incompleta; desta vez seja estritamente exaustivo e nao encerre antes da ultima linha."
-        if retry
-        else ""
-    )
-    return (
-        "O anexo abaixo contem texto bruto de linhas de produtos de uma DANFE/NF-e. "
-        "Extraia TODAS as linhas deste trecho e retorne JSON apenas no formato "
-        '{"items":[{"codigo":"","descricao_original":"","nome_curto":"","quantidade":0,"preco":0,"tamanho":""}]}. '
-        "Regras obrigatorias: uma saida por linha de produto; nao resumir; nao deduplicar; nao agrupar cores; nao pular linhas repetidas; "
-        "preservar o codigo curto da linha; copiar a descricao completa em descricao_original; preencher tamanho quando existir; "
-        "se houver 2 linhas quase iguais, mas ambas existirem no trecho, ambas devem aparecer na saida. "
-        f"Este e o trecho {chunk_index}/{total_chunks} e contem {expected_rows} linhas de produto esperadas.{range_hint}{retry_hint}"
-    )
 
 
 def _chunk_row_codes(chunk_text: str) -> tuple[str | None, str | None]:
@@ -117,6 +101,8 @@ def _run_import_text_chunk(
     total_chunks: int,
     metrics: dict[str, Any],
     retry_depth: int = 0,
+    filename: str | None = None,
+    source_kind: str = "text",
 ) -> tuple[list[str], str | None, list[Product], list[dict[str, Any]], list[str]]:
     warnings: list[str] = []
     expected_rows = extract_structured_invoice_row_lines(chunk_text)
@@ -131,21 +117,33 @@ def _run_import_text_chunk(
         first_code=first_code,
         last_code=last_code,
         retry=retry_depth > 0,
+        filename=filename,
+        source_kind=source_kind,
     )
 
+    raise_if_import_cancelled(job_id)
     call_started = time.perf_counter()
-    chat_text, chat_saved = post_llm_chat(
-        client,
-        job_id=job_id,
-        message=message,
-        documents=[{"name": chunk_name, "content": chunk_text}],
-        images=images,
-    )
+    try:
+        # Text path: never mix page images into text extraction calls.
+        _ = images
+        chat_text, chat_saved = post_llm_chat(
+            client,
+            job_id=job_id,
+            message=message,
+            documents=[{"name": chunk_name, "content": chunk_text}],
+            images=[],
+            metrics=metrics,
+        )
+    except httpx.HTTPError:
+        if is_import_cancelled(job_id):
+            raise ImportJobCancelled(job_id)
+        raise
     call_ms = int((time.perf_counter() - call_started) * 1000)
+    raise_if_import_cancelled(job_id)
 
     response_items = extract_llm_json_items(chat_text)
     parsed_candidates = parse_candidate_content(chat_text) if chat_text else []
-    response_item_count = len(response_items) or len(parsed_candidates)
+    raw_item_count = len(response_items)
     response_total_quantity = _products_total_quantity(parsed_candidates)
     response_codes = _llm_item_codes(response_items)
     if not response_codes and parsed_candidates:
@@ -154,6 +152,14 @@ def _run_import_text_chunk(
     response_first_code = response_codes[0] if response_codes else None
     last_code_matches = not last_code or response_last_code == last_code
     first_code_matches = not first_code or response_first_code == first_code
+    # JSON item count is authoritative. Parsed catalog rows may merge size variants of the
+    # same SKU, so do not treat "fewer products than printed rows" as incomplete by itself.
+    if raw_item_count > 0:
+        response_item_count = raw_item_count
+    elif expected_row_count and response_total_quantity >= expected_total_quantity and first_code_matches and last_code_matches:
+        response_item_count = expected_row_count
+    else:
+        response_item_count = len(parsed_candidates)
     chunk_detail = {
         "chunk": chunk_index,
         "name": chunk_name,
@@ -163,6 +169,7 @@ def _run_import_text_chunk(
         "retry_depth": retry_depth,
         "expected_rows": expected_row_count,
         "response_items": response_item_count,
+        "response_products": len(parsed_candidates),
         "expected_quantity": expected_total_quantity,
         "response_quantity": response_total_quantity,
         "expected_first_code": first_code,
@@ -224,6 +231,8 @@ def _run_import_text_chunk(
                     total_chunks=sub_total,
                     metrics=metrics,
                     retry_depth=retry_depth + 1,
+                    filename=filename,
+                    source_kind=source_kind,
                 )
                 if sub_saved and not saved_file:
                     saved_file = sub_saved
@@ -247,6 +256,7 @@ def _run_import_image_batches(
     update_stage: Callable[[str, str], None],
     single_label: str,
     multiple_label: str,
+    filename: str | None = None,
 ) -> tuple[list[str], str | None, list[Product]]:
     parts: list[str] = []
     saved_file: str | None = None
@@ -254,17 +264,30 @@ def _run_import_image_batches(
     total = len(image_batches)
 
     for idx, image_batch in enumerate(image_batches, start=1):
+        raise_if_import_cancelled(job_id)
         label = multiple_label.format(index=idx, total=total) if total > 1 else single_label
         update_stage("processing", label)
         call_started = time.perf_counter()
-        chat_text, chat_saved = post_llm_chat(
-            client,
-            job_id=job_id,
-            message=build_romaneio_image_message(image_batch),
-            documents=[],
-            images=image_batch,
-        )
+        try:
+            chat_text, chat_saved = post_llm_chat(
+                client,
+                job_id=job_id,
+                message=build_romaneio_image_message(
+                    image_batch,
+                    filename=filename,
+                    page_index=first_chunk_index + idx - 1,
+                    page_total=max(total, first_chunk_index + total - 1),
+                ),
+                documents=[],
+                images=image_batch,
+                metrics=metrics,
+            )
+        except httpx.HTTPError:
+            if is_import_cancelled(job_id):
+                raise ImportJobCancelled(job_id)
+            raise
         call_ms = int((time.perf_counter() - call_started) * 1000)
+        raise_if_import_cancelled(job_id)
         _append_llm_chat_call_metrics(
             metrics,
             {
@@ -368,7 +391,7 @@ def run_grade_extraction_job(
                 )
                 image_batches = split_image_batches(
                     image_inputs,
-                    batch_size=coerce_int_env("LLM_IMAGE_BATCH_SIZE", 1),
+                    batch_size=coerce_int_env("LLM_IMAGE_BATCH_SIZE", 2),
                 )
                 parts = []
                 total = len(image_batches)
@@ -463,12 +486,13 @@ def run_import_job(
     content_type: str | None,
     service: object,
     data_dir: Path,
-    prefer_llm: bool = False,
-    skip_local_parser: bool = False,
+    prefer_llm: bool = True,
+    skip_local_parser: bool = True,
 ) -> None:
     warnings: list[str] = []
     llm_text = ""
     upload_docs_text = ""
+    upload_validation_text = ""
     saved_file: str | None = None
     parsed_items: list[Product] = []
     created_items: list[Product] = []
@@ -476,6 +500,7 @@ def run_import_job(
     selected_text = ""
     llm_candidates: list[Product] = []
     total_started = time.perf_counter()
+    begin_import_job(job_id)
     metrics = _build_import_job_metrics(
         filename=filename,
         content_type=content_type,
@@ -485,7 +510,102 @@ def run_import_job(
     )
 
     def _update_stage(stage: str, message: str) -> None:
+        if is_import_cancelled(job_id) and stage not in {"cancelled", "error", "completed"}:
+            raise ImportJobCancelled(job_id)
         update_import_job(job_id, stage, message=message, metrics=metrics)
+
+    def _checkpoint(message: str | None = None) -> None:
+        raise_if_import_cancelled(job_id)
+        if message:
+            _append_process_event(metrics, source="system", level="info", message=message)
+
+    try:
+        _run_import_job_body(
+            job_id=job_id,
+            contents=contents,
+            filename=filename,
+            content_type=content_type,
+            service=service,
+            data_dir=data_dir,
+            prefer_llm=prefer_llm,
+            skip_local_parser=skip_local_parser,
+            warnings=warnings,
+            metrics=metrics,
+            total_started=total_started,
+            update_stage=_update_stage,
+            checkpoint=_checkpoint,
+            state={
+                "llm_text": llm_text,
+                "upload_docs_text": upload_docs_text,
+                "upload_validation_text": upload_validation_text,
+                "saved_file": saved_file,
+                "parsed_items": parsed_items,
+                "created_items": created_items,
+                "selected_source": selected_source,
+                "selected_text": selected_text,
+                "llm_candidates": llm_candidates,
+            },
+        )
+    except ImportJobCancelled:
+        metrics["failure_code"] = "cancelled"
+        metrics["cancelled_by_user"] = True
+        metrics["parsing_total_ms"] = int((time.perf_counter() - total_started) * 1000)
+        _append_process_event(
+            metrics,
+            source="system",
+            level="warning",
+            message="Import cancelled by operator before catalog changes were saved.",
+        )
+        log_event(
+            logger,
+            logging.INFO,
+            "import_job_cancelled",
+            "import job cancelled",
+            job_id=job_id,
+            failure_reason="cancelled",
+        )
+        # Do not persist products when cancelled mid-flight.
+        update_import_job(
+            job_id,
+            "cancelled",
+            message="Importacao cancelada pelo operador.",
+            error="Importação cancelada pelo operador.",
+            metrics=metrics,
+        )
+    except Exception:
+        raise
+    finally:
+        clear_import_cancel_state(job_id)
+
+
+def _run_import_job_body(
+    *,
+    job_id: str,
+    contents: bytes,
+    filename: str,
+    content_type: str | None,
+    service: object,
+    data_dir: Path,
+    prefer_llm: bool,
+    skip_local_parser: bool,
+    warnings: list[str],
+    metrics: dict[str, Any],
+    total_started: float,
+    update_stage: Callable[[str, str], None],
+    checkpoint: Callable[..., None],
+    state: dict[str, Any],
+) -> None:
+    # Local aliases kept close to the original body for a focused cancel integration.
+    _update_stage = update_stage
+    llm_text: str = state["llm_text"]
+    upload_docs_text: str = state["upload_docs_text"]
+    upload_validation_text: str = state["upload_validation_text"]
+    saved_file: str | None = state["saved_file"]
+    parsed_items: list[Product] = state["parsed_items"]
+    created_items: list[Product] = state["created_items"]
+    selected_source: str = state["selected_source"]
+    selected_text: str = state["selected_text"]
+    llm_candidates: list[Product] = state["llm_candidates"]
 
     _append_process_event(metrics, source="system", level="info", message="Import started.")
     metrics["local_parser_skipped"] = bool(skip_local_parser)
@@ -514,27 +634,17 @@ def run_import_job(
             local_attempt = _evaluate_local_parser_attempt(local_payload, decode_ms=local_decode_ms)
             metrics.update(local_attempt.metrics)
 
-            if local_attempt.approved_for_import and not prefer_llm:
-                parsed_items = local_attempt.products
-                selected_source = "local"
-                selected_text = products_to_text(parsed_items)
-                _append_process_event(
-                    metrics,
-                    source="local",
-                    level="success",
-                    message="Local parser approved by invoice validation. Skipping the LLM fallback.",
-                )
-                _update_stage("parsing", "Parser local aprovado; preparando importacao")
-            elif local_attempt.approved_for_import:
+            # Local parse is diagnostic only. Extraction judgment is always LLM.
+            if local_attempt.approved_for_import:
                 metrics["local_parser_preapproved"] = True
                 metrics["llm_requested"] = True
                 _append_process_event(
                     metrics,
                     source="local",
-                    level="success",
-                    message="Validacao local aprovada; importacao via LLM solicitada.",
+                    level="info",
+                    message="Parser local bateu totais (diagnostico); extracao segue via LLM.",
                 )
-                _update_stage("uploading", "Validacao local aprovada; enviando arquivo para servico LLM")
+                _update_stage("uploading", "Enviando arquivo para servico LLM")
             else:
                 fallback_message = local_attempt.fallback_message or "Local parser not approved: automatic approval was not reached."
                 warnings.append(fallback_message)
@@ -557,142 +667,196 @@ def run_import_job(
             )
 
     if not parsed_items:
-        _append_process_event(metrics, source="llm", level="info", message="Falling back to the LLM import pipeline.")
-        if skip_local_parser:
-            _update_stage("uploading", "Enviando arquivo para servico de IA")
-        else:
-            _update_stage("uploading", "Parser local reprovado; enviando arquivo para servico LLM")
+        checkpoint()
+        _append_process_event(
+            metrics,
+            source="llm",
+            level="info",
+            message="LLM import pipeline: file + extract items/grades JSON.",
+        )
+        _update_stage("uploading", "Enviando arquivo para servico de IA")
         try:
             timeout = httpx.Timeout(llm_timeout_seconds(), connect=10.0)
             upload_started = time.perf_counter()
             with httpx.Client(timeout=timeout) as client:
-                upload_data = upload_llm_file(
-                    client,
-                    job_id=job_id,
-                    contents=contents,
-                    filename=filename or "romaneio",
-                    content_type=content_type,
-                )
-                metrics["llm_upload_ms"] = int((time.perf_counter() - upload_started) * 1000)
-                metrics["llm_upload_used"] = True
-
-                upload_summary = _summarize_llm_upload_payload(upload_data)
-                warnings.extend(upload_summary.warnings)
-                images = upload_summary.images
-                upload_docs_text = upload_summary.documents_text
-                metrics.update(upload_summary.metrics)
-                for warning in upload_summary.warnings:
-                    _append_process_event(metrics, source="llm", level="warning", message=warning)
-                _append_process_event(
-                    metrics,
-                    source=upload_summary.event["source"],
-                    level=upload_summary.event["level"],
-                    message=upload_summary.event["message"],
-                )
-
-                _update_stage("processing", "Processando com servico LLM")
-                structured_chunks = split_structured_invoice_chunks(
-                    upload_docs_text,
-                    max_lines=coerce_int_env("LLM_STRUCTURED_ROWS_PER_CHUNK", 18),
-                    max_chars=coerce_int_env("LLM_STRUCTURED_CHUNK_CHARS", 4200),
-                )
-                chunks = structured_chunks or split_text_chunks(
-                    upload_docs_text,
-                    max_chars=coerce_int_env("LLM_DOC_CHUNK_CHARS", 8000),
-                )
-                if chunks:
-                    parts: list[str] = []
-                    total = len(chunks)
-                    metrics["llm_chunk_count"] = total
-                    metrics["llm_structured_chunk_count"] = len(structured_chunks)
-                    for idx, chunk in enumerate(chunks, start=1):
-                        _update_stage("processing", f"Processando texto {idx}/{total} com servico LLM")
-                        chunk_texts, chat_saved, chunk_candidates, _chunk_details, chunk_warnings = _run_import_text_chunk(
-                            client=client,
-                            job_id=job_id,
-                            chunk_text=chunk,
-                            chunk_name=f"parte_{idx}",
-                            images=images if idx == 1 else [],
-                            chunk_index=idx,
-                            total_chunks=total,
-                            metrics=metrics,
-                        )
-                        warnings.extend(chunk_warnings)
-                        if chat_saved and not saved_file:
-                            saved_file = chat_saved
-                        parts.extend(chunk_texts)
-                        llm_candidates.extend(chunk_candidates)
-                    llm_text = "\n\n".join(parts).strip()
-                elif images:
-                    parts = []
-                    image_batch_size = coerce_int_env("LLM_IMAGE_BATCH_SIZE", 1)
-                    full_page_batches = split_image_batches(images, batch_size=image_batch_size)
-                    full_page_total = len(full_page_batches)
-                    metrics["llm_chunk_count"] = full_page_total
-                    metrics["llm_chat_used"] = True
-                    metrics["llm_chat_calls"] = 0
-                    metrics["llm_chat_total_ms"] = 0
-                    metrics["llm_chat_calls_details"] = []
-
-                    image_texts, image_saved, image_candidates = _run_import_image_batches(
-                        client=client,
+                register_import_http_client(job_id, client)
+                try:
+                    raise_if_import_cancelled(job_id)
+                    upload_data = upload_llm_file(
+                        client,
                         job_id=job_id,
-                        image_batches=full_page_batches,
-                        attempt="full_page",
-                        first_chunk_index=1,
-                        metrics=metrics,
-                        update_stage=_update_stage,
-                        single_label="Processando pagina com servico LLM",
-                        multiple_label="Processando paginas {index}/{total} com servico LLM",
+                        contents=contents,
+                        filename=filename or "romaneio",
+                        content_type=content_type,
                     )
-                    if image_saved and not saved_file:
-                        saved_file = image_saved
-                    parts.extend(image_texts)
-                    llm_candidates.extend(image_candidates)
+                    metrics["llm_upload_ms"] = int((time.perf_counter() - upload_started) * 1000)
+                    metrics["llm_upload_used"] = True
 
-                    llm_text = "\n\n".join(parts).strip()
+                    upload_summary = _summarize_llm_upload_payload(upload_data)
+                    warnings.extend(upload_summary.warnings)
+                    images = upload_summary.images
+                    upload_docs_text = upload_summary.documents_text
+                    upload_validation_text = str(getattr(upload_summary, "validation_text", "") or "").strip()
+                    metrics.update(upload_summary.metrics)
+                    upload_data_info = upload_data.get("data_info") if isinstance(upload_data.get("data_info"), dict) else {}
+                    upload_mode = str(upload_data_info.get("mode") or "").strip().lower()
+                    lower_name = str(filename or "").lower()
+                    if upload_docs_text and (upload_mode in {"pdf_text", "text"} or lower_name.endswith((".pdf", ".txt", ".csv"))):
+                        llm_source_kind = "pdf_text" if lower_name.endswith(".pdf") or upload_mode == "pdf_text" else "text"
+                    else:
+                        llm_source_kind = "vision"
+                    metrics["llm_input_mode"] = llm_source_kind
+                    for warning in upload_summary.warnings:
+                        _append_process_event(metrics, source="llm", level="warning", message=warning)
+                    _append_process_event(
+                        metrics,
+                        source=upload_summary.event["source"],
+                        level=upload_summary.event["level"],
+                        message=upload_summary.event["message"],
+                    )
 
-                    fallback_slices = max(
-                        coerce_int_env("LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES", 1),
-                        coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 4),
-                    )
-                    vertical_fallback = _prepare_llm_vertical_slice_fallback(
-                        images=images,
-                        image_batch_size=image_batch_size,
-                        full_page_total=full_page_total,
-                        fallback_slices=fallback_slices,
-                        llm_candidates=llm_candidates,
-                    )
-                    if vertical_fallback.enabled:
-                        warnings.extend(vertical_fallback.warnings)
-                        fallback_event = vertical_fallback.event
-                        if fallback_event is not None:
-                            _append_process_event(
-                                metrics,
-                                source=fallback_event["source"],
-                                level=fallback_event["level"],
-                                message=fallback_event["message"],
+                    checkpoint()
+                    # Extraction is always LLM-driven. Deterministic parsers must not approve or skip IA.
+                    _update_stage("processing", "Processando com servico LLM")
+                    # Text/PDF → text path. Vision only when there is no document text (images only).
+                    # Prefer one-shot on the full document; chunk only when over ONESHOT limit.
+                    oneshot_max = coerce_int_env("LLM_ONESHOT_MAX_CHARS", 48000)
+                    doc_chunk_max = coerce_int_env("LLM_DOC_CHUNK_CHARS", oneshot_max)
+                    structured_max_chars = coerce_int_env("LLM_STRUCTURED_CHUNK_CHARS", oneshot_max)
+                    structured_max_lines = coerce_int_env("LLM_STRUCTURED_ROWS_PER_CHUNK", 80)
+                    if upload_docs_text and len(upload_docs_text) <= oneshot_max:
+                        chunks = [upload_docs_text]
+                        structured_chunks = []
+                        metrics["llm_oneshot"] = True
+                    else:
+                        structured_chunks = (
+                            split_structured_invoice_chunks(
+                                upload_docs_text,
+                                max_lines=structured_max_lines,
+                                max_chars=structured_max_chars,
                             )
-                        metrics.update(vertical_fallback.metrics)
-                        fallback_texts, fallback_saved, fallback_candidates = _run_import_image_batches(
+                            if upload_docs_text
+                            else []
+                        )
+                        chunks = (
+                            structured_chunks
+                            or split_text_chunks(upload_docs_text, max_chars=doc_chunk_max)
+                            if upload_docs_text
+                            else []
+                        )
+                        metrics["llm_oneshot"] = False
+                    if chunks:
+                        parts: list[str] = []
+                        total = len(chunks)
+                        metrics["llm_chunk_count"] = total
+                        metrics["llm_structured_chunk_count"] = len(structured_chunks)
+                        for idx, chunk in enumerate(chunks, start=1):
+                            raise_if_import_cancelled(job_id)
+                            _update_stage("processing", f"Processando texto {idx}/{total} com servico LLM")
+                            chunk_texts, chat_saved, chunk_candidates, _chunk_details, chunk_warnings = _run_import_text_chunk(
+                                client=client,
+                                job_id=job_id,
+                                chunk_text=chunk,
+                                chunk_name=f"parte_{idx}",
+                                images=[],
+                                chunk_index=idx,
+                                total_chunks=total,
+                                metrics=metrics,
+                                filename=filename,
+                                source_kind=llm_source_kind,
+                            )
+                            warnings.extend(chunk_warnings)
+                            if chat_saved and not saved_file:
+                                saved_file = chat_saved
+                            parts.extend(chunk_texts)
+                            llm_candidates.extend(chunk_candidates)
+                        llm_text = "\n\n".join(parts).strip()
+                    elif images:
+                        parts = []
+                        image_batch_size = coerce_int_env("LLM_IMAGE_BATCH_SIZE", 2)
+                        full_page_batches = split_image_batches(images, batch_size=image_batch_size)
+                        full_page_total = len(full_page_batches)
+                        metrics["llm_chunk_count"] = full_page_total
+                        metrics["llm_chat_used"] = True
+                        metrics["llm_chat_calls"] = 0
+                        metrics["llm_chat_total_ms"] = 0
+                        metrics["llm_chat_calls_details"] = []
+
+                        raise_if_import_cancelled(job_id)
+                        image_texts, image_saved, image_candidates = _run_import_image_batches(
                             client=client,
                             job_id=job_id,
-                            image_batches=vertical_fallback.image_batches,
-                            attempt="vertical_slices",
-                            first_chunk_index=full_page_total + 1,
+                            image_batches=full_page_batches,
+                            attempt="full_page",
+                            first_chunk_index=1,
                             metrics=metrics,
                             update_stage=_update_stage,
-                            single_label="Tentando recorte vertical com servico LLM",
-                            multiple_label="Tentando recortes verticais {index}/{total} com servico LLM",
+                            single_label="Processando pagina com servico LLM",
+                            multiple_label="Processando paginas {index}/{total} com servico LLM",
+                            filename=filename,
                         )
-                        if fallback_saved and not saved_file:
-                            saved_file = fallback_saved
-                        parts.extend(fallback_texts)
-                        llm_candidates.extend(fallback_candidates)
+                        if image_saved and not saved_file:
+                            saved_file = image_saved
+                        parts.extend(image_texts)
+                        llm_candidates.extend(image_candidates)
+
                         llm_text = "\n\n".join(parts).strip()
-                else:
-                    warnings.append("Upload do LLM nao retornou documentos ou imagens.")
+
+                        fallback_slices = max(
+                            coerce_int_env("LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES", 1),
+                            coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 4),
+                        )
+                        vertical_fallback = _prepare_llm_vertical_slice_fallback(
+                            images=images,
+                            image_batch_size=image_batch_size,
+                            full_page_total=full_page_total,
+                            fallback_slices=fallback_slices,
+                            llm_candidates=llm_candidates,
+                        )
+                        if vertical_fallback.enabled:
+                            raise_if_import_cancelled(job_id)
+                            warnings.extend(vertical_fallback.warnings)
+                            fallback_event = vertical_fallback.event
+                            if fallback_event is not None:
+                                _append_process_event(
+                                    metrics,
+                                    source=fallback_event["source"],
+                                    level=fallback_event["level"],
+                                    message=fallback_event["message"],
+                                )
+                            metrics.update(vertical_fallback.metrics)
+                            fallback_texts, fallback_saved, fallback_candidates = _run_import_image_batches(
+                                client=client,
+                                job_id=job_id,
+                                image_batches=vertical_fallback.image_batches,
+                                attempt="vertical_slices",
+                                first_chunk_index=full_page_total + 1,
+                                metrics=metrics,
+                                update_stage=_update_stage,
+                                single_label="Tentando recorte vertical com servico LLM",
+                                multiple_label="Tentando recortes verticais {index}/{total} com servico LLM",
+                                filename=filename,
+                            )
+                            if fallback_saved and not saved_file:
+                                saved_file = fallback_saved
+                            parts.extend(fallback_texts)
+                            llm_candidates.extend(fallback_candidates)
+                            llm_text = "\n\n".join(parts).strip()
+                    else:
+                        warnings.append("Upload do LLM nao retornou documentos ou imagens.")
+                except ImportJobCancelled:
+                    raise
+                except httpx.HTTPError as exc:
+                    if is_import_cancelled(job_id):
+                        raise ImportJobCancelled(job_id) from exc
+                    raise
+                finally:
+                    unregister_import_http_client(job_id, client)
+        except ImportJobCancelled:
+            raise
         except Exception as exc:
+            if is_import_cancelled(job_id):
+                raise ImportJobCancelled(job_id) from exc
             logger.warning("Falha no pipeline de importacao LLM (job_id=%s): %s", job_id, exc)
             metrics["llm_last_error"] = str(exc)
             warnings.append(f"Falha ao processar com o servico LLM: {exc}")
@@ -704,6 +868,7 @@ def run_import_job(
             )
 
     if not parsed_items:
+        raise_if_import_cancelled(job_id)
         _update_stage("parsing", "Validando itens retornados pelo LLM")
 
         llm_selection = _select_llm_import_result(
@@ -711,6 +876,7 @@ def run_import_job(
             selected_text=selected_text,
             llm_text=llm_text,
             llm_candidates=llm_candidates,
+            validation_text=upload_validation_text,
         )
         parsed_items = llm_selection.products
         selected_source = llm_selection.selected_source or selected_source

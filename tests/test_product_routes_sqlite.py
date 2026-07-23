@@ -342,7 +342,7 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 self.assertEqual(listed[created[0]["ordering_key"]]["quantidade"], 3)
                 self.assertEqual(listed[created[2]["ordering_key"]]["quantidade"], 4)
 
-    def test_join_duplicates_preserves_distinct_product_details(self) -> None:
+    def test_join_duplicates_merges_same_display_identity_and_accumulates_variants(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             container = self._build_container(root)
@@ -375,7 +375,7 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                         "grades": list(reversed(base["grades"])),
                         "cores": list(reversed(base["cores"])),
                     },
-                    {**base, "descricao_completa": "Malha leve"},
+                    {**base, "descricao_completa": "Malha leve extra detalhe"},
                     {**base, "grades": [{"tamanho": "G", "quantidade": 2}]},
                     {**base, "cores": [{"cor": "Preto", "quantidade": 2}]},
                     {**base, "preco_final": "21,90"},
@@ -388,30 +388,60 @@ class ProductRoutesSQLiteTests(unittest.TestCase):
                 )
 
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.json(), {"originais": 6, "resultantes": 5, "removidos": 1})
+                self.assertEqual(response.json(), {"originais": 6, "resultantes": 1, "removidos": 5})
                 listed = client.get("/products").json()["items"]
-                self.assertEqual(len(listed), 5)
+                self.assertEqual(len(listed), 1)
 
-                merged = next(item for item in listed if item["ordering_key"] == created[0]["ordering_key"])
-                self.assertEqual(merged["quantidade"], 4)
+                merged = listed[0]
+                self.assertEqual(merged["quantidade"], 12)
+                self.assertEqual(merged["descricao_completa"], "Malha leve extra detalhe")
+                self.assertEqual(merged["preco_final"], "19,90")
                 self.assertEqual(
                     {item["tamanho"]: item["quantidade"] for item in merged["grades"]},
-                    {"P": 2, "M": 2},
+                    {"P": 5, "M": 5, "G": 2},
                 )
                 self.assertEqual(
                     {item["cor"]: item["quantidade"] for item in merged["cores"]},
-                    {"Azul": 2, "Verde": 2},
+                    {"Azul": 5, "Verde": 5, "Preto": 2},
                 )
-                self.assertEqual({item["descricao_completa"] for item in listed}, {"Malha premium", "Malha leve"})
-                self.assertEqual({item["preco_final"] for item in listed}, {"19,90", "21,90"})
-                self.assertEqual(
-                    {item["grades"][0]["tamanho"] for item in listed},
-                    {"P", "G"},
+
+    def test_join_duplicates_merges_formatted_code_with_divergent_originals(self) -> None:
+        """After Formatar códigos, display SKU matches but barcode originals differ."""
+        from app.domain.products.entities import Product
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            container = self._build_container(root)
+            service = container.product_service
+
+            for original in ("2601300103", "2601300503", "2601306502", "2601306801"):
+                service.create_product(
+                    Product(
+                        nome="ALCA COM PASSANTE",
+                        codigo="260130",
+                        quantidade=1,
+                        preco="20,00",
+                        categoria="",
+                        marca="",
+                        preco_final="50,90",
+                        descricao_completa="ALCA COM PASSANTE",
+                        codigo_original=original,
+                        source_type="romaneio",
+                        import_batch_id="batch-1",
+                        import_source_name="nota3.jpeg",
+                    )
                 )
-                self.assertEqual(
-                    {item["cores"][0]["cor"] for item in listed},
-                    {"Azul", "Preto"},
-                )
+
+            originals = [item.codigo_original for item in service.list_products()]
+            self.assertEqual(len(set(originals)), 4)
+
+            result = service.join_duplicates()
+            self.assertEqual(result, {"originais": 4, "resultantes": 1, "removidos": 3})
+
+            listed = service.list_products()
+            self.assertEqual(len(listed), 1)
+            self.assertEqual(listed[0].codigo, "260130")
+            self.assertEqual(listed[0].quantidade, 4)
 
     def test_restore_snapshot_preserves_ordering_keys(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

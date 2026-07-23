@@ -239,11 +239,9 @@ def test_summarize_llm_upload_payload_filters_payload_and_reports_metrics() -> N
     assert summary.images == [{"name": "page-1.png"}, {"name": "page-2.png"}]
     assert summary.documents_text.startswith("linha inicial")
     assert summary.structured_row_count == 1
-    assert summary.metrics == {
-        "upload_documents_chars": len(summary.documents_text),
-        "upload_images": 2,
-        "upload_structured_candidates": 1,
-    }
+    assert summary.metrics["upload_documents_chars"] == len(summary.documents_text)
+    assert summary.metrics["upload_images"] == 2
+    assert summary.metrics["upload_structured_candidates"] == 1
     assert summary.warnings == [" first warning ", "None"]
     assert summary.event == {
         "source": "llm",
@@ -259,11 +257,9 @@ def test_summarize_llm_upload_payload_handles_non_dict_payload() -> None:
     assert summary.images == []
     assert summary.documents_text == ""
     assert summary.structured_row_count == 0
-    assert summary.metrics == {
-        "upload_documents_chars": 0,
-        "upload_images": 0,
-        "upload_structured_candidates": 0,
-    }
+    assert summary.metrics["upload_documents_chars"] == 0
+    assert summary.metrics["upload_images"] == 0
+    assert summary.metrics["upload_structured_candidates"] == 0
     assert summary.warnings == []
     assert summary.event["message"] == "LLM upload prepared 0 document(s), 0 image(s), and 0 structured candidate row(s)."
 
@@ -560,16 +556,16 @@ def test_evaluate_final_import_validation_blocks_mismatched_totals() -> None:
     }
 
 
-def test_resolve_import_content_to_save_prefers_selected_text() -> None:
+def test_resolve_import_content_to_save_prefers_products_dump_for_reapply() -> None:
     product = Product(nome="CAMISETA", codigo="C200", quantidade=1, preco="20,00", categoria="", marca="")
 
     assert (
         resolve_import_content_to_save(
-            selected_text="codigo|nome\nC200|CAMISETA",
+            selected_text="raw llm text that is harder to reparse",
             llm_text="ignored",
             products=[product],
         )
-        == "codigo|nome\nC200|CAMISETA"
+        == "codigo|nome|quantidade|preco\nC200|CAMISETA|1|20,00"
     )
 
 

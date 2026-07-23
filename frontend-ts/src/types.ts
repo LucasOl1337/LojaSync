@@ -73,6 +73,12 @@ export type MarginSettingsResponse = {
   percentual: number;
 };
 
+export type AppearanceSettingsResponse = {
+  defaultWallpaper: string;
+  defaultBrightness: number | null;
+  wallpapers: string[];
+};
+
 export type ProductPayload = {
   nome: string;
   codigo: string;
@@ -170,6 +176,7 @@ export type ImportResult = {
   grades_disponiveis: boolean;
   total_grades_disponiveis: number;
   imported_keys: string[];
+  import_batch_id?: string | null;
   metrics: ImportMetrics;
 };
 

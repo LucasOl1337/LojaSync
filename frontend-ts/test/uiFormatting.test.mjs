@@ -73,11 +73,19 @@ test("builds import diagnostics chips from existing metrics", () => {
         llm_chunk_count: 3,
         upload_images: 1,
         llm_chat_calls_details: [{ attempt: "full_page" }, { attempt: "vertical_slices" }],
+        extracted_total_products: "4613,76",
+        document_total_products: "4613,76",
+        products_value_matches_document: true,
       },
       ["OCR por pagina inteira sem itens validos"],
+      { totalItems: 4 },
     ),
     [
       { label: "Origem", value: "IA", tone: "neutral" },
+      { label: "Itens", value: "4", tone: "success" },
+      { label: "Total detectado", value: "R$\u00a04.613,76", tone: "neutral" },
+      { label: "Total da nota", value: "R$\u00a04.613,76", tone: "neutral" },
+      { label: "Conferência", value: "Valores batem", tone: "success" },
     ],
   );
 
@@ -367,6 +375,7 @@ test("builds and limits recent import history entries", () => {
     sourceName: "romaneio.pdf",
     mode: "Leitura local",
     totalItems: 12,
+    totalValueLabel: null,
     warningCount: 1,
     validationStatus: "approved",
     gradesAvailable: true,

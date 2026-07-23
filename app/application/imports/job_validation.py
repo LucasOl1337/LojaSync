@@ -40,6 +40,7 @@ class LlmUploadSummary:
     documents: list[dict[str, Any]]
     images: list[dict[str, Any]]
     documents_text: str
+    validation_text: str
     structured_row_count: int
     metrics: dict[str, Any]
     warnings: list[str]
@@ -178,7 +179,8 @@ def summarize_llm_upload_payload(upload_data: Any) -> LlmUploadSummary:
     images = [img for img in raw_images if isinstance(img, dict)] if isinstance(raw_images, list) else []
 
     documents_text = "\n\n".join(str(doc.get("content") or "") for doc in documents).strip()
-    structured_row_count = len(extract_structured_invoice_row_lines(documents_text))
+    validation_text = str(payload.get("validation_text") or "").strip()
+    structured_row_count = len(extract_structured_invoice_row_lines(documents_text or validation_text))
     event = {
         "source": "llm",
         "level": "info",
@@ -192,9 +194,11 @@ def summarize_llm_upload_payload(upload_data: Any) -> LlmUploadSummary:
         documents=documents,
         images=images,
         documents_text=documents_text,
+        validation_text=validation_text,
         structured_row_count=structured_row_count,
         metrics={
             "upload_documents_chars": len(documents_text or ""),
+            "upload_validation_chars": len(validation_text or ""),
             "upload_images": len(images),
             "upload_structured_candidates": structured_row_count,
         },
@@ -356,6 +360,7 @@ def select_llm_import_result(
     selected_text: str,
     llm_text: str,
     llm_candidates: list[Product],
+    validation_text: str = "",
 ) -> LlmImportSelection:
     products: list[Product] = []
     next_selected_source = ""
@@ -375,7 +380,14 @@ def select_llm_import_result(
                 next_selected_source = "llm"
                 next_selected_text = llm_fallback_text
 
-    analysis = analyze_parsed_document(upload_docs_text or next_selected_text or llm_text, products)
+    # Prefer printed PDF anchors (totals/remessa) over raw LLM JSON for validation.
+    analysis_source = (
+        str(upload_docs_text or "").strip()
+        or str(validation_text or "").strip()
+        or str(next_selected_text or "").strip()
+        or str(llm_text or "").strip()
+    )
+    analysis = analyze_parsed_document(analysis_source, products)
     analysis_metrics = analysis.get("metrics") or {}
     if not isinstance(analysis_metrics, dict):
         analysis_metrics = {}
@@ -464,11 +476,12 @@ def resolve_import_content_to_save(
     llm_text: str,
     products: list[Product],
 ) -> str:
+    # Prefer a deterministic products dump so "Enviar ao catálogo" can reapply without LLM.
+    if products:
+        return products_to_text(products)
     content = selected_text or llm_text
     if looks_like_binary_blob(content):
         content = ""
-    if not content and products:
-        content = products_to_text(products)
     return content
 
 

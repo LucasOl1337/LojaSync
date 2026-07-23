@@ -215,6 +215,16 @@ class ImportRomaneioResultResponse(BaseModel):
     metrics: dict[str, Any] = Field(default_factory=dict)
 
 
+class ReapplyImportPayload(BaseModel):
+    """Reenvia itens já processados ao catálogo sem nova leitura/LLM."""
+
+    content: str | None = None
+    local_file: str | None = None
+    source_name: str | None = None
+    import_mode: str | None = None
+    grades_disponiveis: bool = False
+
+
 class LocalImportExperimentGradeResponse(BaseModel):
     tamanho: str
     quantidade: int

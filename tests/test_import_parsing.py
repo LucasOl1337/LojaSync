@@ -232,11 +232,13 @@ class ImportParsingTests(unittest.TestCase):
         """
 
         parsed = parse_candidate_content(payload)
+        # Size rows of the same SKU+price already merge during parse.
+        self.assertEqual(len(parsed), 4)
         compacted, summary = service.compact_import_batch(parsed)
 
         self.assertEqual(len(compacted), 4)
         self.assertEqual(summary["resultantes"], 4)
-        self.assertEqual(summary["removidos"], 4)
+        self.assertEqual(summary["removidos"], 0)
         self.assertEqual(
             [(item.codigo, item.preco, item.quantidade) for item in compacted],
             [
@@ -273,11 +275,12 @@ class ImportParsingTests(unittest.TestCase):
         """
 
         parsed = parse_candidate_content(payload)
+        self.assertEqual(len(parsed), 2)
         compacted, summary = service.compact_import_batch(parsed)
 
         self.assertEqual(len(compacted), 2)
         self.assertEqual(summary["resultantes"], 2)
-        self.assertEqual(summary["removidos"], 2)
+        self.assertEqual(summary["removidos"], 0)
         self.assertEqual(
             [(item.nome, item.codigo, item.preco, item.quantidade) for item in compacted],
             [
@@ -296,16 +299,20 @@ class ImportParsingTests(unittest.TestCase):
     def test_parse_candidate_content_reads_structured_invoice_rows(self) -> None:
         records = parse_candidate_content(_sample_invoice_rows())
 
-        self.assertEqual(len(records), 8)
+        # Same SKU+name+price size rows merge into one product with accumulated grades.
+        self.assertEqual(len(records), 7)
         self.assertEqual(records[0].codigo, "1000108790")
         self.assertEqual(records[0].nome, "CALCA JOGGER BASICO(A)")
         self.assertEqual(records[0].preco, "27,13")
+        self.assertEqual(records[0].quantidade, 2)
         self.assertIsNotNone(records[0].grades)
-        self.assertEqual(records[0].grades[0]["tamanho"], "2")
-        self.assertEqual(records[0].grades[0]["quantidade"], 1)
-        self.assertEqual(records[2].preco, "33,50")
-        self.assertEqual(records[5].preco, "41,71")
-        self.assertEqual(records[7].preco, "39,29")
+        self.assertEqual(
+            [(grade["tamanho"], grade["quantidade"]) for grade in (records[0].grades or [])],
+            [("2", 1), ("3", 1)],
+        )
+        self.assertEqual(records[1].preco, "33,50")
+        self.assertEqual(records[4].preco, "41,71")
+        self.assertEqual(records[6].preco, "39,29")
 
     def test_compact_import_batch_keeps_price_tiers_from_structured_invoice_rows(self) -> None:
         service = ProductService(
@@ -438,10 +445,10 @@ class ImportParsingTests(unittest.TestCase):
                 assert result is not None
                 self.assertEqual(result.status, "ok")
                 self.assertEqual(result.metrics["selected_source"], "llm")
-                self.assertEqual(result.total_itens, 8)
+                self.assertEqual(result.total_itens, 7)
                 self.assertTrue(result.metrics["llm_upload_used"])
                 self.assertTrue(result.metrics["llm_chat_used"])
-                self.assertEqual(result.metrics["local_structured_candidates"], 8)
+                self.assertTrue(bool(result.metrics.get("llm_oneshot")))
                 self.assertEqual(result.metrics["upload_structured_candidates"], 8)
                 self.assertIn("PDF renderer unavailable", result.warnings)
                 self.assertTrue(
@@ -455,7 +462,8 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 1)
                 joggers = [item for item in service.created if item.codigo == "1000108790"]
-                self.assertEqual(len(joggers), 6)
+                # 6 printed size rows collapse into 5 price-tier products (sizes 2+3 share 27,13).
+                self.assertEqual(len(joggers), 5)
         finally:
             remove_import_job(job.job_id)
 
@@ -509,6 +517,7 @@ class ImportParsingTests(unittest.TestCase):
                                 service=service,
                                 data_dir=data_dir,
                                 prefer_llm=True,
+                                skip_local_parser=False,
                             )
 
                 result = get_import_result(job.job_id)
@@ -520,7 +529,8 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(result.metrics["selected_source"], "llm")
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 1)
-                self.assertEqual(len(service.created), 8)
+                self.assertEqual(mocked_chat.call_count, 1)
+                self.assertEqual(len(service.created), 7)
         finally:
             remove_import_job(job.job_id)
 
@@ -568,38 +578,14 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 1)
                 self.assertEqual(mocked_local_parser.call_count, 0)
-                self.assertEqual(len(service.created), 8)
+                self.assertEqual(len(service.created), 7)
         finally:
             remove_import_job(job.job_id)
 
-    def test_run_import_job_uses_local_guard_for_unverified_image_ocr(self) -> None:
+    def test_run_import_job_does_not_replace_llm_with_local_guard(self) -> None:
+        """Local guard is off by default: incomplete LLM result is not swapped for local parse."""
         service = _RecordingImportService()
         job = create_import_job()
-        local_payload = {
-            "total_rows": 12,
-            "total_itens": 2,
-            "remessa_quantity": 12,
-            "quantity_matches_remessa": True,
-            "document_total_products": "1258,80",
-            "document_total_note": None,
-            "extracted_total_products": "1258,80",
-            "products_value_matches_document": True,
-            "items": [
-                {
-                    "nome": "COLETE ALFAIATARIA",
-                    "codigo": "CO.FEM.00018",
-                    "quantidade": 6,
-                    "preco": "79,90",
-                },
-                {
-                    "nome": "CALCA ALFAIATARIA",
-                    "codigo": "CA.FEM.00327",
-                    "quantidade": 6,
-                    "preco": "129,90",
-                },
-            ],
-            "metrics": {"text_chars": 1200, "ocr_pages_used": 2},
-        }
         incomplete_ocr = """
         {"items":[
           {"codigo":"CO.FEM.00018","descricao_original":"COLETE ALFAIATARIA","nome_curto":"COLETE ALFAIATARIA","quantidade":5,"preco":79.90},
@@ -619,7 +605,6 @@ class ImportParsingTests(unittest.TestCase):
                 )
                 with patch(
                     "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
-                    return_value=local_payload,
                 ) as mocked_local_parser:
                     with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
                         with patch(
@@ -640,40 +625,16 @@ class ImportParsingTests(unittest.TestCase):
                 result = get_import_result(job.job_id)
                 self.assertIsNotNone(result)
                 assert result is not None
-                self.assertEqual(result.status, "ok")
-                self.assertEqual(result.metrics["selected_source"], "local_guard")
-                self.assertTrue(result.metrics["local_guard_used"])
-                self.assertEqual(result.metrics["local_guard_status"], "approved")
-                self.assertEqual(result.metrics["final_validation_status"], "approved")
-                self.assertEqual(result.metrics["selected_items"], 2)
-                self.assertEqual(mocked_local_parser.call_count, 1)
+                self.assertEqual(result.metrics.get("selected_source"), "llm")
+                self.assertFalse(bool(result.metrics.get("local_guard_used")))
+                self.assertEqual(mocked_local_parser.call_count, 0)
                 self.assertEqual(mocked_chat.call_count, 1)
-                self.assertEqual(sum(item.quantidade for item in service.created), 12)
         finally:
             remove_import_job(job.job_id)
 
-    def test_run_import_job_uses_local_guard_when_minimax_returns_no_items(self) -> None:
+    def test_run_import_job_keeps_empty_llm_result_without_local_rescue(self) -> None:
         service = _RecordingImportService()
         job = create_import_job()
-        local_payload = {
-            "total_rows": 1,
-            "total_itens": 1,
-            "remessa_quantity": 1,
-            "quantity_matches_remessa": True,
-            "document_total_products": "120,10",
-            "document_total_note": None,
-            "extracted_total_products": "120,10",
-            "products_value_matches_document": True,
-            "items": [
-                {
-                    "nome": "PRODUTO VALIDADO",
-                    "codigo": "OK-1",
-                    "quantidade": 1,
-                    "preco": "120,10",
-                }
-            ],
-            "metrics": {"text_chars": 500, "ocr_pages_used": 0},
-        }
 
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -687,7 +648,6 @@ class ImportParsingTests(unittest.TestCase):
                 )
                 with patch(
                     "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
-                    return_value=local_payload,
                 ) as mocked_local_parser:
                     with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
                         with patch(
@@ -706,14 +666,13 @@ class ImportParsingTests(unittest.TestCase):
                             )
 
                 result = get_import_result(job.job_id)
-                self.assertIsNotNone(result)
-                assert result is not None
-                self.assertEqual(result.status, "ok")
-                self.assertEqual(result.metrics["selected_source"], "local_guard")
-                self.assertEqual(result.metrics["local_guard_status"], "approved")
-                self.assertEqual(result.metrics["final_validation_status"], "approved")
-                self.assertEqual(mocked_local_parser.call_count, 1)
-                self.assertEqual(len(service.created), 1)
+                job_status = get_import_job(job.job_id)
+                self.assertIsNone(result)
+                self.assertIsNotNone(job_status)
+                assert job_status is not None
+                self.assertEqual(job_status.stage, "error")
+                self.assertEqual(mocked_local_parser.call_count, 0)
+                self.assertEqual(len(service.created), 0)
         finally:
             remove_import_job(job.job_id)
 
@@ -766,12 +725,12 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(result.status, "ok")
                 self.assertEqual(result.metrics["selected_source"], "llm")
                 self.assertEqual(result.metrics["upload_structured_candidates"], 8)
-                self.assertEqual(result.total_itens, 8)
+                self.assertEqual(result.total_itens, 7)
                 self.assertTrue(result.metrics["llm_quantity_matches_remessa"])
                 self.assertIn("subdividindo o trecho", " ".join(result.warnings).lower())
                 self.assertEqual(fake_client.upload_calls, 1)
                 self.assertEqual(mocked_chat.call_count, 3)
-                self.assertEqual(len(service.created), 8)
+                self.assertEqual(len(service.created), 7)
         finally:
             remove_import_job(job.job_id)
 
@@ -827,7 +786,7 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertGreaterEqual(int(result.metrics.get("llm_chunk_retry_count") or 0), 1)
                 self.assertIn("ultimo codigo", " ".join(result.warnings).lower())
                 self.assertEqual(mocked_chat.call_count, 3)
-                self.assertEqual(len(service.created), 8)
+                self.assertEqual(len(service.created), 7)
         finally:
             remove_import_job(job.job_id)
 
@@ -920,7 +879,7 @@ class ImportParsingTests(unittest.TestCase):
                 assert result is not None
                 self.assertEqual(result.status, "ok")
                 self.assertEqual(result.metrics["selected_source"], "llm")
-                self.assertEqual(result.total_itens, 8)
+                self.assertEqual(result.total_itens, 7)
                 self.assertEqual(mocked_chat.call_count, 2)
                 self.assertEqual(result.metrics["llm_chunk_count"], 2)
                 self.assertEqual(
@@ -928,7 +887,7 @@ class ImportParsingTests(unittest.TestCase):
                     ["full_page", "vertical_slices"],
                 )
                 self.assertIn("recortes verticais", " ".join(result.warnings).lower())
-                self.assertEqual(len(service.created), 8)
+                self.assertEqual(len(service.created), 7)
         finally:
             remove_import_job(job.job_id)
 

@@ -42,3 +42,22 @@ test("moves selected ordering keys within bounds", () => {
   assert.deepEqual(ordering.moveOrderingKey(["a", "b", "c"], "c", 1), ["a", "b", "c"]);
   assert.deepEqual(ordering.moveOrderingKey(["a", "b", "c"], "missing", -1), ["a", "b", "c"]);
 });
+
+test("reorders keys by drag before and after the target", () => {
+  assert.deepEqual(ordering.reorderKeysByDrag(["a", "b", "c", "d"], "d", "b", "before"), ["a", "d", "b", "c"]);
+  assert.deepEqual(ordering.reorderKeysByDrag(["a", "b", "c", "d"], "a", "c", "after"), ["b", "c", "a", "d"]);
+  assert.deepEqual(ordering.reorderKeysByDrag(["a", "b", "c"], "a", "a", "before"), ["a", "b", "c"]);
+  assert.deepEqual(ordering.reorderKeysByDrag(["a", "b", "c"], "missing", "b", "before"), ["a", "b", "c"]);
+});
+
+test("applies ordering drag using the visible final key list", () => {
+  // Draft prioritizes c then a; remaining original is b → visible [c, a, b]
+  assert.deepEqual(
+    ordering.applyOrderingDrag(["a", "b", "c"], ["c", "a"], "b", "c", "before"),
+    ["b", "c", "a"],
+  );
+  assert.deepEqual(
+    ordering.applyOrderingDrag(["a", "b", "c"], ["c"], "a", "c", "after"),
+    ["c", "a", "b"],
+  );
+});

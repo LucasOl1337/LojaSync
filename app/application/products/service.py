@@ -9,7 +9,15 @@ from typing import Iterable
 
 from app.domain.brands.repository import BrandRepository
 from app.domain.metrics.entities import Metrics
-from app.domain.products.entities import Product, calculate_sale_price, format_price, parse_non_negative_price, parse_price
+from app.domain.products.entities import (
+    CorItem,
+    GradeItem,
+    Product,
+    calculate_sale_price,
+    format_price,
+    parse_non_negative_price,
+    parse_price,
+)
 from app.domain.products.grade_utils import (
     canonicalize_product_name,
     detect_size_from_name,
@@ -426,7 +434,10 @@ class ProductService:
         if not targets:
             return {"originais": 0, "resultantes": 0, "removidos": 0}
         target_keys = {item.ordering_key() for item in targets}
-        grouped: dict[tuple[object, ...], Product] = {}
+        # Identity matches what the operator sees after "Formatar códigos":
+        # display nome + codigo + custo. Provenance / codigo_original / grades
+        # must not block the merge — those fields are consolidated into the keeper.
+        grouped: dict[tuple[str, str, str], Product] = {}
         result: list[Product] = []
         for item in items:
             if item.ordering_key() not in target_keys:
@@ -436,17 +447,6 @@ class ProductService:
                 (item.nome or "").strip().lower(),
                 (item.codigo or "").strip().lower(),
                 (item.preco or "").strip(),
-                (item.categoria or "").strip().lower(),
-                (item.marca or "").strip().lower(),
-                (item.preco_final or "").strip(),
-                (item.descricao_completa or "").strip(),
-                (item.codigo_original or "").strip().lower(),
-                tuple(sorted((grade.tamanho or "").strip().lower() for grade in (item.grades or []))),
-                tuple(sorted((color.cor or "").strip().lower() for color in (item.cores or []))),
-                (item.source_type or "").strip().lower(),
-                (item.import_batch_id or "").strip(),
-                (item.import_source_name or "").strip(),
-                bool(item.pending_grade_import),
             )
             existing = grouped.get(key)
             if existing is None:
@@ -454,16 +454,66 @@ class ProductService:
                 result.append(grouped[key])
                 continue
             existing.quantidade += item.quantidade
+            if not (existing.categoria or "").strip() and (item.categoria or "").strip():
+                existing.categoria = item.categoria
+            if not (existing.marca or "").strip() and (item.marca or "").strip():
+                existing.marca = item.marca
+            if not (existing.preco_final or "").strip() and (item.preco_final or "").strip():
+                existing.preco_final = item.preco_final
+            incoming_description = (item.descricao_completa or "").strip()
+            existing_description = (existing.descricao_completa or "").strip()
+            if incoming_description and len(incoming_description) > len(existing_description):
+                existing.descricao_completa = item.descricao_completa
+            # Prefer a barcode that still matches the display code when originals diverge
+            # (common after "Formatar códigos" collapses variant EANs into one SKU).
+            existing_original = (existing.codigo_original or "").strip()
+            incoming_original = (item.codigo_original or "").strip()
+            display_code = (existing.codigo or "").strip()
+            if incoming_original and (
+                not existing_original
+                or (
+                    existing_original.lower() != display_code.lower()
+                    and incoming_original.lower() == display_code.lower()
+                )
+            ):
+                existing.codigo_original = item.codigo_original
+            if not (existing.source_type or "").strip() and (item.source_type or "").strip():
+                existing.source_type = item.source_type
+            if not (existing.import_batch_id or "").strip() and (item.import_batch_id or "").strip():
+                existing.import_batch_id = item.import_batch_id
+            if not (existing.import_source_name or "").strip() and (item.import_source_name or "").strip():
+                existing.import_source_name = item.import_source_name
+            existing.pending_grade_import = bool(existing.pending_grade_import or item.pending_grade_import)
+
             grades_by_size = {(grade.tamanho or "").strip().lower(): grade for grade in (existing.grades or [])}
             for incoming_grade in item.grades or []:
                 size = (incoming_grade.tamanho or "").strip().lower()
+                if not size:
+                    continue
                 if size in grades_by_size:
-                    grades_by_size[size].quantidade += incoming_grade.quantidade
+                    grades_by_size[size].quantidade += int(incoming_grade.quantidade or 0)
+                else:
+                    grades_by_size[size] = GradeItem(
+                        tamanho=str(incoming_grade.tamanho or "").strip(),
+                        quantidade=int(incoming_grade.quantidade or 0),
+                    )
+            if grades_by_size:
+                existing.grades = list(grades_by_size.values())
+
             colors_by_name = {(color.cor or "").strip().lower(): color for color in (existing.cores or [])}
             for incoming_color in item.cores or []:
                 name = (incoming_color.cor or "").strip().lower()
+                if not name:
+                    continue
                 if name in colors_by_name:
-                    colors_by_name[name].quantidade += incoming_color.quantidade
+                    colors_by_name[name].quantidade += int(incoming_color.quantidade or 0)
+                else:
+                    colors_by_name[name] = CorItem(
+                        cor=str(incoming_color.cor or "").strip(),
+                        quantidade=int(incoming_color.quantidade or 0),
+                    )
+            if colors_by_name:
+                existing.cores = list(colors_by_name.values())
         removed = len(targets) - len(grouped)
         if persist and removed:
             self._products.replace_active(result)

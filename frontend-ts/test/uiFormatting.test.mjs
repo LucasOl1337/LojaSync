@@ -426,7 +426,8 @@ test("formats recent import source names for compact rail display", () => {
 test("formats import validation statuses for operator-facing UI", () => {
   assert.equal(ui.formatImportValidationStatus("approved"), "Aprovado");
   assert.equal(ui.formatImportValidationStatus("rejected"), "Rejeitado");
-  assert.equal(ui.formatImportValidationStatus("unverified"), "Não validado");
+  assert.equal(ui.formatImportValidationStatus("unverified"), "Não validado — revise quantidades");
+  assert.equal(ui.formatImportValidationStatus("needs_review"), "Precisa de revisão");
   assert.equal(ui.formatImportValidationStatus("error"), "Erro");
   assert.equal(ui.formatImportValidationStatus(""), "Sem validação");
   assert.equal(ui.formatImportValidationStatus("custom"), "custom");

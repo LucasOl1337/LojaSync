@@ -2483,10 +2483,20 @@ export default function App({ authSession = null }: AppProps) {
         ? importResult.metrics
         : {};
   const importWarnings = importResult?.warnings?.length ? importResult.warnings : [];
-  const importValidationStatus = String(importMetrics["final_validation_status"] || importMetrics["local_validation_status"] || "").trim();
+  const importOutcome = String(importMetrics["import_outcome"] || importResult?.status || "").trim();
+  const importValidationStatus = String(
+    importMetrics["final_validation_status"]
+      || (importOutcome === "needs_review" ? "unverified" : "")
+      || importMetrics["local_validation_status"]
+      || "",
+  ).trim();
   const importProgressMessage = buildImportProgressMessage(importing, importJob?.message);
   const importDiagnosticsChips = buildImportDiagnosticsChips(importMetrics, importWarnings);
-  const importSuccessMessage = importResult ? `${importResult.total_itens} itens importados as ${formatTimestamp(importJob?.updated_at)}.` : null;
+  const importSuccessMessage = importResult
+    ? importOutcome === "needs_review" || importResult.status === "needs_review"
+      ? `${importResult.total_itens} itens importados sem validação completa — revise quantidades e totais (${formatTimestamp(importJob?.updated_at)}).`
+      : `${importResult.total_itens} itens importados as ${formatTimestamp(importJob?.updated_at)}.`
+    : null;
   const executionReadiness = buildExecutionReadiness({
     productCount: state.products.length,
     pendingGradeImportCount: pendingGradeImportProducts.length,

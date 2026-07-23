@@ -436,7 +436,7 @@ class ImportParsingTests(unittest.TestCase):
                 result = get_import_result(job.job_id)
                 self.assertIsNotNone(result)
                 assert result is not None
-                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.status, "needs_review")
                 self.assertEqual(result.metrics["selected_source"], "llm")
                 self.assertEqual(result.total_itens, 8)
                 self.assertTrue(result.metrics["llm_upload_used"])
@@ -647,7 +647,7 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(result.metrics["final_validation_status"], "approved")
                 self.assertEqual(result.metrics["selected_items"], 2)
                 self.assertEqual(mocked_local_parser.call_count, 1)
-                self.assertEqual(mocked_chat.call_count, 1)
+                self.assertEqual(mocked_chat.call_count, 2)
                 self.assertEqual(sum(item.quantidade for item in service.created), 12)
         finally:
             remove_import_job(job.job_id)
@@ -714,6 +714,60 @@ class ImportParsingTests(unittest.TestCase):
                 self.assertEqual(result.metrics["final_validation_status"], "approved")
                 self.assertEqual(mocked_local_parser.call_count, 1)
                 self.assertEqual(len(service.created), 1)
+        finally:
+            remove_import_job(job.job_id)
+
+    def test_run_import_job_recovers_nonempty_quantity_shortfall_from_image_slices(self) -> None:
+        service = _RecordingImportService()
+        job = create_import_job()
+        incomplete_ocr = """
+        {"items":[
+          {"codigo":"CO.FEM.00018","descricao_original":"COLETE ALFAIATARIA","nome_curto":"COLETE ALFAIATARIA","quantidade":5,"preco":79.90},
+          {"codigo":"CA.FEM.00327","descricao_original":"CALCA ALFAIATARIA","nome_curto":"CALCA ALFAIATARIA","quantidade":5,"preco":129.90}
+        ]}
+        """
+        complete_ocr = """
+        {"items":[
+          {"codigo":"CO.FEM.00018","descricao_original":"COLETE ALFAIATARIA","nome_curto":"COLETE ALFAIATARIA","quantidade":6,"preco":79.90},
+          {"codigo":"CA.FEM.00327","descricao_original":"CALCA ALFAIATARIA","nome_curto":"CALCA ALFAIATARIA","quantidade":6,"preco":129.90}
+        ]}
+        """
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                fake_client = _FakeHttpxClient(
+                    {
+                        "documents": [],
+                        "images": [{"name": "romaneio.pdf#p1", "data": "not-a-real-image"}],
+                        "errors": [],
+                    }
+                )
+                with patch("app.interfaces.api.http.jobs.runtime.httpx.Client", return_value=fake_client):
+                    with patch(
+                        "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                        side_effect=[(incomplete_ocr, None), (complete_ocr, None)],
+                    ) as mocked_chat:
+                        run_import_job(
+                            job_id=job.job_id,
+                            contents="Qtd de Peças da Remessa: 12".encode("utf-8"),
+                            filename="romaneio.txt",
+                            content_type="text/plain",
+                            service=service,
+                            data_dir=Path(tmpdir),
+                            prefer_llm=True,
+                            skip_local_parser=True,
+                        )
+
+                result = get_import_result(job.job_id)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.metrics["import_outcome"], "approved")
+                self.assertEqual(result.metrics["llm_full_page_quantity"], 10)
+                self.assertEqual(result.metrics["llm_recovery_quantity"], 12)
+                self.assertEqual(result.metrics["llm_candidate_set"], "recovery")
+                self.assertEqual(mocked_chat.call_count, 2)
+                self.assertEqual(sum(item.quantidade for item in service.created), 12)
         finally:
             remove_import_job(job.job_id)
 
@@ -918,7 +972,7 @@ class ImportParsingTests(unittest.TestCase):
                 result = get_import_result(job.job_id)
                 self.assertIsNotNone(result)
                 assert result is not None
-                self.assertEqual(result.status, "ok")
+                self.assertEqual(result.status, "needs_review")
                 self.assertEqual(result.metrics["selected_source"], "llm")
                 self.assertEqual(result.total_itens, 8)
                 self.assertEqual(mocked_chat.call_count, 2)

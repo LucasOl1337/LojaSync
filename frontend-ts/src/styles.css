@@ -719,6 +719,7 @@ button {
   background: rgba(12, 44, 28, 0.9);
 }
 
+.importValidationBadge.validation-needs_review,
 .importValidationBadge.validation-unverified {
   color: var(--status-warning-text);
   border-color: rgba(var(--status-warning-rgb), 0.3);

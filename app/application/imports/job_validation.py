@@ -210,8 +210,26 @@ def prepare_llm_vertical_slice_fallback(
     full_page_total: int,
     fallback_slices: int,
     llm_candidates: list[Product],
+    force_recovery: bool = False,
+    incomplete: bool = False,
+    overlap_ratio: float = 0.0,
 ) -> LlmVerticalSliceFallback:
-    if llm_candidates or coerce_nonnegative_int(fallback_slices) <= 1:
+    """Prepare vertical-slice recovery for empty or incomplete vision results.
+
+    Historical behavior only retried when candidates were empty. Evidence-first
+    mode also retries when candidates exist but completeness gates fail
+    (quantity/total shortfalls vs document anchors).
+    """
+    has_candidates = bool(llm_candidates)
+    if coerce_nonnegative_int(fallback_slices) <= 1:
+        return LlmVerticalSliceFallback(
+            enabled=False,
+            image_batches=[],
+            metrics={},
+            warnings=[],
+            event=None,
+        )
+    if has_candidates and not force_recovery and not incomplete:
         return LlmVerticalSliceFallback(
             enabled=False,
             image_batches=[],
@@ -220,17 +238,40 @@ def prepare_llm_vertical_slice_fallback(
             event=None,
         )
 
-    image_inputs = slice_image_payloads(images, vertical_slices=fallback_slices)
+    image_inputs = slice_image_payloads(
+        images,
+        vertical_slices=fallback_slices,
+        overlap_ratio=overlap_ratio,
+    )
     image_batches = split_image_batches(image_inputs, batch_size=image_batch_size)
+    if has_candidates and (force_recovery or incomplete):
+        warning = (
+            "Leitura visual incompleta em relacao as ancoras do documento; "
+            "tentando recortes verticais sobrepostos para recuperar linhas."
+        )
+        event_message = (
+            "Vision extraction incomplete versus document evidence; trying overlapping vertical slices."
+        )
+        attempt = "recovery_slices"
+    else:
+        warning = "OCR por pagina inteira sem itens validos; tentando recortes verticais como fallback."
+        event_message = "Full-page OCR fallback returned no valid items; trying vertical slices."
+        attempt = "vertical_slices"
+
     return LlmVerticalSliceFallback(
         enabled=True,
         image_batches=image_batches,
-        metrics={"llm_chunk_count": coerce_nonnegative_int(full_page_total) + len(image_batches)},
-        warnings=["OCR por pagina inteira sem itens validos; tentando recortes verticais como fallback."],
+        metrics={
+            "llm_chunk_count": coerce_nonnegative_int(full_page_total) + len(image_batches),
+            "llm_recovery_attempt": attempt,
+            "llm_recovery_forced": bool(force_recovery or incomplete),
+            "llm_recovery_overlap_ratio": float(overlap_ratio or 0.0),
+        },
+        warnings=[warning],
         event={
             "source": "llm",
             "level": "warning",
-            "message": "Full-page OCR fallback returned no valid items; trying vertical slices.",
+            "message": event_message,
         },
     )
 
@@ -430,7 +471,10 @@ def evaluate_final_import_validation(
             "message": "Import approved by automatic validation.",
         }
     elif validation["unverified"]:
-        warning_message = "Import completed without printed totals or remessa quantity to validate against."
+        warning_message = (
+            "Import completed without printed totals or remessa quantity to validate against. "
+            "Result is unverified and needs manual review — not a fully validated success."
+        )
         warnings = [warning_message]
         event = {
             "source": event_source,

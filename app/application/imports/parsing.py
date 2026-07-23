@@ -515,7 +515,18 @@ def split_image_batches(images: list[dict[str, Any]], *, batch_size: int = 1) ->
     return [images[index : index + safe_size] for index in range(0, len(images), safe_size)]
 
 
-def slice_image_payloads(images: list[dict[str, Any]], *, vertical_slices: int) -> list[dict[str, Any]]:
+def slice_image_payloads(
+    images: list[dict[str, Any]],
+    *,
+    vertical_slices: int,
+    overlap_ratio: float = 0.0,
+) -> list[dict[str, Any]]:
+    """Split page images into vertical crops.
+
+    When ``overlap_ratio`` > 0, adjacent slices share a fraction of page height
+    so rows near crop boundaries are less likely to be dropped by the cropped
+    prompt (which intentionally skips partial rows).
+    """
     slice_count = max(int(vertical_slices or 1), 1)
     if slice_count <= 1 or not images:
         return images
@@ -523,6 +534,12 @@ def slice_image_payloads(images: list[dict[str, Any]], *, vertical_slices: int) 
         from PIL import Image  # type: ignore
     except Exception:
         return images
+
+    try:
+        overlap = float(overlap_ratio or 0.0)
+    except Exception:
+        overlap = 0.0
+    overlap = min(max(overlap, 0.0), 0.4)
 
     expanded: list[dict[str, Any]] = []
     for image in images:
@@ -541,9 +558,16 @@ def slice_image_payloads(images: list[dict[str, Any]], *, vertical_slices: int) 
                 if width <= 0 or height <= 0:
                     expanded.append(image)
                     continue
+                base_height = height / slice_count
+                overlap_px = int(round(base_height * overlap))
                 for index in range(slice_count):
                     top = int(round(height * index / slice_count))
                     bottom = int(round(height * (index + 1) / slice_count))
+                    if overlap_px > 0:
+                        if index > 0:
+                            top = max(0, top - overlap_px)
+                        if index < slice_count - 1:
+                            bottom = min(height, bottom + overlap_px)
                     if bottom <= top:
                         continue
                     crop = source.crop((0, top, width, bottom))

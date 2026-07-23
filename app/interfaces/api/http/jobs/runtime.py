@@ -20,6 +20,17 @@ from app.application.imports.parsing import (
     split_text_chunks,
 )
 from app.application.imports.local_experiment import parse_local_romaneio_experiment
+from app.application.imports.evidence_pipeline import (
+    apply_evidence_to_metrics as _apply_evidence_to_metrics,
+    assess_completeness as _assess_completeness,
+    build_import_outcome as _build_import_outcome,
+    choose_better_candidate_set as _choose_better_candidate_set,
+    deduplicate_products as _deduplicate_products,
+    extract_document_evidence as _extract_document_evidence,
+    recovery_overlap_ratio as _recovery_overlap_ratio,
+    recovery_slice_count as _recovery_slice_count,
+    use_evidence_pipeline as _use_evidence_pipeline,
+)
 from app.application.imports.job_validation import (
     append_llm_chat_call_metrics as _append_llm_chat_call_metrics,
     append_process_event as _append_process_event,
@@ -475,6 +486,8 @@ def run_import_job(
     selected_source = ""
     selected_text = ""
     llm_candidates: list[Product] = []
+    document_evidence = None
+    completeness_assessment = None
     total_started = time.perf_counter()
     metrics = _build_import_job_metrics(
         filename=filename,
@@ -489,6 +502,33 @@ def run_import_job(
 
     _append_process_event(metrics, source="system", level="info", message="Import started.")
     metrics["local_parser_skipped"] = bool(skip_local_parser)
+    evidence_mode = _use_evidence_pipeline()
+    metrics["import_pipeline"] = "evidence" if evidence_mode else "legacy"
+    if evidence_mode:
+        try:
+            document_evidence = _extract_document_evidence(contents, filename, content_type)
+            metrics.update(document_evidence.metrics())
+            warnings.extend(document_evidence.warnings)
+            _append_process_event(
+                metrics,
+                source="evidence",
+                level="info",
+                message=(
+                    f"Document evidence extracted ({document_evidence.source}): "
+                    f"{document_evidence.structured_row_count} structured row(s), "
+                    f"remessa={document_evidence.remessa_quantity!s}, "
+                    f"total_anchor={document_evidence.has_total_anchor}."
+                ),
+            )
+        except Exception as exc:
+            logger.warning("Falha ao extrair evidencia documental (job_id=%s): %s", job_id, exc)
+            metrics["evidence_error"] = str(exc)
+            _append_process_event(
+                metrics,
+                source="evidence",
+                level="warning",
+                message=f"Document evidence extraction failed: {exc}",
+            )
     if skip_local_parser:
         metrics["llm_requested"] = True
         _append_process_event(
@@ -651,17 +691,52 @@ def run_import_job(
                     llm_candidates.extend(image_candidates)
 
                     llm_text = "\n\n".join(parts).strip()
+                    metrics["llm_full_page_items"] = len(image_candidates)
+                    metrics["llm_full_page_quantity"] = _products_total_quantity(image_candidates)
 
-                    fallback_slices = max(
-                        coerce_int_env("LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES", 1),
-                        coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 4),
-                    )
+                    incomplete_for_recovery = False
+                    if evidence_mode:
+                        primary_assessment = _assess_completeness(llm_candidates, document_evidence)
+                        metrics.update(primary_assessment.metrics)
+                        metrics["llm_stage_item_counts"] = {
+                            "full_page": primary_assessment.item_count,
+                        }
+                        incomplete_for_recovery = bool(primary_assessment.needs_recovery)
+                        if incomplete_for_recovery:
+                            _append_process_event(
+                                metrics,
+                                source="evidence",
+                                level="warning",
+                                message=(
+                                    "Completeness gate flagged vision result for recovery: "
+                                    + ", ".join(primary_assessment.reasons or ["incomplete"])
+                                ),
+                            )
+
+                    if evidence_mode:
+                        fallback_slices = _recovery_slice_count(
+                            configured=max(
+                                coerce_int_env("LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES", 2),
+                                coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 2),
+                            )
+                        )
+                        overlap_ratio = _recovery_overlap_ratio()
+                    else:
+                        fallback_slices = max(
+                            coerce_int_env("LLM_ROMANEIO_PDF_PAGE_VERTICAL_SLICES", 1),
+                            coerce_int_env("LLM_PDF_PAGE_VERTICAL_SLICES", 4),
+                        )
+                        overlap_ratio = 0.0
+
                     vertical_fallback = _prepare_llm_vertical_slice_fallback(
                         images=images,
                         image_batch_size=image_batch_size,
                         full_page_total=full_page_total,
                         fallback_slices=fallback_slices,
                         llm_candidates=llm_candidates,
+                        incomplete=incomplete_for_recovery,
+                        force_recovery=incomplete_for_recovery,
+                        overlap_ratio=overlap_ratio,
                     )
                     if vertical_fallback.enabled:
                         warnings.extend(vertical_fallback.warnings)
@@ -678,7 +753,7 @@ def run_import_job(
                             client=client,
                             job_id=job_id,
                             image_batches=vertical_fallback.image_batches,
-                            attempt="vertical_slices",
+                            attempt=str(vertical_fallback.metrics.get("llm_recovery_attempt") or "vertical_slices"),
                             first_chunk_index=full_page_total + 1,
                             metrics=metrics,
                             update_stage=_update_stage,
@@ -687,9 +762,32 @@ def run_import_job(
                         )
                         if fallback_saved and not saved_file:
                             saved_file = fallback_saved
-                        parts.extend(fallback_texts)
-                        llm_candidates.extend(fallback_candidates)
+                        if evidence_mode and (fallback_candidates or incomplete_for_recovery):
+                            chosen, chosen_source, chosen_assessment = _choose_better_candidate_set(
+                                llm_candidates,
+                                fallback_candidates,
+                                document_evidence,
+                            )
+                            metrics["llm_recovery_items"] = len(fallback_candidates)
+                            metrics["llm_recovery_quantity"] = _products_total_quantity(fallback_candidates)
+                            metrics["llm_candidate_set"] = chosen_source
+                            metrics.update(chosen_assessment.metrics)
+                            stage_counts = dict(metrics.get("llm_stage_item_counts") or {})
+                            stage_counts["recovery"] = len(fallback_candidates)
+                            stage_counts["selected"] = len(chosen)
+                            metrics["llm_stage_item_counts"] = stage_counts
+                            llm_candidates = chosen
+                            completeness_assessment = chosen_assessment
+                            if fallback_texts:
+                                parts.extend(fallback_texts)
+                        else:
+                            parts.extend(fallback_texts)
+                            llm_candidates.extend(fallback_candidates)
                         llm_text = "\n\n".join(parts).strip()
+                    elif evidence_mode:
+                        llm_candidates = _deduplicate_products(llm_candidates)
+                        completeness_assessment = _assess_completeness(llm_candidates, document_evidence)
+                        metrics.update(completeness_assessment.metrics)
                 else:
                     warnings.append("Upload do LLM nao retornou documentos ou imagens.")
         except Exception as exc:
@@ -706,17 +804,31 @@ def run_import_job(
     if not parsed_items:
         _update_stage("parsing", "Validando itens retornados pelo LLM")
 
+        # Prefer document evidence text as anchor source when vision returned
+        # empty upload documents (typical Kimi/Z.AI PDF path).
+        anchor_text = upload_docs_text
+        if evidence_mode and document_evidence is not None and document_evidence.text:
+            if not (anchor_text or "").strip():
+                anchor_text = document_evidence.text
+            elif len(document_evidence.text) > len(anchor_text or ""):
+                # Keep both; evidence first so remessa/total regex hit first.
+                anchor_text = f"{document_evidence.text}\n\n{anchor_text}"
+
         llm_selection = _select_llm_import_result(
-            upload_docs_text=upload_docs_text,
+            upload_docs_text=anchor_text,
             selected_text=selected_text,
             llm_text=llm_text,
             llm_candidates=llm_candidates,
         )
-        parsed_items = llm_selection.products
+        parsed_items = _deduplicate_products(llm_selection.products) if evidence_mode else llm_selection.products
         selected_source = llm_selection.selected_source or selected_source
         selected_text = llm_selection.selected_text
         warnings.extend(llm_selection.warnings)
         metrics.update(llm_selection.metrics)
+        if evidence_mode and document_evidence is not None:
+            _apply_evidence_to_metrics(metrics, document_evidence, parsed_items)
+            completeness_assessment = _assess_completeness(parsed_items, document_evidence)
+            metrics.update(completeness_assessment.metrics)
     elif local_payload is not None:
         metrics["remessa_quantity"] = local_payload.get("remessa_quantity")
         metrics["quantity_matches_remessa"] = local_payload.get("quantity_matches_remessa")
@@ -730,6 +842,11 @@ def run_import_job(
     metrics["selected_items_raw"] = len(parsed_items)
     metrics["parsing_total_ms"] = int((time.perf_counter() - total_started) * 1000)
     metrics["quality_issues"] = []
+    if completeness_assessment is not None and completeness_assessment.implausible_quantities:
+        metrics["quality_issues"] = [
+            f"implausible_quantity:{item.get('codigo')}:{item.get('quantidade')}"
+            for item in completeness_assessment.implausible_quantities
+        ]
 
     final_decision = _evaluate_final_import_validation(
         total_items=len(parsed_items),
@@ -847,6 +964,31 @@ def run_import_job(
         message=final_decision.event["message"],
     )
 
+    import_outcome = _build_import_outcome(
+        validation=final_validation,
+        completeness=completeness_assessment,
+    )
+    metrics.update(import_outcome.metrics)
+    for outcome_warning in import_outcome.warnings:
+        if outcome_warning and outcome_warning not in warnings:
+            warnings.append(outcome_warning)
+    metrics["provider"] = metrics.get("provider") or (
+        str(metrics.get("llm_base_url") or "").split("//")[-1][:80]
+    )
+    metrics["observability"] = {
+        "provider_base_url": metrics.get("llm_base_url"),
+        "import_pipeline": metrics.get("import_pipeline"),
+        "upload_images": metrics.get("upload_images"),
+        "upload_documents_chars": metrics.get("upload_documents_chars"),
+        "llm_chat_calls": metrics.get("llm_chat_calls"),
+        "llm_stage_item_counts": metrics.get("llm_stage_item_counts"),
+        "completeness_reasons": metrics.get("completeness_reasons"),
+        "final_validation_status": metrics.get("final_validation_status"),
+        "import_outcome": metrics.get("import_outcome"),
+        "evidence_structured_row_count": metrics.get("evidence_structured_row_count"),
+        "evidence_remessa_quantity": metrics.get("evidence_remessa_quantity"),
+    }
+
     grade_preview_summary = {
         "originais": len(parsed_items),
         "resultantes": len(parsed_items),
@@ -904,6 +1046,7 @@ def run_import_job(
 
     if final_validation["rejected"]:
         metrics["failure_code"] = "validation_rejected"
+        metrics["import_outcome"] = "rejected"
         reason_codes = [str(code) for code in final_validation.get("reason_codes") or []]
         log_event(
             logger,
@@ -930,11 +1073,15 @@ def run_import_job(
             created_items = service.create_many(parsed_items)  # type: ignore[attr-defined]
         else:
             warnings.append("Nenhum item de produto foi detectado no arquivo.")
+        persist_level = "warning" if import_outcome.outcome == "needs_review" else "success"
         _append_process_event(
             metrics,
             source="system",
-            level="success",
-            message=f"Import persisted successfully with {len(created_items)} item(s).",
+            level=persist_level,
+            message=(
+                f"Import persisted with {len(created_items)} item(s) "
+                f"(outcome={import_outcome.outcome})."
+            ),
         )
         metrics["persist_ms"] = int((time.perf_counter() - persist_started) * 1000)
         metrics["total_ms"] = int((time.perf_counter() - total_started) * 1000)
@@ -947,6 +1094,7 @@ def run_import_job(
             selected_source=metrics["selected_source"],
             imported_items=len(created_items),
             parsed_items=len(parsed_items),
+            import_outcome=import_outcome.outcome,
             total_ms=metrics["total_ms"],
             llm_upload_ms=int(metrics.get("llm_upload_ms", 0) or 0),
             llm_chat_calls=int(metrics.get("llm_chat_calls", 0) or 0),
@@ -954,7 +1102,7 @@ def run_import_job(
         )
 
         result = ImportRomaneioResultResponse(
-            status="ok",
+            status=import_outcome.result_status if evidence_mode else "ok",
             saved_file=saved_file,
             local_file=str(local_file),
             content=content_to_save,

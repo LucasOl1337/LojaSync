@@ -7,6 +7,25 @@
 - Trate `data/lojasync.db` como dado do usuario.
 - Escolha explicitamente importacao por IA ou leitura local; um modo nao e fallback automatico do outro.
 
+## Pipeline de importacao por evidencia (padrao)
+
+A importacao por IA usa um pipeline **evidence-first** (`LOJASYNC_IMPORT_PIPELINE=evidence`, padrao):
+
+1. Extrai evidencia deterministica do arquivo (texto/PDF local, ancoras de remessa e totais, linhas estruturadas).
+2. Envia paginas inteiras ao modelo de visao (sem pre-fatiar por padrao).
+3. Reconcilia itens com as ancoras; se incompleto, tenta recortes verticais com sobreposicao.
+4. Publica resultado explicito: `approved` (status `ok`), `needs_review` (status `needs_review`, validacao `unverified`) ou `rejected` (job em erro).
+
+Metricas uteis no resultado do job: `import_pipeline`, `import_outcome`, `import_needs_review`, `evidence_*`, `completeness_*`, `llm_stage_item_counts`, `observability`.
+
+Para reverter ao fluxo anterior (sem recovery por incompleto e com fatiamento antecipado), defina:
+
+```powershell
+[Environment]::SetEnvironmentVariable("LOJASYNC_IMPORT_PIPELINE", "legacy", "User")
+```
+
+Ajustes opcionais do recovery: `LOJASYNC_RECOVERY_PAGE_SLICES` (padrao 2+), `LOJASYNC_RECOVERY_SLICE_OVERLAP` (padrao 0.12).
+
 ## Importacao com Kimi K2.7 Code
 
 O provider `kimi` usa a API OpenAI-compatible do Kimi Code. A chave deve ficar somente no ambiente do Windows, nunca em arquivo versionado:
@@ -19,7 +38,7 @@ O provider `kimi` usa a API OpenAI-compatible do Kimi Code. A chave deve ficar s
 [Environment]::SetEnvironmentVariable("KIMI_API_KEY", "<chave-local>", "User")
 ```
 
-Feche e reabra o launcher depois de alterar o ambiente. PDFs sao rasterizados localmente e enviados como imagens; TXT e outros arquivos textuais sao enviados como texto. O K2.7 Code mantem thinking ativo, por isso o LojaSync nao envia `temperature` nem tenta desabilitar thinking.
+Feche e reabra o launcher depois de alterar o ambiente. PDFs sao rasterizados localmente e enviados como imagens de **pagina inteira** primeiro; TXT e outros arquivos textuais sao enviados como texto. O K2.7 Code mantem thinking ativo, por isso o LojaSync nao envia `temperature` nem tenta desabilitar thinking. Recortes verticais so entram no recovery quando a evidencia indica resultado incompleto (a menos que `KIMI_VISION_PAGE_SLICES` force pre-slice, ou o pipeline esteja em `legacy`).
 
 Por padrao, uma importacao Kimi reprovada nao troca silenciosamente para o parser local. `KIMI_ALLOW_LOCAL_GUARD=true` reabilita esse comportamento de forma explicita.
 

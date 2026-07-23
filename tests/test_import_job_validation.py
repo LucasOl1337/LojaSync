@@ -281,7 +281,9 @@ def test_prepare_llm_vertical_slice_fallback_builds_batches_warning_event_and_me
 
     assert fallback.enabled
     assert fallback.image_batches == [[images[0]]]
-    assert fallback.metrics == {"llm_chunk_count": 2}
+    assert fallback.metrics["llm_chunk_count"] == 2
+    assert fallback.metrics["llm_recovery_attempt"] == "vertical_slices"
+    assert fallback.metrics["llm_recovery_forced"] is False
     assert fallback.warnings == [
         "OCR por pagina inteira sem itens validos; tentando recortes verticais como fallback."
     ]
@@ -521,7 +523,10 @@ def test_evaluate_final_import_validation_warns_when_unverified() -> None:
         selected_source="",
     )
 
-    warning = "Import completed without printed totals or remessa quantity to validate against."
+    warning = (
+        "Import completed without printed totals or remessa quantity to validate against. "
+        "Result is unverified and needs manual review — not a fully validated success."
+    )
     assert decision.validation["unverified"]
     assert decision.metrics["final_validation_status"] == "unverified"
     assert decision.metrics["final_validation_reasons"] == []

@@ -522,7 +522,8 @@ export function formatImportValidationStatus(status: unknown) {
   if (!normalized || normalized === "sem validacao") return "Sem validação";
   if (normalized === "approved") return "Aprovado";
   if (normalized === "rejected") return "Rejeitado";
-  if (normalized === "unverified") return "Não validado";
+  if (normalized === "unverified") return "Não validado — revise quantidades";
+  if (normalized === "needs_review") return "Precisa de revisão";
   if (normalized === "error" || normalized === "failed") return "Erro";
   return value;
 }

@@ -325,7 +325,16 @@ def _prepare_openai_vision_upload(
         )
         warnings.extend(render_warnings)
         rendered_pages = len(images)
-        slice_count = max(coerce_int_env(f"{env_prefix}_VISION_PAGE_SLICES", 2), 1)
+        # Evidence-first default: full pages first (1). Pre-slicing every page
+        # forces the cropped prompt and drops boundary rows. Recovery slices
+        # are applied later only when completeness fails.
+        default_slices = 1 if env_prefix.upper() in {"KIMI", "ZAI"} else 2
+        # Honor explicit legacy pre-slice via LOJASYNC_IMPORT_PIPELINE=legacy
+        # or an explicit *_VISION_PAGE_SLICES > 1.
+        pipeline = str(os.getenv("LOJASYNC_IMPORT_PIPELINE") or os.getenv("IMPORT_PIPELINE") or "evidence").strip().lower()
+        if pipeline in {"legacy", "classic", "old"}:
+            default_slices = 2
+        slice_count = max(coerce_int_env(f"{env_prefix}_VISION_PAGE_SLICES", default_slices), 1)
         if slice_count > 1 and images:
             images = slice_image_payloads(images, vertical_slices=slice_count)
         return {
@@ -335,7 +344,13 @@ def _prepare_openai_vision_upload(
             "provider": f"{provider_slug}_vision",
             "model": model,
             "usage": {},
-            "data_info": {"mode": "vision", "rendered_pages": rendered_pages, "images": len(images), "page_slices": slice_count},
+            "data_info": {
+                "mode": "vision",
+                "rendered_pages": rendered_pages,
+                "images": len(images),
+                "page_slices": slice_count,
+                "import_pipeline": pipeline or "evidence",
+            },
         }
 
     if _is_image_file(filename, content_type):

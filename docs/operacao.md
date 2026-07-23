@@ -49,9 +49,10 @@ O provider `kimi` usa a API OpenAI-compatible do Kimi Code. A chave deve ficar s
 [Environment]::SetEnvironmentVariable("KIMI_BASE_URL", "https://api.kimi.com/coding/v1", "User")
 [Environment]::SetEnvironmentVariable("KIMI_MODEL", "kimi-for-coding-highspeed", "User")
 [Environment]::SetEnvironmentVariable("KIMI_API_KEY", "<chave-local>", "User")
+[Environment]::SetEnvironmentVariable("KIMI_DISABLE_THINKING", "1", "User")
 ```
 
-Default do codigo e do ambiente: **`kimi-for-coding-highspeed`** (mesmo K2.7 Code, endpoint mais rapido). O alias lento `kimi-for-coding` so deve ser usado se highspeed falhar na conta.
+**Default operacional:** provider **`kimi`** (API direta), modelo **`kimi-for-coding-highspeed`**, thinking desligado na extracao (`KIMI_DISABLE_THINKING=1`). O alias `kimi-for-coding` so deve ser usado se highspeed falhar na conta.
 
 Feche e reabra o launcher depois de alterar o ambiente.
 
@@ -59,7 +60,7 @@ Feche e reabra o launcher depois de alterar o ambiente.
 - **PDF com texto embutido util**: preferido como texto (`KIMI_PDF_PREFER_TEXT=1`, default); evita vision.
 - **PDF escaneado / imagem**: rasterizacao local + vision (DPI 144, sem slice vertical por padrao).
 
-O K2.7 Code mantem thinking ativo, por isso o LojaSync nao envia `temperature` nem tenta desabilitar thinking.
+Validacao de import continua **exata** (soma dos itens vs total da nota/tabela): qualquer diferenca reprova.
 
 Por padrao, uma importacao Kimi reprovada nao troca silenciosamente para o parser local. `KIMI_ALLOW_LOCAL_GUARD=true` reabilita esse comportamento de forma explicita.
 

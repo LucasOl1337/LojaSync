@@ -990,7 +990,8 @@ def post_llm_chat(
             "messages": messages,
             "max_tokens": coerce_int_env("KIMI_MAX_TOKENS", 16384),
         }
-        if truthy_env("KIMI_DISABLE_THINKING", False):
+        # Prefer disabled thinking for extraction latency/quality (override with KIMI_DISABLE_THINKING=0).
+        if truthy_env("KIMI_DISABLE_THINKING", True):
             payload["thinking"] = {"type": "disabled"}
         if metrics is not None:
             metrics["llm_provider"] = "kimi"

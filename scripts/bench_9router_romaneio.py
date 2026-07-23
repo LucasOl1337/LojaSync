@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-DEFAULT_BASE = "http://127.0.0.1:20128/v1"
+DEFAULT_BASE = os.environ.get("NINE_ROUTER_BASE_URL") or "http://68.183.26.96:20128/v1"
 DEFAULT_IMAGE = Path(r"C:\Users\user\Downloads\SuperRomaneios\notas\nota3.jpeg")
 OUT_DIR = Path(r"C:\Users\user\AppData\Local\Temp\lojasync_9router_bench")
 

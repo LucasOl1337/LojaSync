@@ -1,0 +1,16 @@
+{
+  "tag": "v1.2.9",
+  "name": "LojaSync v1.2.9 - Importacao IA Kimi + 9router VM",
+  "date": "2026-07-23",
+  "base": "v1.2.8",
+  "target": "main",
+  "notes": "docs/releases/release-v1.2.9.md",
+  "validation": {
+    "backend_passed": 180,
+    "backend_deselected": 5,
+    "frontend_passed": 124,
+    "vite_modules": 65,
+    "openapi_paths": 53,
+    "diff_check": "passed"
+  }
+}

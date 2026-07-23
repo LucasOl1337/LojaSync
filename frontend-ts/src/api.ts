@@ -456,9 +456,32 @@ export function stopGradesExecution() {
   });
 }
 
-export async function importRomaneio(file: File) {
+export type ImportModelOption = {
+  id: string;
+  label: string;
+  provider: string;
+  kind?: string;
+  recommended?: boolean;
+};
+
+export type ImportModelsResponse = {
+  provider: string;
+  default_model: string;
+  models: ImportModelOption[];
+};
+
+export function fetchImportModels() {
+  return requestJson<ImportModelsResponse>("/actions/import-models");
+}
+
+export async function importRomaneio(
+  file: File,
+  options: { llmModel?: string | null; llmProvider?: string | null } = {},
+) {
   const formData = new FormData();
   formData.append("file", file);
+  if (options.llmModel) formData.append("llm_model", options.llmModel);
+  if (options.llmProvider) formData.append("llm_provider", options.llmProvider);
   const response = await fetch(`${API_BASE_URL}/actions/import-romaneio`, {
     method: "POST",
     body: formData,

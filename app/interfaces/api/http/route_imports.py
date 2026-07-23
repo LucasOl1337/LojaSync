@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
 
 from app.application.imports.parsing import parse_candidate_content, products_to_text, save_romaneio_text
 from app.interfaces.api.http.jobs.store import cancel_import_job
@@ -102,11 +102,34 @@ async def parser_grades_cleanup(job_id: str) -> dict[str, str]:
     return {"status": "removed", "job_id": job_id}
 
 
+@router.get("/actions/import-models")
+async def import_models() -> dict[str, object]:
+    from app.interfaces.api.http.jobs.llm import kimi_chat_model, list_selectable_import_models, llm_provider
+
+    models = list_selectable_import_models()
+    default_id = ""
+    for item in models:
+        if item.get("recommended"):
+            default_id = str(item.get("id") or "")
+            break
+    if not default_id and models:
+        default_id = str(models[0].get("id") or "")
+    if not default_id:
+        default_id = kimi_chat_model()
+    return {
+        "provider": llm_provider(),
+        "default_model": default_id,
+        "models": models,
+    }
+
+
 @router.post("/actions/import-romaneio", response_model=ImportRomaneioStartResponse)
 async def import_romaneio(
     request: Request,
     background: BackgroundTasks,
     file: UploadFile = File(...),
+    llm_model: str | None = Form(default=None),
+    llm_provider: str | None = Form(default=None),
 ) -> ImportRomaneioStartResponse:
     contents = await file.read()
     if not contents:
@@ -125,6 +148,8 @@ async def import_romaneio(
         data_dir=container.paths.data_dir,
         prefer_llm=True,
         skip_local_parser=True,
+        llm_model=(llm_model or "").strip() or None,
+        llm_provider=(llm_provider or "").strip() or None,
     )
     return ImportRomaneioStartResponse(job_id=job.job_id)
 

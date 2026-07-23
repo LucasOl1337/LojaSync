@@ -19,6 +19,7 @@ type ImportProgressPanelProps = {
   documentTotal?: number | null;
   onAbort?: () => void;
   aborting?: boolean;
+  modelLabel?: string | null;
 };
 
 function StepList({ steps }: { steps: ImportProgressStep[] }) {
@@ -48,6 +49,7 @@ export function ImportProgressPanel({
   documentTotal,
   onAbort,
   aborting = false,
+  modelLabel = null,
 }: ImportProgressPanelProps) {
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -83,7 +85,7 @@ export function ImportProgressPanel({
         };
       })
       .filter((item): item is { key: string; text: string; level: string } => Boolean(item))
-      .slice(-4);
+      .slice(-12);
   }, [processLog]);
 
   if (!active && !liveMessage) return null;
@@ -116,6 +118,7 @@ export function ImportProgressPanel({
           <span className="sectionTag">{modeLabel}</span>
           <strong>{active ? (aborting ? "Cancelando importação..." : "Importação em andamento") : "Último status"}</strong>
           {fileName ? <span className="importProgressFileTs" title={fileName}>{fileName}</span> : null}
+          {modelLabel ? <span className="importProgressModelTs" title={modelLabel}>Modelo: {modelLabel}</span> : null}
         </div>
         <div className="importProgressMetaTs">
           {batchLabel ? <span>{batchLabel}</span> : null}
@@ -145,14 +148,17 @@ export function ImportProgressPanel({
       <StepList steps={steps} />
 
       {recentLog.length ? (
-        <ul className="importProgressLogTs" aria-label="Passos recentes">
-          {recentLog.map((entry) => (
-            <li key={entry.key} className={`level-${entry.level}`}>{entry.text}</li>
-          ))}
-        </ul>
+        <div className="importProgressLogWrapTs">
+          <strong className="importProgressLogTitleTs">Feedback das chamadas</strong>
+          <ul className="importProgressLogTs" aria-label="Chamadas e eventos da importação">
+            {recentLog.map((entry) => (
+              <li key={entry.key} className={`level-${entry.level}`}>{entry.text}</li>
+            ))}
+          </ul>
+        </div>
       ) : (
         <p className="importProgressHintTs">
-          Notas grandes ou com foto podem demorar mais na etapa da IA. O progresso atualiza a cada passo do servidor.
+          Notas grandes ou com foto podem demorar mais na etapa da IA. Cada chamada de modelo aparece aqui com tempo e tokens.
         </p>
       )}
     </section>

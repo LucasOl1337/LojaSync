@@ -48,6 +48,10 @@ type ImportStagePanelProps = {
   catalogCapitalLabel?: string | null;
   importNoteItemCount?: number | null;
   importNoteTotalLabel?: string | null;
+  llmModels?: Array<{ id: string; label: string; provider: string; recommended?: boolean }>;
+  selectedLlmModel?: string;
+  onSelectedLlmModelChange?: (modelId: string) => void;
+  selectedLlmLabel?: string | null;
 };
 
 function validationChipClass(status: string): string {
@@ -95,6 +99,10 @@ export function ImportStagePanel({
   catalogCapitalLabel = null,
   importNoteItemCount = null,
   importNoteTotalLabel = null,
+  llmModels = [],
+  selectedLlmModel = "",
+  onSelectedLlmModelChange,
+  selectedLlmLabel = null,
 }: ImportStagePanelProps) {
   const pipelineBusy = importing || localExperimentLoading;
   const historyBusyId = reopeningImportId;
@@ -122,6 +130,28 @@ export function ImportStagePanel({
           Entrada do romaneio
         </h2>
       </div>
+      {llmModels.length > 0 && onSelectedLlmModelChange ? (
+        <label className="importModelSelectTs">
+          <span className="importModelSelectLabelTs">Modelo da IA</span>
+          <select
+            className="importModelSelectControlTs"
+            value={selectedLlmModel}
+            disabled={primaryDisabled}
+            onChange={(event) => onSelectedLlmModelChange(event.target.value)}
+            aria-label="Selecionar modelo de IA para importação"
+          >
+            {llmModels.map((model) => (
+              <option key={`${model.provider}:${model.id}`} value={model.id}>
+                {model.label}
+                {model.recommended ? " · recomendado" : ""}
+              </option>
+            ))}
+          </select>
+          <span className="importModelSelectHintTs">
+            Teste manual: a importação com IA usa o modelo escolhido. Leitura local ignora este seletor.
+          </span>
+        </label>
+      ) : null}
       <button className="primaryButton fullButton importButtonTs" type="button" disabled={primaryDisabled} onClick={onImportPrimaryClick}>
         {importing ? (
           <>
@@ -226,6 +256,7 @@ export function ImportStagePanel({
           documentTotal={documentCount || null}
           onAbort={progressActive ? onAbortImport : undefined}
           aborting={importAborting}
+          modelLabel={selectedLlmLabel || selectedLlmModel || null}
         />
       ) : null}
       {importError ? <div className="message error">{importError}</div> : null}

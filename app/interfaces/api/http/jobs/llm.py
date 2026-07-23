@@ -51,15 +51,168 @@ def kimi_chat_model() -> str:
     return str(os.getenv("KIMI_MODEL") or "kimi-for-coding-highspeed").strip()
 
 
+def list_selectable_import_models() -> list[dict[str, Any]]:
+    """Models available in the import UI selector for the active provider."""
+    provider = llm_provider()
+    default_kimi = kimi_chat_model()
+    items: list[dict[str, Any]] = []
+
+    def add(model_id: str, *, label: str, provider_id: str, kind: str = "chat", recommended: bool = False) -> None:
+        mid = str(model_id or "").strip()
+        if not mid:
+            return
+        if any(str(it.get("id") or "") == mid and str(it.get("provider") or "") == provider_id for it in items):
+            return
+        items.append(
+            {
+                "id": mid,
+                "label": label,
+                "provider": provider_id,
+                "kind": kind,
+                "recommended": recommended,
+            }
+        )
+
+    # Always expose Kimi direct options (preferred operational path).
+    add(
+        "kimi-for-coding-highspeed",
+        label="Kimi highspeed (API direta)",
+        provider_id="kimi",
+        recommended=True,
+    )
+    add("kimi-for-coding", label="Kimi coding (API direta)", provider_id="kimi")
+    add("k3", label="Kimi k3 (API direta)", provider_id="kimi")
+
+    # Manual test favorites via 9router (always listed so the operator can A/B models).
+    for mid, label in (
+        ("cx/gpt-5.6-terra", "GPT-5.6 terra (9router)"),
+        ("cx/gpt-5.4-mini", "GPT-5.4 mini (9router)"),
+        ("cx/gpt-5.4", "GPT-5.4 (9router)"),
+        ("cx/gpt-5.5", "GPT-5.5 (9router)"),
+        ("cc/claude-sonnet-4-6", "Claude Sonnet 4.6 (9router)"),
+        ("gemini/gemini-3.1-flash-lite-preview", "Gemini 3.1 flash-lite (9router)"),
+        ("kimi/kimi-for-coding-highspeed", "Kimi highspeed (9router)"),
+    ):
+        add(mid, label=label, provider_id="9router")
+
+    # Optional live catalog from 9router when available.
+    try:
+        import httpx
+
+        base = openai_compat_base_url()
+        key = openai_compat_api_key()
+        if key:
+            with httpx.Client(timeout=8.0) as client:
+                response = client.get(f"{base}/models", headers={"Authorization": f"Bearer {key}"})
+                if response.status_code < 400:
+                    payload = response.json()
+                    data = payload.get("data") if isinstance(payload, dict) else None
+                    if isinstance(data, list):
+                        for row in data[:80]:
+                            if not isinstance(row, dict):
+                                continue
+                            mid = str(row.get("id") or "").strip()
+                            if not mid:
+                                continue
+                            caps = row.get("capabilities") if isinstance(row.get("capabilities"), dict) else {}
+                            if caps.get("vision") is False and not mid.startswith(
+                                ("kimi/", "cx/gpt-5.4", "cx/gpt-5.5", "cx/gpt-5.6", "cc/", "gemini/")
+                            ):
+                                continue
+                            add(mid, label=f"{mid} (9router)", provider_id="9router")
+    except Exception:
+        pass
+
+    if use_zai_provider():
+        add(zai_chat_model(has_images=False), label="Z.AI chat", provider_id="zai")
+        add(zai_chat_model(has_images=True), label="Z.AI vision", provider_id="zai", kind="vision")
+
+    # Keep operator default highlighted (env model wins when it is a listed Kimi id).
+    for item in items:
+        item["recommended"] = bool(item.get("provider") == "kimi" and item.get("id") == default_kimi)
+    if not any(item.get("recommended") for item in items):
+        for item in items:
+            if item.get("id") == "kimi-for-coding-highspeed":
+                item["recommended"] = True
+                break
+    items.sort(key=lambda it: (0 if it.get("recommended") else 1, str(it.get("label") or "")))
+    return items
+
+
+def resolve_import_model_choice(model: str | None = None, provider: str | None = None) -> tuple[str, str]:
+    """Return (provider, model_id) for a user selection or env defaults."""
+    selected_model = str(model or "").strip()
+    selected_provider = str(provider or "").strip().lower()
+
+    if selected_model.startswith(("cx/", "cc/", "gemini/", "kimi/", "xai/", "gcli/", "ocg/")):
+        selected_provider = selected_provider or "9router"
+    elif selected_model in {"kimi-for-coding", "kimi-for-coding-highspeed", "k3", "kimi-k3"}:
+        selected_provider = selected_provider or "kimi"
+        if selected_model == "kimi-k3":
+            selected_model = "k3"
+
+    if not selected_provider:
+        selected_provider = llm_provider()
+    if not selected_model:
+        if selected_provider in {"kimi", "kimi-code", "kimi_code", "moonshot"}:
+            selected_model = kimi_chat_model()
+        elif selected_provider in {"9router", "openai", "openai_compat", "openai-compatible", "openrouter", "litellm", "gateway"}:
+            selected_model = openai_compat_chat_model(has_images=True)
+        elif selected_provider in {"zai", "z.ai", "glm", "glm-api"}:
+            selected_model = zai_chat_model(has_images=True)
+        else:
+            selected_model = kimi_chat_model()
+            selected_provider = "kimi"
+    return selected_provider, selected_model
+
+
 def openai_compat_base_url() -> str:
-    return str(
+    """OpenAI-compatible gateway (9router) base URL.
+
+    Store PCs must NOT depend on the operator desktop. Prefer a public/cloud
+    9router endpoint. Localhost is only a last-resort dev fallback.
+
+    Resolution order:
+      1) LOJASYNC_OPENAI_BASE_URL / OPENAI_COMPAT_BASE_URL / OPENAI_BASE_URL
+      2) NINE_ROUTER_BASE_URL (preferred explicit cloud URL)
+      3) NINE_ROUTER_HOST (+ NINE_ROUTER_PORT) for LAN/VM hostnames
+      4) ANTHROPIC_BASE_URL only if it is already a public https 9router
+      5) built-in cloud default (bombapvp / aurora public 9router)
+      6) localhost — single-machine dev only
+    """
+    app_override = str(
         os.getenv("LOJASYNC_OPENAI_BASE_URL")
         or os.getenv("OPENAI_COMPAT_BASE_URL")
         or os.getenv("OPENAI_BASE_URL")
-        or os.getenv("NINE_ROUTER_BASE_URL")
-        or os.getenv("ANTHROPIC_BASE_URL")
-        or "http://127.0.0.1:20128/v1"
-    ).rstrip("/")
+        or ""
+    ).strip()
+    if app_override:
+        return app_override.rstrip("/")
+
+    base_url = str(os.getenv("NINE_ROUTER_BASE_URL") or "").strip()
+    if base_url:
+        return base_url.rstrip("/")
+
+    host = str(os.getenv("NINE_ROUTER_HOST") or "").strip()
+    if host:
+        port = str(os.getenv("NINE_ROUTER_PORT") or "20128").strip() or "20128"
+        if "://" in host:
+            return host.rstrip("/")
+        return f"http://{host}:{port}/v1".rstrip("/")
+
+    anthropic = str(os.getenv("ANTHROPIC_BASE_URL") or "").strip()
+    if anthropic and anthropic.lower().startswith("https://") and "127.0.0.1" not in anthropic and "localhost" not in anthropic.lower():
+        return anthropic.rstrip("/")
+
+    # Official 9router on DigitalOcean VM (store PCs reach it over the public internet).
+    # Not the Windows desktop 9router, and not third-party aurora public mirrors.
+    cloud_default = str(
+        os.getenv("NINE_ROUTER_CLOUD_BASE_URL") or "http://68.183.26.96:20128/v1"
+    ).strip()
+    if cloud_default:
+        return cloud_default.rstrip("/")
+
+    return "http://127.0.0.1:20128/v1"
 
 
 def openai_compat_api_key() -> str:
@@ -920,6 +1073,87 @@ def _build_openai_style_messages(
     return messages, has_image_blocks
 
 
+def _metrics_model_override(metrics: dict[str, Any] | None) -> str | None:
+    if not isinstance(metrics, dict):
+        return None
+    value = str(metrics.get("llm_model_override") or metrics.get("selected_llm_model") or "").strip()
+    return value or None
+
+
+def _metrics_provider_override(metrics: dict[str, Any] | None) -> str | None:
+    if not isinstance(metrics, dict):
+        return None
+    value = str(metrics.get("llm_provider_override") or metrics.get("selected_llm_provider") or "").strip().lower()
+    return value or None
+
+
+def _append_llm_call_feedback(
+    metrics: dict[str, Any] | None,
+    *,
+    phase: str,
+    provider: str,
+    model: str,
+    documents: list[dict[str, Any]],
+    images: list[dict[str, Any]],
+    duration_ms: int | None = None,
+    usage: dict[str, Any] | None = None,
+    content_chars: int | None = None,
+    error: str | None = None,
+) -> None:
+    if metrics is None:
+        return
+    from app.application.imports.job_validation import append_process_event
+
+    doc_chars = sum(len(str(doc.get("content") or "")) for doc in documents if isinstance(doc, dict))
+    image_count = sum(1 for image in images if isinstance(image, dict) and str(image.get("data") or "").strip())
+    if phase == "start":
+        append_process_event(
+            metrics,
+            source="llm",
+            level="info",
+            message=(
+                f"Chamando {provider} · modelo `{model}` · "
+                f"{doc_chars} chars de texto · {image_count} imagem(ns)."
+            ),
+        )
+        return
+    if error:
+        append_process_event(
+            metrics,
+            source="llm",
+            level="error",
+            message=f"Falha na chamada `{model}`: {error[:220]}",
+        )
+        return
+    prompt_tokens = int((usage or {}).get("prompt_tokens") or (usage or {}).get("input_tokens") or 0)
+    completion_tokens = int((usage or {}).get("completion_tokens") or (usage or {}).get("output_tokens") or 0)
+    total_tokens = int((usage or {}).get("total_tokens") or (prompt_tokens + completion_tokens) or 0)
+    ms = int(duration_ms or 0)
+    token_part = f" · {total_tokens} tokens" if total_tokens else ""
+    chars_part = f" · resposta {content_chars} chars" if content_chars is not None else ""
+    append_process_event(
+        metrics,
+        source="llm",
+        level="success",
+        message=f"Resposta `{model}` em {ms} ms{token_part}{chars_part}.",
+    )
+    calls = list(metrics.get("llm_call_feedback") or [])
+    calls.append(
+        {
+            "provider": provider,
+            "model": model,
+            "duration_ms": ms,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "document_chars": doc_chars,
+            "images": image_count,
+            "content_chars": content_chars,
+        }
+    )
+    metrics["llm_call_feedback"] = calls[-40:]
+
+
 def post_llm_chat(
     client: httpx.Client,
     *,
@@ -929,64 +1163,123 @@ def post_llm_chat(
     documents: list[dict[str, Any]],
     images: list[dict[str, Any]],
     metrics: dict[str, Any] | None = None,
+    model: str | None = None,
 ) -> tuple[str, str | None]:
-    if use_openai_compat_provider():
+    selected_provider = _metrics_provider_override(metrics) or llm_provider()
+    selected_model = str(model or _metrics_model_override(metrics) or "").strip()
+
+    # Route by selected provider override when the UI picks Kimi vs 9router model.
+    use_nine = selected_provider in {
+        "9router",
+        "openai",
+        "openai_compat",
+        "openai-compatible",
+        "openrouter",
+        "litellm",
+        "gateway",
+    } or (selected_model.startswith(("cx/", "cc/", "gemini/", "kimi/", "xai/", "gcli/", "ocg/")) and not use_kimi_provider())
+    # If model is bare kimi id, force direct kimi even when env provider is 9router.
+    if selected_model in {"kimi-for-coding", "kimi-for-coding-highspeed", "k3", "kimi-k3"}:
+        use_nine = False
+        selected_provider = "kimi"
+        if selected_model == "kimi-k3":
+            selected_model = "k3"
+
+    if use_nine or (use_openai_compat_provider() and selected_provider not in {"kimi", "zai", "z.ai", "glm"}):
         messages, has_image_blocks = _build_openai_style_messages(
             mode=mode, message=message, documents=documents, images=images
         )
-        model = openai_compat_chat_model(has_images=has_image_blocks)
+        model_id = selected_model or openai_compat_chat_model(has_images=has_image_blocks)
+        base = openai_compat_base_url()
         payload: dict[str, Any] = {
-            "model": model,
+            "model": model_id,
             "messages": messages,
             "max_tokens": coerce_int_env("LOJASYNC_LLM_MAX_TOKENS", coerce_int_env("OPENAI_COMPAT_MAX_TOKENS", 16384)),
         }
         extra = openai_compat_extra_body()
         if extra:
-            # Don't force thinking.disabled if model rejects it — still try; caller can set LOJASYNC_LLM_DISABLE_THINKING=0
             payload.update(extra)
         if metrics is not None:
-            metrics["llm_provider"] = llm_provider()
-            metrics["llm_model"] = model
-            metrics["llm_base_url"] = openai_compat_base_url()
-        response = client.post(
-            f"{openai_compat_base_url()}/chat/completions",
-            json=payload,
-            headers=_openai_compat_headers(job_id),
+            metrics["llm_provider"] = selected_provider or "9router"
+            metrics["llm_model"] = model_id
+            metrics["llm_base_url"] = base
+        _append_llm_call_feedback(
+            metrics,
+            phase="start",
+            provider=str(metrics.get("llm_provider") if metrics else "9router"),
+            model=model_id,
+            documents=documents,
+            images=images,
         )
-        status_code = int(getattr(response, "status_code", 0) or 0)
-        if status_code >= 400:
-            # Retry once without thinking extras if gateway complains.
-            detail = (getattr(response, "text", None) or "")[:400].lower()
-            if extra and ("thinking" in detail or "temperature" in detail or "invalid" in detail):
-                payload.pop("thinking", None)
-                payload.pop("temperature", None)
-                response = client.post(
-                    f"{openai_compat_base_url()}/chat/completions",
-                    json=payload,
-                    headers=_openai_compat_headers(job_id),
-                )
-        if hasattr(response, "raise_for_status"):
-            response.raise_for_status()
+        started = __import__("time").perf_counter()
         try:
-            data = response.json()
-        except Exception:
-            data = None
-        raw_text = getattr(response, "text", None) or ""
-        content, usage = _extract_openai_response_text(raw_text, data)
-        if usage:
-            _accumulate_llm_usage(metrics, usage)
-        elif isinstance(data, dict):
-            _accumulate_llm_usage(metrics, data.get("usage"))
-        if metrics is not None and isinstance(data, dict) and data.get("model"):
-            metrics["llm_model_response"] = str(data.get("model"))
-        return content.strip(), None
+            response = client.post(
+                f"{base}/chat/completions",
+                json=payload,
+                headers=_openai_compat_headers(job_id),
+            )
+            status_code = int(getattr(response, "status_code", 0) or 0)
+            if status_code >= 400:
+                detail = (getattr(response, "text", None) or "")[:400].lower()
+                if extra and ("thinking" in detail or "temperature" in detail or "invalid" in detail):
+                    payload.pop("thinking", None)
+                    payload.pop("temperature", None)
+                    response = client.post(
+                        f"{base}/chat/completions",
+                        json=payload,
+                        headers=_openai_compat_headers(job_id),
+                    )
+            if hasattr(response, "raise_for_status"):
+                response.raise_for_status()
+            try:
+                data = response.json()
+            except Exception:
+                data = None
+            raw_text = getattr(response, "text", None) or ""
+            content, usage = _extract_openai_response_text(raw_text, data)
+            if usage:
+                _accumulate_llm_usage(metrics, usage)
+            elif isinstance(data, dict):
+                usage = data.get("usage") if isinstance(data.get("usage"), dict) else None
+                _accumulate_llm_usage(metrics, usage)
+            else:
+                usage = None
+            if metrics is not None and isinstance(data, dict) and data.get("model"):
+                metrics["llm_model_response"] = str(data.get("model"))
+            duration_ms = int((__import__("time").perf_counter() - started) * 1000)
+            _append_llm_call_feedback(
+                metrics,
+                phase="done",
+                provider=str(metrics.get("llm_provider") if metrics else "9router"),
+                model=model_id,
+                documents=documents,
+                images=images,
+                duration_ms=duration_ms,
+                usage=usage if isinstance(usage, dict) else None,
+                content_chars=len(content or ""),
+            )
+            return content.strip(), None
+        except Exception as exc:
+            duration_ms = int((__import__("time").perf_counter() - started) * 1000)
+            _append_llm_call_feedback(
+                metrics,
+                phase="done",
+                provider=str(metrics.get("llm_provider") if metrics else "9router"),
+                model=model_id,
+                documents=documents,
+                images=images,
+                duration_ms=duration_ms,
+                error=str(exc),
+            )
+            raise
 
-    if use_kimi_provider():
+    if use_kimi_provider() or selected_provider in {"kimi", "kimi-code", "kimi_code", "moonshot"}:
         messages, has_image_blocks = _build_openai_style_messages(
             mode=mode, message=message, documents=documents, images=images
         )
+        model_id = selected_model or kimi_chat_model()
         payload = {
-            "model": kimi_chat_model(),
+            "model": model_id,
             "messages": messages,
             "max_tokens": coerce_int_env("KIMI_MAX_TOKENS", 16384),
         }
@@ -995,20 +1288,58 @@ def post_llm_chat(
             payload["thinking"] = {"type": "disabled"}
         if metrics is not None:
             metrics["llm_provider"] = "kimi"
-            metrics["llm_model"] = kimi_chat_model()
-        response = client.post(
-            f"{kimi_base_url()}/chat/completions",
-            json=payload,
-            headers=_kimi_headers(job_id),
+            metrics["llm_model"] = model_id
+            metrics["llm_base_url"] = kimi_base_url()
+        _append_llm_call_feedback(
+            metrics,
+            phase="start",
+            provider="kimi",
+            model=model_id,
+            documents=documents,
+            images=images,
         )
-        _raise_kimi_for_status(response)
+        started = __import__("time").perf_counter()
         try:
-            data = response.json()
-        except Exception:
-            data = {"content": response.text}
-        if isinstance(data, dict):
-            _accumulate_llm_usage(metrics, data.get("usage"))
-        return _extract_zai_chat_content(data).strip(), None
+            response = client.post(
+                f"{kimi_base_url()}/chat/completions",
+                json=payload,
+                headers=_kimi_headers(job_id),
+            )
+            _raise_kimi_for_status(response)
+            try:
+                data = response.json()
+            except Exception:
+                data = {"content": response.text}
+            usage = data.get("usage") if isinstance(data, dict) and isinstance(data.get("usage"), dict) else None
+            if isinstance(data, dict):
+                _accumulate_llm_usage(metrics, usage)
+            content = _extract_zai_chat_content(data).strip()
+            duration_ms = int((__import__("time").perf_counter() - started) * 1000)
+            _append_llm_call_feedback(
+                metrics,
+                phase="done",
+                provider="kimi",
+                model=model_id,
+                documents=documents,
+                images=images,
+                duration_ms=duration_ms,
+                usage=usage,
+                content_chars=len(content or ""),
+            )
+            return content, None
+        except Exception as exc:
+            duration_ms = int((__import__("time").perf_counter() - started) * 1000)
+            _append_llm_call_feedback(
+                metrics,
+                phase="done",
+                provider="kimi",
+                model=model_id,
+                documents=documents,
+                images=images,
+                duration_ms=duration_ms,
+                error=str(exc),
+            )
+            raise
 
     if use_zai_provider():
         prompt = _build_zai_chat_prompt(mode=mode, message=message, documents=documents)

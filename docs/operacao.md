@@ -15,20 +15,43 @@ O LojaSync escolhe o backend de IA por env:
 |---|---|
 | `kimi` | API Kimi Code direta |
 | `zai` | Z.AI / GLM |
-| `9router` / `openai` / `openai_compat` | Gateway OpenAI-compatible (9router da VM, LiteLLM, etc.) |
+| `9router` / `openai` / `openai_compat` | Gateway OpenAI-compatible **na nuvem** (GPT/Claude/Gemini) |
 | `legacy` | LLM local `/api/chat` |
 
-### 9router (VM / localhost:20128)
+### Arquitetura LLM (PCs da loja) — LojaSync
+
+O PC da loja roda o LojaSync **sozinho**. Ele **nao** depende do notebook do operador nem do 9router Windows local (`127.0.0.1:20128`).
+
+| Caminho | Quando | Destino |
+|---|---|---|
+| **API direta (Kimi)** | default de importacao | `https://api.kimi.com/coding/v1` |
+| **9router na VM (DigitalOcean)** | seletor A/B (Claude/GPT/Gemini etc.) | `http://68.183.26.96:20128/v1` |
+
+Esse 9router e o da VM `sennin-core-01` (mesmo stack do Sennin/Maestro). Dashboard: `http://68.183.26.96:20128/dashboard`.
+Alternativa HTTPS (tunnel Cloudflare da mesma VM): `https://chess-router.bombapvp.com/v1`.
+
+**Nao** usar espelhos de terceiros (`aurora.simple-ai.cc`) — nao e o 9router de voces.
 
 ```powershell
-[Environment]::SetEnvironmentVariable("LOJASYNC_LLM_PROVIDER", "9router", "User")
-[Environment]::SetEnvironmentVariable("NINE_ROUTER_BASE_URL", "http://127.0.0.1:20128/v1", "User")
-[Environment]::SetEnvironmentVariable("NINE_ROUTER_API_KEY", "<chave-9router>", "User")
-# ou reutilize ANTHROPIC_AUTH_TOKEN / BOMBA_LAB_NINE_ROUTER_KEY se ja existirem
-[Environment]::SetEnvironmentVariable("LOJASYNC_LLM_MODEL", "kimi/kimi-for-coding-highspeed", "User")
-[Environment]::SetEnvironmentVariable("LOJASYNC_LLM_VISION_MODEL", "xai/grok-4.5", "User")  # opcional
-[Environment]::SetEnvironmentVariable("LOJASYNC_LLM_DISABLE_THINKING", "1", "User")  # default extracao
+# Default importacao: Kimi direto
+[Environment]::SetEnvironmentVariable("LOJASYNC_LLM_PROVIDER", "kimi", "User")
+[Environment]::SetEnvironmentVariable("KIMI_BASE_URL", "https://api.kimi.com/coding/v1", "User")
+[Environment]::SetEnvironmentVariable("KIMI_MODEL", "kimi-for-coding-highspeed", "User")
+[Environment]::SetEnvironmentVariable("KIMI_API_KEY", "<chave-kimi>", "User")
+[Environment]::SetEnvironmentVariable("KIMI_DISABLE_THINKING", "1", "User")
+
+# 9router da VM DigitalOcean (Claude/GPT/Gemini no seletor)
+[Environment]::SetEnvironmentVariable("NINE_ROUTER_BASE_URL", "http://68.183.26.96:20128/v1", "User")
+[Environment]::SetEnvironmentVariable("NINE_ROUTER_API_KEY", "<chave-lojasync-no-9router-da-vm>", "User")
+
+# PROIBIDO no PC da loja (so o 9router do notebook do operador em dev):
+# NINE_ROUTER_BASE_URL=http://127.0.0.1:20128/v1
+# BOMBA_LAB_NINE_ROUTER_KEY  → key do 9router LOCAL, nao da VM
 ```
+
+O seletor de modelo no menu de Importacao envia `llm_model` + `llm_provider` por job:
+- ids `kimi-for-coding*` / `k3` → **API Kimi direta**
+- ids `cx/*`, `cc/*`, `gemini/*`, `kimi/*` (prefixo 9router) → **9router da VM** (`NINE_ROUTER_BASE_URL`)
 
 Benchmark de todos os modelos do gateway na foto de romaneio:
 

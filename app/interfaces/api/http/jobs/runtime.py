@@ -488,6 +488,8 @@ def run_import_job(
     data_dir: Path,
     prefer_llm: bool = True,
     skip_local_parser: bool = True,
+    llm_model: str | None = None,
+    llm_provider: str | None = None,
 ) -> None:
     warnings: list[str] = []
     llm_text = ""
@@ -508,6 +510,29 @@ def run_import_job(
         llm_base_url=llm_base_url(),
         llm_timeout_seconds=llm_timeout_seconds(),
     )
+    try:
+        from app.interfaces.api.http.jobs.llm import resolve_import_model_choice
+
+        provider_choice, model_choice = resolve_import_model_choice(llm_model, llm_provider)
+        metrics["selected_llm_provider"] = provider_choice
+        metrics["selected_llm_model"] = model_choice
+        metrics["llm_provider_override"] = provider_choice
+        metrics["llm_model_override"] = model_choice
+        metrics["llm_provider"] = provider_choice
+        metrics["llm_model"] = model_choice
+        _append_process_event(
+            metrics,
+            source="llm",
+            level="info",
+            message=f"Modelo selecionado: `{model_choice}` ({provider_choice}).",
+        )
+    except Exception as exc:
+        _append_process_event(
+            metrics,
+            source="llm",
+            level="warning",
+            message=f"Nao foi possivel resolver modelo selecionado: {exc}",
+        )
 
     def _update_stage(stage: str, message: str) -> None:
         if is_import_cancelled(job_id) and stage not in {"cancelled", "error", "completed"}:

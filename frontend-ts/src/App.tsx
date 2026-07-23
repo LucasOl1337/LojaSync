@@ -32,7 +32,9 @@ import {
   saveAppearance,
   formatCodes,
   improveDescriptions,
+  fetchImportModels,
   importRomaneio,
+  type ImportModelOption,
   joinDuplicates,
   joinGrades,
   patchProduct,
@@ -328,6 +330,8 @@ export default function App({ authSession = null }: AppProps) {
   const [localExperimentLoading, setLocalExperimentLoading] = useState(false);
   const [reopeningImportId, setReopeningImportId] = useState<string | null>(null);
   const [importAborting, setImportAborting] = useState(false);
+  const [importLlmModels, setImportLlmModels] = useState<ImportModelOption[]>([]);
+  const [selectedImportLlmModel, setSelectedImportLlmModel] = useState("kimi-for-coding-highspeed");
   const importConferenceRestoreDoneRef = useRef(false);
   const importConferenceHydratingRef = useRef(false);
   const importAbortControllerRef = useRef<AbortController | null>(null);
@@ -817,6 +821,50 @@ export default function App({ authSession = null }: AppProps) {
 
   useEffect(() => {
     let disposed = false;
+    const loadImportModels = async () => {
+      try {
+        const payload = await fetchImportModels();
+        if (disposed) return;
+        const models = Array.isArray(payload.models) ? payload.models : [];
+        setImportLlmModels(models);
+        const preferred =
+          models.find((item) => item.recommended)?.id
+          || payload.default_model
+          || models[0]?.id
+          || "kimi-for-coding-highspeed";
+        setSelectedImportLlmModel((current) => {
+          if (current && models.some((item) => item.id === current)) return current;
+          return preferred;
+        });
+      } catch {
+        setImportLlmModels([
+          {
+            id: "kimi-for-coding-highspeed",
+            label: "Kimi highspeed (API direta)",
+            provider: "kimi",
+            recommended: true,
+          },
+          {
+            id: "kimi-for-coding",
+            label: "Kimi coding (API direta)",
+            provider: "kimi",
+          },
+          {
+            id: "k3",
+            label: "Kimi k3 (API direta)",
+            provider: "kimi",
+          },
+        ]);
+      }
+    };
+    void loadImportModels();
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
     const loadAutomationTargets = async () => {
       try {
         const payload = await fetchAutomationTargets();
@@ -1295,7 +1343,11 @@ export default function App({ authSession = null }: AppProps) {
             rememberOperationDiary({ kind: "import", title: "Leitura local concluída", detail: historyEntry.sourceName, tone: historyEntry.warningCount ? "warning" : "success", occurredAt: historyEntry.completedAt, meta: [historyEntry.mode, `${historyEntry.totalItems} itens`, historyEntry.validationStatus] });
             await refreshAfterLocalImport(result);
           } else {
-            const started = await importRomaneio(document.file);
+            const selectedModelMeta = importLlmModels.find((item) => item.id === selectedImportLlmModel);
+            const started = await importRomaneio(document.file, {
+              llmModel: selectedImportLlmModel || null,
+              llmProvider: selectedModelMeta?.provider || null,
+            });
             activeImportJobIdRef.current = started.job_id;
             let terminalStatus: ImportStatus | null = null;
             try {
@@ -3338,6 +3390,14 @@ export default function App({ authSession = null }: AppProps) {
                       catalogCapitalLabel={catalogCapitalLabel}
                       importNoteItemCount={importResult?.total_itens ?? null}
                       importNoteTotalLabel={importDetectedTotalLabel}
+                      llmModels={importLlmModels}
+                      selectedLlmModel={selectedImportLlmModel}
+                      onSelectedLlmModelChange={setSelectedImportLlmModel}
+                      selectedLlmLabel={
+                        importLlmModels.find((item) => item.id === selectedImportLlmModel)?.label
+                        || String(importMetrics["selected_llm_model"] || importMetrics["llm_model"] || "")
+                        || null
+                      }
                     />
                   </div>
                 </div>

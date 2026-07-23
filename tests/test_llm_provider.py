@@ -162,7 +162,8 @@ class LlmProviderTests(unittest.TestCase):
         self.assertEqual(call["headers"]["Authorization"], "Bearer test-key")  # type: ignore[index]
         self.assertEqual(call["json"]["model"], "kimi-for-coding")  # type: ignore[index]
         self.assertNotIn("temperature", call["json"])  # type: ignore[operator]
-        self.assertNotIn("thinking", call["json"])  # type: ignore[operator]
+        # Extraction default disables Kimi thinking for latency/quality (KIMI_DISABLE_THINKING=1).
+        self.assertEqual(call["json"].get("thinking"), {"type": "disabled"})  # type: ignore[operator]
         messages = call["json"]["messages"]  # type: ignore[index]
         self.assertEqual(messages[0]["role"], "system")
         self.assertIn("LojaSync", messages[0]["content"])

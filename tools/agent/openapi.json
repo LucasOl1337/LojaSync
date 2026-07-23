@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LojaSync",
-    "version": "1.2.8"
+    "version": "1.2.9"
   },
   "paths": {
     "/health": {
@@ -502,6 +502,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MarginSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/appearance": {
+      "get": {
+        "summary": "Get Appearance",
+        "operationId": "get_appearance_settings_appearance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppearanceSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Set Appearance",
+        "operationId": "set_appearance_settings_appearance_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppearanceSettingsPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppearanceSettingsResponse"
                 }
               }
             }
@@ -1682,6 +1736,25 @@
         }
       }
     },
+    "/actions/import-models": {
+      "get": {
+        "summary": "Import Models",
+        "operationId": "import_models_actions_import_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Import Models Actions Import Models Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/actions/import-romaneio": {
       "post": {
         "summary": "Import Romaneio",
@@ -1839,6 +1912,89 @@
         }
       }
     },
+    "/actions/import-romaneio/cancel/{job_id}": {
+      "post": {
+        "summary": "Import Romaneio Cancel",
+        "description": "Abort a running import: cooperative flag + close active LLM HTTP client.",
+        "operationId": "import_romaneio_cancel_actions_import_romaneio_cancel__job_id__post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Import Romaneio Cancel Actions Import Romaneio Cancel  Job Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/import-romaneio/reapply": {
+      "post": {
+        "summary": "Reapply Import To Catalog",
+        "description": "Send already-processed import text back into the catalog without LLM/local rescan.",
+        "operationId": "reapply_import_to_catalog_actions_import_romaneio_reapply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReapplyImportPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRomaneioResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/actions/import-romaneio-local-experiment": {
       "post": {
         "summary": "Import Romaneio Local Experiment",
@@ -1880,12 +2036,93 @@
   },
   "components": {
     "schemas": {
+      "AppearanceSettingsPayload": {
+        "properties": {
+          "defaultWallpaper": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Defaultwallpaper"
+          },
+          "defaultBrightness": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbrightness"
+          }
+        },
+        "type": "object",
+        "required": [
+          "defaultWallpaper"
+        ],
+        "title": "AppearanceSettingsPayload"
+      },
+      "AppearanceSettingsResponse": {
+        "properties": {
+          "defaultWallpaper": {
+            "type": "string",
+            "title": "Defaultwallpaper"
+          },
+          "defaultBrightness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbrightness"
+          },
+          "wallpapers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Wallpapers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "defaultWallpaper"
+        ],
+        "title": "AppearanceSettingsResponse"
+      },
       "Body_import_romaneio_actions_import_romaneio_post": {
         "properties": {
           "file": {
             "type": "string",
             "format": "binary",
             "title": "File"
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
+          "llm_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider"
           }
         },
         "type": "object",
@@ -3379,6 +3616,62 @@
           "ordering_key"
         ],
         "title": "ProductResponse"
+      },
+      "ReapplyImportPayload": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "local_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local File"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "import_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Mode"
+          },
+          "grades_disponiveis": {
+            "type": "boolean",
+            "title": "Grades Disponiveis",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ReapplyImportPayload",
+        "description": "Reenvia itens já processados ao catálogo sem nova leitura/LLM."
       },
       "ReorderPayload": {
         "properties": {

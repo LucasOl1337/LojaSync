@@ -247,29 +247,31 @@ class LoggingCoverageTests(unittest.TestCase):
         job = create_import_job()
         self.addCleanup(remove_import_job, job.job_id)
 
-        local_payload = {
-            "total_rows": 1,
-            "total_itens": 1,
-            "remessa_quantity": 2,
-            "quantity_matches_remessa": True,
-            "document_total_products": "40,00",
-            "document_total_note": None,
-            "extracted_total_products": "40,00",
-            "products_value_matches_document": True,
-            "items": [
-                {
-                    "nome": "CAMISETA",
-                    "codigo": "C20",
-                    "quantidade": 2,
-                    "preco": "20,00",
-                }
-            ],
+        # Always-LLM import path: local parser is diagnostic only.
+        # SKU must pass plausible-product filter (min 4 alnum chars).
+        llm_json = (
+            '{"items":[{"codigo":"C2001","descricao_original":"CAMISETA",'
+            '"nome_curto":"CAMISETA","ncm_sh":"","quantidade":2,"preco":20.0,'
+            '"tamanho":"","grades":null}],"document_total_products":null,'
+            '"document_total_note":40.0,"remessa_quantity":2}'
+        )
+        upload_payload = {
+            "provider": "kimi",
+            "documents": [{"name": "romaneio.txt", "content": "C2001 CAMISETA 2 20,00"}],
+            "images": [],
+            "data_info": {"mode": "text"},
         }
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch(
-                "app.interfaces.api.http.jobs.runtime.parse_local_romaneio_experiment",
-                return_value=local_payload,
+            with (
+                patch(
+                    "app.interfaces.api.http.jobs.runtime.upload_llm_file",
+                    return_value=upload_payload,
+                ),
+                patch(
+                    "app.interfaces.api.http.jobs.runtime.post_llm_chat",
+                    return_value=(llm_json, None),
+                ),
             ):
                 with self.assertLogs("app.interfaces.api.http.jobs.runtime", level="INFO") as logs:
                     run_import_job(
@@ -283,18 +285,11 @@ class LoggingCoverageTests(unittest.TestCase):
 
         record = _record_with_event(logs.records, "import_job_completed")
         self.assertEqual(getattr(record, "job_id"), job.job_id)
-        self.assertEqual(getattr(record, "selected_source"), "local")
+        self.assertEqual(getattr(record, "selected_source"), "llm")
         self.assertEqual(getattr(record, "imported_items"), 1)
-        self.assertEqual(getattr(record, "llm_chat_calls"), 0)
+        self.assertGreaterEqual(int(getattr(record, "llm_chat_calls") or 0), 1)
 
     def test_grade_extraction_job_logs_completion_summary(self) -> None:
-        class FakeResponse:
-            def raise_for_status(self) -> None:
-                return None
-
-            def json(self) -> dict[str, object]:
-                return {"documents": [{"name": "nota.txt", "content": "grades"}], "images": []}
-
         class FakeClient:
             def __init__(self, *_args: object, **_kwargs: object) -> None:
                 pass
@@ -304,9 +299,6 @@ class LoggingCoverageTests(unittest.TestCase):
 
             def __exit__(self, *_args: object) -> None:
                 return None
-
-            def post(self, *_args: object, **_kwargs: object) -> FakeResponse:
-                return FakeResponse()
 
         class FakeGradeService:
             def update_grades_by_identifier(self, **_kwargs: object) -> object:
@@ -318,8 +310,16 @@ class LoggingCoverageTests(unittest.TestCase):
         with (
             patch("app.interfaces.api.http.jobs.runtime.httpx.Client", FakeClient),
             patch(
+                "app.interfaces.api.http.jobs.runtime.upload_llm_file",
+                return_value={
+                    "provider": "kimi",
+                    "documents": [{"name": "nota.txt", "content": "grades"}],
+                    "images": [],
+                },
+            ),
+            patch(
                 "app.interfaces.api.http.jobs.runtime.post_llm_chat",
-                return_value=('{"items":[{"codigo":"C20","grades":{"P":2}}]}', None),
+                return_value=('{"items":[{"codigo":"C2001","grades":{"P":2}}]}', None),
             ),
         ):
             with self.assertLogs("app.interfaces.api.http.jobs.runtime", level="INFO") as logs:

@@ -84,7 +84,7 @@ test("builds import diagnostics chips from existing metrics", () => {
       { label: "Origem", value: "IA", tone: "neutral" },
       { label: "Itens", value: "4", tone: "success" },
       { label: "Total detectado", value: "R$\u00a04.613,76", tone: "neutral" },
-      { label: "Total da nota", value: "R$\u00a04.613,76", tone: "neutral" },
+      { label: "Total produtos", value: "R$\u00a04.613,76", tone: "neutral" },
       { label: "Conferência", value: "Valores batem", tone: "success" },
     ],
   );
@@ -380,6 +380,7 @@ test("builds and limits recent import history entries", () => {
     validationStatus: "approved",
     gradesAvailable: true,
     status: "ok",
+    canReopen: true,
   });
 
   assert.equal(
